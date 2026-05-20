@@ -291,6 +291,35 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
   .charts-grid { grid-template-columns: 1fr; }
 }
 
+
+/* ── List View ── */
+.leads-list-table { width: 100%; border-collapse: collapse; }
+.leads-list-table th { text-align: left; padding: 9px 12px; font-size: 11px; font-weight: 600; color: var(--text3); border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+.leads-list-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+.leads-list-table tr:last-child td { border-bottom: none; }
+.leads-list-table tr:hover td { background: var(--bg3); cursor: pointer; }
+.view-toggle { display: flex; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px; gap: 2px; }
+.view-toggle-btn { padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; color: var(--text3); transition: all 0.15s; border: none; background: transparent; }
+.view-toggle-btn.active { background: var(--bg4); color: var(--text); }
+
+/* ── Activity Feed (global) ── */
+.feed-item { display: flex; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); transition: background 0.1s; }
+.feed-item:hover { background: var(--bg3); }
+.feed-item:last-child { border-bottom: none; }
+.feed-lead-link { font-size: 11.5px; color: var(--accent); cursor: pointer; }
+.feed-lead-link:hover { text-decoration: underline; }
+
+/* ── Contract Notes ── */
+.contract-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+.contract-card-header { padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+.contract-card-header:hover { background: var(--bg4); }
+.contract-card-body { padding: 10px 14px; border-top: 1px solid var(--border); }
+.contract-note-item { padding: 8px 10px; background: var(--bg2); border-radius: 6px; margin-bottom: 6px; font-size: 12.5px; color: var(--text2); }
+.contract-note-meta { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+/* ── Feed page ── */
+#nav-feed.active { background: var(--accent-glow); color: var(--accent); }
+
 /* Stage colors */
 .stage-0 { background: #4b5563; }
 .stage-1 { background: #3b82f6; }
@@ -381,6 +410,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
         <div class="nav-item" onclick="navigate('contacts')" id="nav-contacts">
           <span class="nav-icon">👥</span><span class="nav-text">聯絡人</span>
         </div>
+        <div class="nav-item" onclick="navigate('feed')" id="nav-feed">
+          <span class="nav-icon">📰</span><span class="nav-text">動態總覽</span>
+        </div>
       </div>
       <div class="nav-section">
         <div class="nav-label">管理</div>
@@ -460,6 +492,7 @@ let stagesData = [];
 let sourcesData = [];
 let currentLeadId = null;
 let dragSrcId = null;
+let leadsViewMode = 'kanban';
 
 // Default stages
 const DEFAULT_STAGES = [
@@ -566,7 +599,7 @@ function navigate(page) {
   const nav = document.getElementById('nav-' + page);
   if (nav) nav.classList.add('active');
   document.getElementById('topbarTitle').textContent = {
-    dashboard: 'Dashboard', leads: 'Leads 看板', accounts: '客戶 Accounts', contacts: '聯絡人', settings: '設定'
+    dashboard: 'Dashboard', leads: 'Leads 看板', accounts: '客戶 Accounts', contacts: '聯絡人', settings: '設定', feed: '動態總覽'
   }[page] || page;
   document.getElementById('topbarActions').innerHTML = '';
   closeDrawer();
@@ -582,6 +615,7 @@ async function renderPage(page) {
     case 'accounts': await renderAccounts(); break;
     case 'contacts': await renderContacts(); break;
     case 'settings': await renderSettings(); break;
+    case 'feed': await renderFeed(); break;
   }
 }
 
@@ -698,15 +732,21 @@ async function renderLeads() {
     <div class="action-bar">
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
-        <input class="form-input search-input" id="leadSearch" placeholder="搜尋..." style="width:180px" oninput="filterLeads()" >
+        <input class="form-input search-input" id="leadSearch" placeholder="搜尋..." style="width:180px" oninput="filterLeads()">
       </div>
+      <div class="view-toggle">
+        <button class="view-toggle-btn ${leadsViewMode==='kanban'?'active':''}" onclick="setLeadsView('kanban')">🗂 看板</button>
+        <button class="view-toggle-btn ${leadsViewMode==='list'?'active':''}" onclick="setLeadsView('list')">☰ 列表</button>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="downloadImportTemplate()">📋 範本</button>
       <button class="btn btn-secondary btn-sm" onclick="importLeadsExcel()">📥 匯入</button>
       <button class="btn btn-secondary btn-sm" onclick="exportLeadsExcel()">📤 匯出</button>
       <button class="btn btn-primary btn-sm" onclick="openNewLeadModal()">＋ 新增 Lead</button>
     </div>
   `;
 
-  renderKanban();
+  if (leadsViewMode === 'list') renderLeadsList();
+  else renderKanban();
 }
 
 function renderKanban(searchStr = '') {
@@ -787,7 +827,61 @@ function createKanbanCard(lead) {
 
 function filterLeads() {
   const q = document.getElementById('leadSearch')?.value || '';
-  renderKanban(q);
+  if (leadsViewMode === 'list') renderLeadsList(q);
+  else renderKanban(q);
+}
+
+function setLeadsView(mode) {
+  leadsViewMode = mode;
+  // update toggle buttons
+  document.querySelectorAll('.view-toggle-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.includes(mode === 'kanban' ? '看板' : '列表'));
+  });
+  filterLeads();
+}
+
+function renderLeadsList(searchStr = '') {
+  const content = document.getElementById('content');
+  content.style.padding = '24px';
+  content.style.overflowX = 'auto';
+  const filtered = leadsData.filter(l => {
+    if (!searchStr) return true;
+    return l.name?.toLowerCase().includes(searchStr.toLowerCase()) || l.company?.toLowerCase().includes(searchStr.toLowerCase());
+  });
+
+  if (!filtered.length) {
+    content.innerHTML = '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-text">沒有符合的 Lead</div></div>';
+    return;
+  }
+
+  const rows = filtered.map(l => {
+    const stage = stagesData.find(s => s.id === l.stage_id);
+    const src = sourcesData.find(s => s.id === l.source_id);
+    const prioLabel = {high:'🔴 高', mid:'🟡 中', low:'🟢 低'}[l.priority] || '—';
+    const stageDot = stage ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${stage.color||'#888'};margin-right:5px"></span>` : '';
+    return `
+      <tr onclick="openLeadDrawer('${l.id}')">
+        <td><div style="font-weight:500">${esc(l.name)}</div></td>
+        <td>${esc(l.company||'—')}</td>
+        <td>${stageDot}<span style="font-size:12px">${esc(stage?.name||'—')}</span></td>
+        <td>${esc(src?.name||'—')}</td>
+        <td>${l.amount ? '$ ' + fmtNum(l.amount) : '—'}</td>
+        <td>${prioLabel}</td>
+        <td style="font-size:12px;color:var(--text3)">${fmtDate(l.created_at)}</td>
+      </tr>
+    `;
+  }).join('');
+
+  content.innerHTML = `
+    <div class="panel">
+      <table class="leads-list-table">
+        <thead><tr>
+          <th>名稱</th><th>公司</th><th>階段</th><th>來源</th><th>預估金額</th><th>優先級</th><th>建立日期</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
 }
 
 function colDragOver(e, el) {
@@ -1103,7 +1197,7 @@ async function renderDrawerActivities(leadId) {
   }).join('');
   panel.innerHTML = `
     <div style="margin-bottom:12px">
-      <button class="btn btn-primary btn-sm" onclick="openAddActivity(${leadId})">＋ 記錄活動</button>
+      <button class="btn btn-primary btn-sm" onclick="openAddActivity('${leadId}')">＋ 記錄活動</button>
     </div>
     <div class="activity-list">
       ${list || '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">尚無活動記錄</div></div>'}
@@ -1148,7 +1242,7 @@ async function renderDrawerNotes(leadId) {
   panel.innerHTML = `
     <div style="margin-bottom:12px">
       <textarea class="form-textarea" id="newNoteText" placeholder="新增備註..."></textarea>
-      <button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="addNote(${leadId})">＋ 新增備註</button>
+      <button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="addNote('${leadId}')">＋ 新增備註</button>
     </div>
     ${(notes||[]).map(n => `
       <div class="note-item">
@@ -1368,7 +1462,7 @@ async function openAccountDetail(accId) {
                 <div class="note-text">${esc(n.content)}</div>
                 <div style="display:flex;justify-content:space-between">
                   <div class="note-meta">${fmtDate(n.created_at)}</div>
-                  <button class="btn btn-ghost btn-sm" onclick="deleteNote(${n.id},'${accId}','account')">🗑</button>
+                  <button class="btn btn-ghost btn-sm" onclick="deleteNote('${n.id}','${accId}','account')">🗑</button>
                 </div>
               </div>
             `).join('') || '<div class="empty-state" style="padding:16px"><div class="empty-text">尚無備註</div></div>'}
@@ -1385,20 +1479,74 @@ function renderContractList(contracts) {
     const days = c.end_date ? Math.ceil((new Date(c.end_date)-new Date())/86400000) : null;
     const expired = days !== null && days < 0;
     return `
-      <div class="note-item" style="margin-bottom:8px">
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <div style="font-weight:500;font-size:13px">${esc(c.name||'合約')}</div>
-          <button class="btn btn-ghost btn-sm" onclick="deleteContract('${c.id}')">🗑</button>
+      <div class="contract-card">
+        <div class="contract-card-header" onclick="toggleContractCard('${c.id}')">
+          <div style="flex:1">
+            <div style="font-weight:500;font-size:13px;margin-bottom:4px">${esc(c.name||'合約')}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              ${c.amount ? `<span class="badge badge-green">$ ${fmtNum(c.amount)}</span>` : ''}
+              ${c.start_date ? `<span style="font-size:11px;color:var(--text3)">開始：${c.start_date}</span>` : ''}
+              ${c.end_date ? `<span style="font-size:11px;color:${expired?'var(--red)':days<=30?'var(--yellow)':'var(--text3)'}">到期：${c.end_date}${days!==null?' ('+(expired?'已到期':'剩'+days+'天')+')':''}</span>` : ''}
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span id="ct-toggle-${c.id}" style="font-size:11px;color:var(--text3)">📝 備註</span>
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteContract('${c.id}')">🗑</button>
+          </div>
         </div>
-        <div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap">
-          ${c.amount ? `<span class="badge badge-green">$ ${fmtNum(c.amount)}</span>` : ''}
-          ${c.start_date ? `<span style="font-size:11.5px;color:var(--text3)">開始：${c.start_date}</span>` : ''}
-          ${c.end_date ? `<span style="font-size:11.5px;color:${expired?'var(--red)':days<=30?'var(--yellow)':'var(--text3)'}">到期：${c.end_date}${days!==null?` (${expired?'已到期':'剩'+days+'天'})`:''}</span>` : ''}
+        <div class="contract-card-body" id="ct-body-${c.id}" style="display:none">
+          ${c.note ? `<div style="font-size:12px;color:var(--text3);margin-bottom:10px;padding:6px 8px;background:var(--bg3);border-radius:5px">${esc(c.note)}</div>` : ''}
+          <div id="ct-notes-${c.id}"><div style="font-size:12px;color:var(--text3)">載入中...</div></div>
+          <div style="margin-top:10px;display:flex;gap:6px">
+            <textarea class="form-textarea" id="ct-note-input-${c.id}" placeholder="新增合約備註..." style="min-height:60px;flex:1;font-size:12.5px"></textarea>
+            <button class="btn btn-primary btn-sm" style="align-self:flex-end" onclick="addContractNote('${c.id}')">新增</button>
+          </div>
         </div>
-        ${c.note ? `<div style="font-size:12px;color:var(--text3);margin-top:4px">${esc(c.note)}</div>` : ''}
       </div>
     `;
   }).join('');
+}
+
+async function toggleContractCard(ctId) {
+  const body = document.getElementById('ct-body-' + ctId);
+  if (!body) return;
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  if (!open) await loadContractNotes(ctId);
+}
+
+async function loadContractNotes(ctId) {
+  const { data: notes } = await db.from('notes').select('*').eq('contract_id', ctId).order('created_at', {ascending:false});
+  const el = document.getElementById('ct-notes-' + ctId);
+  if (!el) return;
+  if (!notes || !notes.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:4px 0">尚無備註</div>';
+    return;
+  }
+  el.innerHTML = notes.map(n => `
+    <div class="contract-note-item">
+      <div>${esc(n.content)}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px">
+        <div class="contract-note-meta">${fmtDate(n.created_at)}</div>
+        <button class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:11px" onclick="deleteContractNote('${n.id}','${ctId}')">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function addContractNote(ctId) {
+  const input = document.getElementById('ct-note-input-' + ctId);
+  const text = input?.value?.trim();
+  if (!text) return;
+  await db.from('notes').insert({ content: text, contract_id: ctId, user_id: currentUser.id, created_at: new Date().toISOString() });
+  input.value = '';
+  toast('備註已新增', 'success');
+  await loadContractNotes(ctId);
+}
+
+async function deleteContractNote(noteId, ctId) {
+  await db.from('notes').delete().eq('id', noteId);
+  await loadContractNotes(ctId);
 }
 
 function openAddContract(accId) {
@@ -1446,7 +1594,7 @@ async function renderAccountNotes(accId) {
       <div class="note-text">${esc(n.content)}</div>
       <div style="display:flex;justify-content:space-between">
         <div class="note-meta">${fmtDate(n.created_at)}</div>
-        <button class="btn btn-ghost btn-sm" onclick="deleteNote(${n.id},'${accId}','account')">🗑</button>
+        <button class="btn btn-ghost btn-sm" onclick="deleteNote('${n.id}','${accId}','account')">🗑</button>
       </div>
     </div>
   `).join('') || '<div class="empty-state" style="padding:16px"><div class="empty-text">尚無備註</div></div>';
@@ -1604,6 +1752,83 @@ async function deleteSource(id) {
   toast('來源已刪除', 'success');
 }
 
+
+// ── ACTIVITY & NOTES FEED ──
+async function renderFeed() {
+  const content = document.getElementById('content');
+  content.style.padding = '24px';
+  content.innerHTML = '<div class="loading"><span class="dot-pulse">載入中</span></div>';
+
+  const [actsRes, notesRes] = await Promise.all([
+    db.from('activities').select('*, leads(id, name, company)').order('created_at', {ascending:false}).limit(100),
+    db.from('notes').select('*, leads(id, name, company)').order('created_at', {ascending:false}).limit(100)
+  ]);
+
+  const acts = (actsRes.data || []).map(a => ({...a, _type: 'activity'}));
+  const notes = (notesRes.data || []).filter(n => n.lead_id).map(n => ({...n, _type: 'note'}));
+  const combined = [...acts, ...notes].sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 150);
+
+  document.getElementById('topbarActions').innerHTML = `
+    <div class="action-bar">
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-secondary btn-sm feed-filter-btn active" data-filter="all" onclick="setFeedFilter('all',this)">全部</button>
+        <button class="btn btn-secondary btn-sm feed-filter-btn" data-filter="activity" onclick="setFeedFilter('activity',this)">活動記錄</button>
+        <button class="btn btn-secondary btn-sm feed-filter-btn" data-filter="note" onclick="setFeedFilter('note',this)">備註</button>
+      </div>
+    </div>
+  `;
+
+  window._feedItems = combined;
+  renderFeedList(combined);
+}
+
+function setFeedFilter(filter, btn) {
+  document.querySelectorAll('.feed-filter-btn').forEach(b => b.classList.remove('active', 'btn-primary'));
+  btn.classList.add('active');
+  const items = filter === 'all' ? window._feedItems : window._feedItems.filter(i => i._type === filter);
+  renderFeedList(items);
+}
+
+function renderFeedList(items) {
+  const content = document.getElementById('content');
+  if (!items.length) {
+    content.innerHTML = '<div class="empty-state"><div class="empty-icon">📰</div><div class="empty-text">尚無動態</div></div>';
+    return;
+  }
+
+  const rows = items.map(item => {
+    const isAct = item._type === 'activity';
+    const t = isAct ? (ACTIVITY_TYPES[item.type] || ACTIVITY_TYPES['note']) : null;
+    const icon = isAct ? t.icon : '📝';
+    const iconColor = isAct ? t.color : '#6b7280';
+    const typeLabel = isAct ? t.label : '備註';
+    const lead = item.leads;
+    const leadInfo = lead ? `<span class="feed-lead-link" onclick="event.stopPropagation();openLeadFromFeed('${lead.id}')">${esc(lead.name)}${lead.company?' · '+esc(lead.company):''}</span>` : '';
+
+    return `
+      <div class="feed-item" style="cursor:pointer" onclick="openLeadFromFeed('${item.lead_id}')">
+        <div style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;background:${iconColor}20;color:${iconColor}">${icon}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+            <span style="font-size:12px;font-weight:600;color:var(--text2)">${typeLabel}</span>
+            ${leadInfo}
+          </div>
+          <div style="font-size:13px;color:var(--text);white-space:pre-wrap;word-break:break-word">${esc(item.content||'')}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:3px">${fmtDate(item.created_at)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  content.innerHTML = `<div class="panel">${rows}</div>`;
+}
+
+function openLeadFromFeed(leadId) {
+  if (!leadId) return;
+  navigate('leads');
+  setTimeout(() => openLeadDrawer(leadId), 300);
+}
+
 // ── Import / Export ──
 function importLeadsExcel() {
   const input = document.createElement('input');
@@ -1617,43 +1842,96 @@ function importLeadsExcel() {
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws);
     if (!rows.length) { toast('檔案無資料', 'error'); return; }
-    let success = 0;
+
+    let leadCount = 0, contactCount = 0;
     for (const row of rows) {
       const name = row['名稱'] || row['name'] || row['Name'];
       if (!name) continue;
       const stageName = row['階段'] || row['stage'];
+      const srcName = row['來源'] || row['source'];
       const stage = stagesData.find(s => s.name === stageName) || stagesData[0];
-      await db.from('leads').insert({
+      const src = sourcesData.find(s => s.name === srcName);
+      const prioMap = {'高':'high','中':'mid','低':'low','high':'high','mid':'mid','low':'low'};
+      const { data: lead, error } = await db.from('leads').insert({
         name: String(name),
         company: String(row['公司'] || row['company'] || ''),
-        amount: parseFloat(row['金額'] || row['amount']) || null,
+        amount: parseFloat(row['預估金額'] || row['金額'] || row['amount']) || null,
+        priority: prioMap[row['優先級'] || row['priority']] || null,
         stage_id: stage?.id,
+        source_id: src?.id || null,
         user_id: currentUser.id, created_at: new Date().toISOString()
-      });
-      success++;
+      }).select().single();
+      if (error || !lead) continue;
+      leadCount++;
+
+      // Import up to 3 contacts per row (聯絡人1~3)
+      for (let i = 1; i <= 3; i++) {
+        const cName = row[`聯絡人${i}_姓名`] || row[`contact${i}_name`];
+        if (!cName) continue;
+        await db.from('contacts').insert({
+          name: String(cName),
+          role: String(row[`聯絡人${i}_職稱`] || row[`contact${i}_role`] || ''),
+          email: String(row[`聯絡人${i}_Email`] || row[`contact${i}_email`] || ''),
+          phone: String(row[`聯絡人${i}_電話`] || row[`contact${i}_phone`] || ''),
+          lead_id: lead.id, user_id: currentUser.id, created_at: new Date().toISOString()
+        });
+        contactCount++;
+      }
     }
-    toast(`匯入成功：${success} 筆`, 'success');
+    toast(`匯入完成：${leadCount} 筆 Lead，${contactCount} 位聯絡人`, 'success');
     navigate('leads');
   };
   input.click();
 }
 
 async function exportLeadsExcel() {
-  const { data } = await db.from('leads').select('*, stages(name), sources(name)');
-  const rows = (data||[]).map(l => ({
+  const { data: leads } = await db.from('leads').select('*, stages(name), sources(name)');
+  const { data: contacts } = await db.from('contacts').select('*');
+
+  // Sheet 1: Leads (with system ID for reference)
+  const leadRows = (leads||[]).map(l => ({
+    'Lead_ID': l.id,
     '名稱': l.name,
     '公司': l.company || '',
     '階段': l.stages?.name || '',
     '來源': l.sources?.name || '',
-    '金額': l.amount || '',
+    '預估金額': l.amount || '',
     '優先級': {high:'高',mid:'中',low:'低'}[l.priority] || '',
     '建立日期': fmtDate(l.created_at)
   }));
-  const ws = XLSX.utils.json_to_sheet(rows);
+
+  // Sheet 2: Contacts (linked to lead by Lead_ID)
+  const contactRows = (contacts||[]).map(c => ({
+    'Contact_ID': c.id,
+    'Lead_ID': c.lead_id,
+    '聯絡人姓名': c.name,
+    '職稱': c.role || '',
+    'Email': c.email || '',
+    '電話': c.phone || '',
+    '備註': c.note || ''
+  }));
+
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Leads');
-  XLSX.writeFile(wb, `leads_${new Date().toISOString().split('T')[0]}.xlsx`);
-  toast('匯出成功', 'success');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(leadRows), 'Leads');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(contactRows), 'Contacts');
+  XLSX.writeFile(wb, `saleflow_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+  toast('匯出成功（Leads + Contacts 兩個分頁）', 'success');
+}
+
+// Download import template
+function downloadImportTemplate() {
+  const leadSample = [
+    { '名稱': 'Example Corp', '公司': '範例有限公司', '階段': '新名單', '來源': '', '預估金額': 500000, '優先級': '高',
+      '聯絡人1_姓名': '王小明', '聯絡人1_職稱': '採購經理', '聯絡人1_Email': 'wang@example.com', '聯絡人1_電話': '0912-345-678',
+      '聯絡人2_姓名': '', '聯絡人2_職稱': '', '聯絡人2_Email': '', '聯絡人2_電話': '' },
+    { '名稱': 'Test Company', '公司': '測試股份有限公司', '階段': '已聯繫窗口', '來源': '', '預估金額': 120000, '優先級': '中',
+      '聯絡人1_姓名': '李大華', '聯絡人1_職稱': 'CEO', '聯絡人1_Email': 'li@test.com', '聯絡人1_電話': '',
+      '聯絡人2_姓名': '', '聯絡人2_職稱': '', '聯絡人2_Email': '', '聯絡人2_電話': '' }
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(leadSample), 'Leads_匯入格式');
+  XLSX.writeFile(wb, 'saleflow_import_template.xlsx');
+  toast('範本下載成功', 'success');
 }
 
 // ── User Menu ──
@@ -1785,9 +2063,12 @@ CREATE TABLE IF NOT EXISTS notes (
   lead_id UUID REFERENCES leads(id) ON DELETE CASCADE,
   account_id UUID,
   contact_id UUID,
+  contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE,
   user_id UUID,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+-- If notes table already exists, add column:
+-- ALTER TABLE notes ADD COLUMN IF NOT EXISTS contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE;
 CREATE TABLE IF NOT EXISTS accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
