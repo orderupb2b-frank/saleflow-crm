@@ -536,6 +536,8 @@ let activityTemplates = [];
 let currentLeadId = null;
 let dragSrcId = null;
 let dragSrcEl = null;
+let showConvertedLeads = false;
+let convertedLeadIds = new Set();
 let leadsViewMode = 'kanban';
 let kanbanFilterPrio = 'all';
 let kanbanFilterSrc = 'all';
@@ -783,8 +785,17 @@ async function renderDashboard() {
 // ── LEADS KANBAN ──
 async function renderLeads() {
   await loadGlobalData();
-  const { data } = await db.from('leads').select('*, contacts(id)').order('sort_order', {ascending:true});
+  // Try ordering by sort_order; fallback to created_at if column doesn't exist yet
+  let { data, error: leadsErr } = await db.from('leads').select('*, contacts(id)').order('sort_order', {ascending:true});
+  if (leadsErr) {
+    const fallback = await db.from('leads').select('*, contacts(id)').order('created_at', {ascending:true});
+    data = fallback.data;
+  }
   leadsData = data || [];
+
+  // Load which leads have been converted to accounts
+  const { data: accounts } = await db.from('accounts').select('lead_id').not('lead_id', 'is', null);
+  convertedLeadIds = new Set((accounts||[]).map(a => a.lead_id));
 
   document.getElementById('topbarActions').innerHTML = `
     <div class="action-bar">
@@ -796,6 +807,7 @@ async function renderLeads() {
         <button class="view-toggle-btn ${leadsViewMode==='kanban'?'active':''}" onclick="setLeadsView('kanban')">🗂</button>
         <button class="view-toggle-btn ${leadsViewMode==='list'?'active':''}" onclick="setLeadsView('list')">☰</button>
       </div>
+      <button class="btn btn-secondary btn-sm ${showConvertedLeads?'btn-primary':''}" onclick="toggleShowConverted()" data-tip="顯示/隱藏已轉客戶的 Lead" style="font-size:11px">🏢 ${showConvertedLeads?'含已轉':'僅進行中'}</button>
       <button class="btn btn-secondary btn-sm" onclick="downloadImportTemplate()">📋</button>
       <button class="btn btn-secondary btn-sm" onclick="importLeadsExcel()">📥</button>
       <button class="btn btn-secondary btn-sm" onclick="exportLeadsExcel()">📤</button>
@@ -839,6 +851,7 @@ function renderKanban(searchStr = '') {
   stagesData.forEach((stage, si) => {
     const stageleads = leadsData.filter(l => {
       if (l.stage_id !== stage.id) return false;
+      if (!showConvertedLeads && convertedLeadIds.has(l.id)) return false;
       if (searchStr && !l.name?.toLowerCase().includes(searchStr.toLowerCase()) && !l.company?.toLowerCase().includes(searchStr.toLowerCase())) return false;
       if (kanbanFilterPrio !== 'all' && (l.priority||'') !== kanbanFilterPrio) return false;
       if (kanbanFilterSrc !== 'all' && (l.source_id||'') !== kanbanFilterSrc) return false;
@@ -964,6 +977,12 @@ function filterLeads() {
   else renderKanban(q);
 }
 
+function toggleShowConverted() {
+  showConvertedLeads = !showConvertedLeads;
+  // Re-render topbar action to update button state
+  renderLeads();
+}
+
 function setLeadsView(mode) {
   leadsViewMode = mode;
   document.querySelectorAll('.view-toggle-btn').forEach((b,i) => b.classList.toggle('active', i===(mode==='kanban'?0:1)));
@@ -974,9 +993,10 @@ function renderLeadsList(searchStr = '') {
   const content = document.getElementById('content');
   content.style.padding = '24px';
   content.style.overflowX = 'auto';
-  const filtered = leadsData.filter(l =>
-    !searchStr || l.name?.toLowerCase().includes(searchStr.toLowerCase()) || l.company?.toLowerCase().includes(searchStr.toLowerCase())
-  );
+  const filtered = leadsData.filter(l => {
+    if (!showConvertedLeads && convertedLeadIds.has(l.id)) return false;
+    return !searchStr || l.name?.toLowerCase().includes(searchStr.toLowerCase()) || l.company?.toLowerCase().includes(searchStr.toLowerCase());
+  });
   if (!filtered.length) {
     content.innerHTML = '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-text">沒有符合的 Lead</div></div>';
     return;
@@ -1533,6 +1553,7 @@ function renderAccountsList(accs) {
           <tr>
             <th>客戶名稱</th>
             <th>公司</th>
+            <th>狀態</th>
             <th>合約數</th>
             <th>合約金額</th>
             <th>到期日</th>
@@ -1545,10 +1566,14 @@ function renderAccountsList(accs) {
             const totalAmt = contracts.reduce((s,c) => s + (c.amount||0), 0);
             const nearest = contracts.filter(c=>c.end_date).sort((x,y)=>new Date(x.end_date)-new Date(y.end_date))[0];
             const daysLeft = nearest ? Math.ceil((new Date(nearest.end_date)-new Date())/86400000) : null;
+            const statusBadge = a.status === 'terminated'
+              ? '<span class="badge badge-red">終止合作</span>'
+              : '<span class="badge badge-green">合作中</span>';
             return `
-              <tr onclick="openAccountDetail('${a.id}')">
+              <tr onclick="openAccountDetail('${a.id}')" style="${a.status==='terminated'?'opacity:0.6':''}">
                 <td><div style="font-weight:500">${esc(a.name)}</div></td>
                 <td>${esc(a.company||'—')}</td>
+                <td>${statusBadge}</td>
                 <td><span class="badge badge-gray">${contracts.length}</span></td>
                 <td style="font-family:var(--mono);font-size:12.5px">${totalAmt > 0 ? '$ '+fmtNum(totalAmt) : '—'}</td>
                 <td>${nearest ? '<span style="color:'+(daysLeft<=30?'var(--red)':'var(--text2)')+'">'+nearest.end_date+' ('+daysLeft+'天)</span>' : '—'}</td>
@@ -1587,12 +1612,24 @@ async function openAccountDetail(accId) {
   const { data: contracts } = await db.from('contracts').select('*').eq('account_id', accId).order('created_at', {ascending:false});
   const { data: notes } = await db.from('notes').select('*').eq('account_id', accId).order('created_at', {ascending:false});
 
+  const isTerminated = acc.status === 'terminated';
+  const statusBadge = isTerminated
+    ? `<span class="badge badge-red">終止合作</span>`
+    : `<span class="badge badge-green">合作中</span>`;
+
   const content = document.getElementById('content');
   content.innerHTML = `
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="navigate('accounts')">← 返回</button>
       <div class="page-title">🏢 ${esc(acc.name)}</div>
       ${acc.company ? `<span class="badge badge-gray">${esc(acc.company)}</span>` : ''}
+      ${statusBadge}
+      <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-sm ${isTerminated?'btn-secondary':'btn-danger'}" onclick="toggleAccountStatus('${accId}','${isTerminated?'active':'terminated'}')">
+          ${isTerminated ? '✅ 恢復合作' : '🚫 標記終止合作'}
+        </button>
+        ${acc.lead_id ? `<button class="btn btn-sm btn-secondary" onclick="revertToLead('${acc.lead_id}','${accId}')">↩ 轉回 Lead</button>` : ''}
+      </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div>
@@ -1630,6 +1667,30 @@ async function openAccountDetail(accId) {
       </div>
     </div>
   `;
+}
+
+async function toggleAccountStatus(accId, newStatus) {
+  await db.from('accounts').update({ status: newStatus }).eq('id', accId);
+  toast(newStatus === 'terminated' ? '已標記終止合作' : '已恢復為合作中', 'success');
+  openAccountDetail(accId);
+}
+
+async function revertToLead(leadId, accId) {
+  openConfirm(
+    '轉回 Lead',
+    '將此客戶轉回 Lead 狀態，Account 紀錄仍保留，Lead 會重新出現在看板上。',
+    async () => {
+      // Reset the lead's stage to 新名單 (first stage)
+      const firstStage = stagesData[0];
+      if (firstStage) {
+        await db.from('leads').update({ stage_id: firstStage.id, updated_at: new Date().toISOString() }).eq('id', leadId);
+      }
+      closeModal();
+      toast('已轉回 Lead，可在看板上找到', 'success');
+      navigate('leads');
+    },
+    closeModal, '確定轉回', '取消'
+  );
 }
 
 function renderContractList(contracts) {
@@ -2302,9 +2363,12 @@ CREATE TABLE IF NOT EXISTS accounts (
   name TEXT NOT NULL,
   company TEXT,
   lead_id UUID REFERENCES leads(id),
+  status TEXT DEFAULT 'active',
   user_id UUID,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+-- If accounts table already exists:
+-- ALTER TABLE accounts ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
 CREATE TABLE IF NOT EXISTS activity_templates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
