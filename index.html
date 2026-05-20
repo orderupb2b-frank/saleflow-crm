@@ -283,42 +283,84 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .confirm-desc { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
 .confirm-btns { display: flex; justify-content: center; gap: 10px; }
 
-/* Responsive Kanban */
-@media (max-width: 900px) {
-  #sidebar { width: 60px; }
-  .nav-text, .logo-text, .user-info, .nav-label { display: none; }
-  .stats-grid { grid-template-columns: 1fr 1fr; }
-  .charts-grid { grid-template-columns: 1fr; }
-}
-
 
 /* ── List View ── */
 .leads-list-table { width: 100%; border-collapse: collapse; }
-.leads-list-table th { text-align: left; padding: 9px 12px; font-size: 11px; font-weight: 600; color: var(--text3); border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
-.leads-list-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
-.leads-list-table tr:last-child td { border-bottom: none; }
-.leads-list-table tr:hover td { background: var(--bg3); cursor: pointer; }
-.view-toggle { display: flex; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px; gap: 2px; }
-.view-toggle-btn { padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; color: var(--text3); transition: all 0.15s; border: none; background: transparent; }
-.view-toggle-btn.active { background: var(--bg4); color: var(--text); }
+.leads-list-table th { text-align:left; padding:9px 12px; font-size:11px; font-weight:600; color:var(--text3); border-bottom:1px solid var(--border); text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap; }
+.leads-list-table td { padding:10px 12px; border-bottom:1px solid var(--border); font-size:13px; vertical-align:middle; }
+.leads-list-table tr:last-child td { border-bottom:none; }
+.leads-list-table tr:hover td { background:var(--bg3); cursor:pointer; }
+.view-toggle { display:flex; background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius-sm); padding:2px; gap:2px; }
+.view-toggle-btn { padding:4px 10px; border-radius:4px; font-size:12px; cursor:pointer; color:var(--text3); transition:all 0.15s; border:none; background:transparent; }
+.view-toggle-btn.active { background:var(--bg4); color:var(--text); }
 
-/* ── Activity Feed (global) ── */
-.feed-item { display: flex; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); transition: background 0.1s; }
-.feed-item:hover { background: var(--bg3); }
-.feed-item:last-child { border-bottom: none; }
-.feed-lead-link { font-size: 11.5px; color: var(--accent); cursor: pointer; }
-.feed-lead-link:hover { text-decoration: underline; }
+/* ── Kanban filter bar ── */
+.kanban-filters { display:flex; gap:6px; align-items:center; flex-wrap:wrap; padding:0 0 12px 0; }
+.filter-chip { padding:3px 10px; border-radius:20px; font-size:12px; cursor:pointer; color:var(--text3); background:var(--bg3); border:1px solid var(--border); transition:all 0.15s; white-space:nowrap; }
+.filter-chip.active { background:var(--accent-glow); color:var(--accent); border-color:var(--accent); }
+.filter-chip:hover:not(.active) { border-color:var(--border2); color:var(--text); }
+
+/* ── Activity Feed ── */
+.feed-item { display:flex; gap:12px; padding:12px 14px; border-bottom:1px solid var(--border); transition:background 0.1s; }
+.feed-item:hover { background:var(--bg3); }
+.feed-item:last-child { border-bottom:none; }
+.feed-lead-link { font-size:11.5px; color:var(--accent); cursor:pointer; }
+.feed-lead-link:hover { text-decoration:underline; }
 
 /* ── Contract Notes ── */
-.contract-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
-.contract-card-header { padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
-.contract-card-header:hover { background: var(--bg4); }
-.contract-card-body { padding: 10px 14px; border-top: 1px solid var(--border); }
-.contract-note-item { padding: 8px 10px; background: var(--bg2); border-radius: 6px; margin-bottom: 6px; font-size: 12.5px; color: var(--text2); }
-.contract-note-meta { font-size: 11px; color: var(--text3); margin-top: 3px; }
+.contract-card { background:var(--bg3); border:1px solid var(--border); border-radius:8px; margin-bottom:10px; overflow:hidden; }
+.contract-card-header { padding:10px 14px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; }
+.contract-card-header:hover { background:var(--bg4); }
+.contract-card-body { padding:10px 14px; border-top:1px solid var(--border); }
+.contract-note-item { padding:8px 10px; background:var(--bg2); border-radius:6px; margin-bottom:6px; font-size:12.5px; color:var(--text2); }
+.contract-note-meta { font-size:11px; color:var(--text3); margin-top:3px; }
 
-/* ── Feed page ── */
-#nav-feed.active { background: var(--accent-glow); color: var(--accent); }
+/* ── Template chips ── */
+.tpl-chip { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; background:var(--bg3); border:1px solid var(--border); border-radius:20px; font-size:12px; cursor:pointer; transition:all 0.15s; margin:2px; }
+.tpl-chip:hover { border-color:var(--accent); color:var(--accent); }
+
+/* ── Bottom nav (mobile) ── */
+#bottom-nav { display:none; position:fixed; bottom:0; left:0; right:0; height:60px; background:var(--bg2); border-top:1px solid var(--border); z-index:100; align-items:center; justify-content:space-around; padding:0 4px; }
+.bnav-item { display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 10px; cursor:pointer; color:var(--text3); border-radius:8px; min-width:52px; transition:all 0.15s; }
+.bnav-item.active { color:var(--accent); }
+.bnav-icon { font-size:20px; line-height:1; }
+.bnav-label { font-size:10px; font-weight:500; white-space:nowrap; }
+
+/* ── FAB (mobile) ── */
+#fab { display:none; position:fixed; bottom:72px; right:16px; width:52px; height:52px; background:var(--accent); border-radius:50%; border:none; cursor:pointer; z-index:101; font-size:24px; color:#fff; box-shadow:0 4px 16px rgba(108,140,255,0.4); align-items:center; justify-content:center; transition:transform 0.15s; }
+#fab:hover { transform:scale(1.08); }
+
+/* ── Mobile drawer full-screen ── */
+@media (max-width: 768px) {
+  html, body { overflow:hidden; }
+  #app { flex-direction:column; }
+  #sidebar { display:none !important; }
+  #main { flex:1; overflow:hidden; padding-bottom:60px; }
+  #topbar { height:52px; padding:0 14px; }
+  .topbar-title { font-size:15px; }
+  #topbarActions { display:none; }
+  #content { padding:14px; }
+  #bottom-nav { display:flex; }
+  #fab { display:flex; }
+  .drawer { width:100% !important; }
+  .modal { max-width:100% !important; margin:0; border-radius:16px 16px 0 0; position:fixed; bottom:0; left:0; right:0; max-height:92vh; }
+  .modal-overlay { align-items:flex-end; padding:0; }
+  #kanban-board { gap:8px; }
+  .kanban-col { width:220px; }
+  .stats-grid { grid-template-columns:1fr 1fr; }
+  .charts-grid { grid-template-columns:1fr; }
+  .form-row { grid-template-columns:1fr; gap:0; }
+  .login-card { width:100%; max-width:360px; padding:28px 20px; }
+  .action-bar { flex-wrap:wrap; gap:6px; }
+}
+
+/* ── Tablet ── */
+@media (max-width: 900px) and (min-width: 769px) {
+  #sidebar { width:60px; }
+  .nav-text, .logo-text, .user-info, .nav-label { display:none; }
+  .stats-grid { grid-template-columns:1fr 1fr; }
+  .charts-grid { grid-template-columns:1fr; }
+}
 
 /* Stage colors */
 .stage-0 { background: #4b5563; }
@@ -490,9 +532,13 @@ let accountsData = [];
 let contactsData = [];
 let stagesData = [];
 let sourcesData = [];
+let activityTemplates = [];
 let currentLeadId = null;
 let dragSrcId = null;
+let dragSrcEl = null;
 let leadsViewMode = 'kanban';
+let kanbanFilterPrio = 'all';
+let kanbanFilterSrc = 'all';
 
 // Default stages
 const DEFAULT_STAGES = [
@@ -573,37 +619,50 @@ async function doLogout() {
 async function bootApp() {
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
-  // Set user info
   const name = currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'User';
   document.getElementById('sidebarName').textContent = name;
   document.getElementById('sidebarEmail').textContent = currentUser.email || '';
   document.getElementById('sidebarAvatar').textContent = name[0].toUpperCase();
+  // Mobile: show topbar user initial
+  const mobileUser = document.getElementById('mobileUserAvatar');
+  if (mobileUser) mobileUser.textContent = name[0].toUpperCase();
   await initDB();
   await loadGlobalData();
   navigate('dashboard');
 }
 
 async function loadGlobalData() {
-  const [s, src] = await Promise.all([
+  const [s, src, tpl] = await Promise.all([
     db.from('stages').select('*').order('order_index'),
-    db.from('sources').select('*').order('name')
+    db.from('sources').select('*').order('name'),
+    db.from('activity_templates').select('*').order('name').catch(() => ({data:[]}))
   ]);
   stagesData = s.data || [];
   sourcesData = src.data || [];
+  activityTemplates = tpl.data || [];
 }
 
 // ── Navigation ──
 function navigate(page) {
   currentPage = page;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.bnav-item').forEach(n => n.classList.remove('active'));
   const nav = document.getElementById('nav-' + page);
   if (nav) nav.classList.add('active');
+  const bnav = document.getElementById('bnav-' + page);
+  if (bnav) bnav.classList.add('active');
   document.getElementById('topbarTitle').textContent = {
-    dashboard: 'Dashboard', leads: 'Leads 看板', accounts: '客戶 Accounts', contacts: '聯絡人', settings: '設定', feed: '動態總覽'
+    dashboard: 'Dashboard', leads: 'Leads', accounts: '客戶', contacts: '聯絡人', settings: '設定', feed: '動態總覽'
   }[page] || page;
   document.getElementById('topbarActions').innerHTML = '';
   closeDrawer();
   renderPage(page);
+}
+
+function onFabClick() {
+  if (currentPage === 'leads') openNewLeadModal();
+  else if (currentPage === 'accounts') openNewAccountModal();
+  else navigate('leads');
 }
 
 async function renderPage(page) {
@@ -724,24 +783,23 @@ async function renderDashboard() {
 // ── LEADS KANBAN ──
 async function renderLeads() {
   await loadGlobalData();
-  const { data } = await db.from('leads').select('*, contacts(id)');
+  const { data } = await db.from('leads').select('*, contacts(id)').order('sort_order', {ascending:true});
   leadsData = data || [];
 
-  // Topbar actions
   document.getElementById('topbarActions').innerHTML = `
     <div class="action-bar">
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
-        <input class="form-input search-input" id="leadSearch" placeholder="搜尋..." style="width:180px" oninput="filterLeads()">
+        <input class="form-input search-input" id="leadSearch" placeholder="搜尋..." style="width:150px" oninput="filterLeads()">
       </div>
       <div class="view-toggle">
-        <button class="view-toggle-btn ${leadsViewMode==='kanban'?'active':''}" onclick="setLeadsView('kanban')">🗂 看板</button>
-        <button class="view-toggle-btn ${leadsViewMode==='list'?'active':''}" onclick="setLeadsView('list')">☰ 列表</button>
+        <button class="view-toggle-btn ${leadsViewMode==='kanban'?'active':''}" onclick="setLeadsView('kanban')">🗂</button>
+        <button class="view-toggle-btn ${leadsViewMode==='list'?'active':''}" onclick="setLeadsView('list')">☰</button>
       </div>
-      <button class="btn btn-secondary btn-sm" onclick="downloadImportTemplate()">📋 範本</button>
-      <button class="btn btn-secondary btn-sm" onclick="importLeadsExcel()">📥 匯入</button>
-      <button class="btn btn-secondary btn-sm" onclick="exportLeadsExcel()">📤 匯出</button>
-      <button class="btn btn-primary btn-sm" onclick="openNewLeadModal()">＋ 新增 Lead</button>
+      <button class="btn btn-secondary btn-sm" onclick="downloadImportTemplate()">📋</button>
+      <button class="btn btn-secondary btn-sm" onclick="importLeadsExcel()">📥</button>
+      <button class="btn btn-secondary btn-sm" onclick="exportLeadsExcel()">📤</button>
+      <button class="btn btn-primary btn-sm" onclick="openNewLeadModal()">＋ Lead</button>
     </div>
   `;
 
@@ -753,9 +811,26 @@ function renderKanban(searchStr = '') {
   const content = document.getElementById('content');
   content.style.padding = '16px';
   content.style.overflowX = 'auto';
-  content.innerHTML = '<div id="kanban-board"></div>';
-  const board = document.getElementById('kanban-board');
 
+  // Build filter bar
+  const prioOptions = [
+    {val:'all', label:'全部優先'},
+    {val:'high', label:'🔴 高'},
+    {val:'mid', label:'🟡 中'},
+    {val:'low', label:'🟢 低'},
+    {val:'', label:'未設定'}
+  ];
+  const srcOptions = [{val:'all', label:'全部來源'}, ...sourcesData.map(s=>({val:s.id, label:s.name}))];
+
+  content.innerHTML = `
+    <div class="kanban-filters">
+      ${prioOptions.map(o=>`<span class="filter-chip ${kanbanFilterPrio===o.val?'active':''}" onclick="setKanbanFilter('prio','${o.val}')">${o.label}</span>`).join('')}
+      <span style="color:var(--border2);padding:0 4px">|</span>
+      ${srcOptions.map(o=>`<span class="filter-chip ${kanbanFilterSrc===o.val?'active':''}" onclick="setKanbanFilter('src','${o.val}')">${o.label}</span>`).join('')}
+    </div>
+    <div id="kanban-board"></div>`;
+
+  const board = document.getElementById('kanban-board');
   if (stagesData.length === 0) {
     board.innerHTML = '<div class="empty-state"><div>請先在設定中建立階段</div></div>';
     return;
@@ -763,9 +838,12 @@ function renderKanban(searchStr = '') {
 
   stagesData.forEach((stage, si) => {
     const stageleads = leadsData.filter(l => {
-      const match = !searchStr || l.name?.toLowerCase().includes(searchStr.toLowerCase()) || l.company?.toLowerCase().includes(searchStr.toLowerCase());
-      return l.stage_id === stage.id && match;
-    });
+      if (l.stage_id !== stage.id) return false;
+      if (searchStr && !l.name?.toLowerCase().includes(searchStr.toLowerCase()) && !l.company?.toLowerCase().includes(searchStr.toLowerCase())) return false;
+      if (kanbanFilterPrio !== 'all' && (l.priority||'') !== kanbanFilterPrio) return false;
+      if (kanbanFilterSrc !== 'all' && (l.source_id||'') !== kanbanFilterSrc) return false;
+      return true;
+    }).sort((a,b) => (a.sort_order||0) - (b.sort_order||0));
 
     const col = document.createElement('div');
     col.className = 'kanban-col';
@@ -778,8 +856,8 @@ function renderKanban(searchStr = '') {
         </div>
         <div class="kanban-col-count">${stageleads.length}</div>
       </div>
-      <div class="kanban-cards" id="col-${stage.id}" 
-        ondragover="colDragOver(event,this)" 
+      <div class="kanban-cards" id="col-${stage.id}"
+        ondragover="colDragOver(event,this)"
         ondrop="colDrop(event,'${stage.id}')"
         ondragleave="colDragLeave(event,this)">
       </div>
@@ -799,13 +877,19 @@ function renderKanban(searchStr = '') {
   });
 }
 
+function setKanbanFilter(type, val) {
+  if (type === 'prio') kanbanFilterPrio = val;
+  else kanbanFilterSrc = val;
+  renderKanban(document.getElementById('leadSearch')?.value || '');
+}
+
 function createKanbanCard(lead) {
   const card = document.createElement('div');
   card.className = 'kanban-card';
   card.dataset.id = lead.id;
   card.draggable = true;
   const src = sourcesData.find(s => s.id === lead.source_id);
-  const prioClass = { high: 'prio-high', mid: 'prio-mid', low: 'prio-low' }[lead.priority] || 'prio-low';
+  const prioClass = { high: 'prio-high', mid: 'prio-mid', low: 'prio-low' }[lead.priority] || '';
   card.innerHTML = `
     <div class="kc-name">${esc(lead.name)}</div>
     ${lead.company ? `<div class="kc-company">🏢 ${esc(lead.company)}</div>` : ''}
@@ -817,12 +901,61 @@ function createKanbanCard(lead) {
   `;
   card.addEventListener('dragstart', e => {
     dragSrcId = lead.id;
+    dragSrcEl = card;
     card.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
   });
-  card.addEventListener('dragend', () => card.classList.remove('dragging'));
+  card.addEventListener('dragend', () => {
+    card.classList.remove('dragging');
+    document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
+  });
+  // Within-col sort: dragover shows placeholder
+  card.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!dragSrcEl || dragSrcEl === card) return;
+    const colCards = card.parentElement;
+    const srcStage = dragSrcEl.closest('.kanban-col')?.dataset.stageId;
+    const tgtStage = card.closest('.kanban-col')?.dataset.stageId;
+    if (srcStage !== tgtStage) return; // cross-col handled by colDrop
+    document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
+    const placeholder = document.createElement('div');
+    placeholder.className = 'drag-placeholder';
+    placeholder.style.cssText = 'height:4px;background:var(--accent);border-radius:2px;margin:2px 0;';
+    const rect = card.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    if (e.clientY < midY) colCards.insertBefore(placeholder, card);
+    else colCards.insertBefore(placeholder, card.nextSibling);
+  });
+  card.addEventListener('drop', async e => {
+    e.stopPropagation();
+    e.preventDefault();
+    const srcStage = dragSrcEl?.closest('.kanban-col')?.dataset.stageId;
+    const tgtStage = card.closest('.kanban-col')?.dataset.stageId;
+    if (!dragSrcId || srcStage !== tgtStage) return;
+    document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
+    const colCards = card.parentElement;
+    const rect = card.getBoundingClientRect();
+    const before = e.clientY < rect.top + rect.height / 2;
+    if (before) colCards.insertBefore(dragSrcEl, card);
+    else colCards.insertBefore(dragSrcEl, card.nextSibling);
+    await saveColOrder(tgtStage);
+  });
   card.addEventListener('click', () => openLeadDrawer(lead.id));
   return card;
+}
+
+async function saveColOrder(stageId) {
+  const colEl = document.getElementById('col-' + stageId);
+  if (!colEl) return;
+  const cards = colEl.querySelectorAll('.kanban-card');
+  const updates = [];
+  cards.forEach((c, i) => {
+    const lead = leadsData.find(l => l.id === c.dataset.id);
+    if (lead) { lead.sort_order = i; updates.push({id: c.dataset.id, sort_order: i}); }
+  });
+  for (const u of updates) {
+    await db.from('leads').update({ sort_order: u.sort_order }).eq('id', u.id);
+  }
 }
 
 function filterLeads() {
@@ -833,10 +966,7 @@ function filterLeads() {
 
 function setLeadsView(mode) {
   leadsViewMode = mode;
-  // update toggle buttons
-  document.querySelectorAll('.view-toggle-btn').forEach(b => {
-    b.classList.toggle('active', b.textContent.includes(mode === 'kanban' ? '看板' : '列表'));
-  });
+  document.querySelectorAll('.view-toggle-btn').forEach((b,i) => b.classList.toggle('active', i===(mode==='kanban'?0:1)));
   filterLeads();
 }
 
@@ -844,44 +974,31 @@ function renderLeadsList(searchStr = '') {
   const content = document.getElementById('content');
   content.style.padding = '24px';
   content.style.overflowX = 'auto';
-  const filtered = leadsData.filter(l => {
-    if (!searchStr) return true;
-    return l.name?.toLowerCase().includes(searchStr.toLowerCase()) || l.company?.toLowerCase().includes(searchStr.toLowerCase());
-  });
-
+  const filtered = leadsData.filter(l =>
+    !searchStr || l.name?.toLowerCase().includes(searchStr.toLowerCase()) || l.company?.toLowerCase().includes(searchStr.toLowerCase())
+  );
   if (!filtered.length) {
     content.innerHTML = '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-text">沒有符合的 Lead</div></div>';
     return;
   }
-
   const rows = filtered.map(l => {
     const stage = stagesData.find(s => s.id === l.stage_id);
     const src = sourcesData.find(s => s.id === l.source_id);
-    const prioLabel = {high:'🔴 高', mid:'🟡 中', low:'🟢 低'}[l.priority] || '—';
     const stageDot = stage ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${stage.color||'#888'};margin-right:5px"></span>` : '';
-    return `
-      <tr onclick="openLeadDrawer('${l.id}')">
-        <td><div style="font-weight:500">${esc(l.name)}</div></td>
-        <td>${esc(l.company||'—')}</td>
-        <td>${stageDot}<span style="font-size:12px">${esc(stage?.name||'—')}</span></td>
-        <td>${esc(src?.name||'—')}</td>
-        <td>${l.amount ? '$ ' + fmtNum(l.amount) : '—'}</td>
-        <td>${prioLabel}</td>
-        <td style="font-size:12px;color:var(--text3)">${fmtDate(l.created_at)}</td>
-      </tr>
-    `;
+    return `<tr onclick="openLeadDrawer('${l.id}')">
+      <td><div style="font-weight:500">${esc(l.name)}</div></td>
+      <td>${esc(l.company||'—')}</td>
+      <td>${stageDot}<span style="font-size:12px">${esc(stage?.name||'—')}</span></td>
+      <td>${esc(src?.name||'—')}</td>
+      <td style="font-family:var(--mono);font-size:12px">${l.amount?'$ '+fmtNum(l.amount):'—'}</td>
+      <td>${{high:'🔴',mid:'🟡',low:'🟢'}[l.priority]||'—'}</td>
+      <td style="font-size:12px;color:var(--text3)">${fmtDate(l.created_at)}</td>
+    </tr>`;
   }).join('');
-
-  content.innerHTML = `
-    <div class="panel">
-      <table class="leads-list-table">
-        <thead><tr>
-          <th>名稱</th><th>公司</th><th>階段</th><th>來源</th><th>預估金額</th><th>優先級</th><th>建立日期</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-  `;
+  content.innerHTML = `<div class="panel"><table class="leads-list-table">
+    <thead><tr><th>名稱</th><th>公司</th><th>階段</th><th>來源</th><th>金額</th><th>優先</th><th>建立</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
 }
 
 function colDragOver(e, el) {
@@ -1179,16 +1296,22 @@ async function deleteContact(cId, leadId) {
 }
 
 async function renderDrawerActivities(leadId) {
-  const { data: acts } = await db.from('activities').select('*').eq('lead_id', leadId).order('created_at', {ascending:false});
+  const [actsRes, contactsRes] = await Promise.all([
+    db.from('activities').select('*').eq('lead_id', leadId).order('created_at', {ascending:false}),
+    db.from('contacts').select('id,name').eq('lead_id', leadId)
+  ]);
+  const acts = actsRes.data || [];
+  const contacts = contactsRes.data || [];
   const panel = document.getElementById('drawerPanel-activities');
-  const list = (acts||[]).map(a => {
+  const list = acts.map(a => {
     const t = ACTIVITY_TYPES[a.type] || ACTIVITY_TYPES['note'];
+    const contact = contacts.find(c => c.id === a.contact_id);
     return `
       <div class="activity-item">
         <div class="activity-icon" style="background:${t.color}20;color:${t.color}">${t.icon}</div>
         <div class="activity-content">
-          <div class="activity-type">${t.label}</div>
-          <div class="activity-note">${esc(a.content||'')}</div>
+          <div class="activity-type">${t.label}${contact?` · <span style="color:var(--accent);font-size:11px">${esc(contact.name)}</span>`:''}</div>
+          <div class="activity-note" style="white-space:pre-wrap">${esc(a.content||'')}</div>
           <div class="activity-meta">${fmtDate(a.created_at)}</div>
         </div>
         <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteActivity('${a.id}','${leadId}')">🗑</button>
@@ -1205,23 +1328,48 @@ async function renderDrawerActivities(leadId) {
   `;
 }
 
-function openAddActivity(leadId) {
+async function openAddActivity(leadId) {
+  // Load contacts for this lead
+  const { data: contacts } = await db.from('contacts').select('id, name, role').eq('lead_id', leadId);
+  const contactOpts = (contacts||[]).map(c => `<option value="${c.id}">${esc(c.name)}${c.role?' · '+esc(c.role):''}</option>`).join('');
+  const tplChips = activityTemplates.length ? `
+    <div class="form-group">
+      <label class="form-label">套用模板（插入到內容）</label>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">
+        ${activityTemplates.map(t=>`<span class="tpl-chip" onclick="applyActivityTemplate('${t.id}')">${esc(t.name)}</span>`).join('')}
+      </div>
+    </div>` : '';
+
   openModal('記錄活動', `
     <div class="form-group"><label class="form-label">類型</label>
       <select class="form-select" id="actType">
         ${Object.entries(ACTIVITY_TYPES).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}
       </select>
     </div>
-    <div class="form-group"><label class="form-label">內容</label><textarea class="form-textarea" id="actContent" placeholder="活動內容、重點摘要..."></textarea></div>
-    <div class="form-group"><label class="form-label">日期</label><input class="form-input" id="actDate" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+    ${contacts?.length ? `<div class="form-group"><label class="form-label">互動聯絡人</label>
+      <select class="form-select" id="actContact">
+        <option value="">— 未指定 —</option>
+        ${contactOpts}
+      </select>
+    </div>` : ''}
+    ${tplChips}
+    <div class="form-group"><label class="form-label">內容</label>
+      <textarea class="form-textarea" id="actContent" placeholder="活動內容、重點摘要..." style="min-height:100px"></textarea>
+    </div>
+    <div class="form-group"><label class="form-label">日期</label>
+      <input class="form-input" id="actDate" type="date" value="${new Date().toISOString().split('T')[0]}">
+    </div>
   `, [
     { label: '取消', cls: 'btn-secondary', action: closeModal },
     { label: '記錄', cls: 'btn-primary', action: async () => {
       const content = document.getElementById('actContent').value.trim();
       if (!content) { toast('請填寫內容', 'error'); return; }
+      const contactId = document.getElementById('actContact')?.value || null;
       await db.from('activities').insert({
         type: document.getElementById('actType').value,
-        content, lead_id: leadId, user_id: currentUser.id,
+        content, lead_id: leadId,
+        contact_id: contactId || null,
+        user_id: currentUser.id,
         created_at: document.getElementById('actDate').value + 'T00:00:00Z'
       });
       closeModal();
@@ -1229,6 +1377,17 @@ function openAddActivity(leadId) {
       renderDrawerActivities(leadId);
     }}
   ]);
+}
+
+function applyActivityTemplate(tplId) {
+  const tpl = activityTemplates.find(t => t.id === tplId);
+  if (!tpl) return;
+  const ta = document.getElementById('actContent');
+  if (!ta) return;
+  const cur = ta.value;
+  ta.value = cur ? cur + '\n\n' + tpl.content : tpl.content;
+  ta.focus();
+  ta.setSelectionRange(ta.value.length, ta.value.length);
 }
 
 async function deleteActivity(actId, leadId) {
@@ -1490,7 +1649,7 @@ function renderContractList(contracts) {
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:6px">
-            <span id="ct-toggle-${c.id}" style="font-size:11px;color:var(--text3)">📝 備註</span>
+            <span style="font-size:11px;color:var(--text3)">📝</span>
             <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteContract('${c.id}')">🗑</button>
           </div>
         </div>
@@ -1519,10 +1678,7 @@ async function loadContractNotes(ctId) {
   const { data: notes } = await db.from('notes').select('*').eq('contract_id', ctId).order('created_at', {ascending:false});
   const el = document.getElementById('ct-notes-' + ctId);
   if (!el) return;
-  if (!notes || !notes.length) {
-    el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:4px 0">尚無備註</div>';
-    return;
-  }
+  if (!notes || !notes.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:4px 0">尚無備註</div>'; return; }
   el.innerHTML = notes.map(n => `
     <div class="contract-note-item">
       <div>${esc(n.content)}</div>
@@ -1530,8 +1686,7 @@ async function loadContractNotes(ctId) {
         <div class="contract-note-meta">${fmtDate(n.created_at)}</div>
         <button class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:11px" onclick="deleteContractNote('${n.id}','${ctId}')">🗑</button>
       </div>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
 
 async function addContractNote(ctId) {
@@ -1682,6 +1837,19 @@ async function renderSettings() {
       </div>
 
       <div class="settings-section">
+        <div class="settings-title">📝 活動記錄模板</div>
+        <div class="card">
+          <div id="templatesList" style="margin-bottom:10px"></div>
+          <div class="divider"></div>
+          <div style="margin-bottom:8px">
+            <input class="form-input" id="newTplName" placeholder="模板名稱（例：初次拜訪紀錄）" style="margin-bottom:6px">
+            <textarea class="form-textarea" id="newTplContent" placeholder="模板內容（例：&#10;【目的】&#10;【討論重點】&#10;【下一步行動】" style="min-height:80px"></textarea>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="addActivityTemplate()">＋ 新增模板</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
         <div class="settings-title">👤 帳號</div>
         <div class="card">
           <div style="font-size:13px;color:var(--text2);margin-bottom:12px">登入中：<strong>${esc(currentUser?.email||'')}</strong></div>
@@ -1692,6 +1860,7 @@ async function renderSettings() {
   `;
   renderStagesList();
   renderSourcesList();
+  renderTemplatesList();
 }
 
 function renderStagesList() {
@@ -1753,28 +1922,65 @@ async function deleteSource(id) {
 }
 
 
+// ── ACTIVITY TEMPLATES ──
+function renderTemplatesList() {
+  const el = document.getElementById('templatesList');
+  if (!el) return;
+  if (!activityTemplates.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:4px 0">尚無模板，新增一個吧</div>';
+    return;
+  }
+  el.innerHTML = activityTemplates.map(t => `
+    <div class="note-item" style="margin-bottom:6px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div style="font-weight:500;font-size:13px">${esc(t.name)}</div>
+        <button class="btn btn-ghost btn-sm" onclick="deleteActivityTemplate('${t.id}')">🗑</button>
+      </div>
+      <div style="font-size:12px;color:var(--text3);white-space:pre-wrap">${esc(t.content||'')}</div>
+    </div>
+  `).join('');
+}
+
+async function addActivityTemplate() {
+  const name = document.getElementById('newTplName')?.value.trim();
+  const content = document.getElementById('newTplContent')?.value.trim();
+  if (!name) { toast('請填寫模板名稱', 'error'); return; }
+  const { error } = await db.from('activity_templates').insert({ name, content: content||'', user_id: currentUser.id, created_at: new Date().toISOString() });
+  if (error) { toast('新增失敗：' + error.message, 'error'); return; }
+  document.getElementById('newTplName').value = '';
+  document.getElementById('newTplContent').value = '';
+  await loadGlobalData();
+  renderTemplatesList();
+  toast('模板新增成功', 'success');
+}
+
+async function deleteActivityTemplate(tplId) {
+  await db.from('activity_templates').delete().eq('id', tplId);
+  await loadGlobalData();
+  renderTemplatesList();
+  toast('模板已刪除', 'success');
+}
+
 // ── ACTIVITY & NOTES FEED ──
 async function renderFeed() {
   const content = document.getElementById('content');
-  content.style.padding = '24px';
+  content.style.padding = '16px';
   content.innerHTML = '<div class="loading"><span class="dot-pulse">載入中</span></div>';
 
   const [actsRes, notesRes] = await Promise.all([
-    db.from('activities').select('*, leads(id, name, company)').order('created_at', {ascending:false}).limit(100),
+    db.from('activities').select('*, leads(id, name, company), contacts(name)').order('created_at', {ascending:false}).limit(150),
     db.from('notes').select('*, leads(id, name, company)').order('created_at', {ascending:false}).limit(100)
   ]);
 
   const acts = (actsRes.data || []).map(a => ({...a, _type: 'activity'}));
   const notes = (notesRes.data || []).filter(n => n.lead_id).map(n => ({...n, _type: 'note'}));
-  const combined = [...acts, ...notes].sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 150);
+  const combined = [...acts, ...notes].sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 200);
 
   document.getElementById('topbarActions').innerHTML = `
     <div class="action-bar">
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-secondary btn-sm feed-filter-btn active" data-filter="all" onclick="setFeedFilter('all',this)">全部</button>
-        <button class="btn btn-secondary btn-sm feed-filter-btn" data-filter="activity" onclick="setFeedFilter('activity',this)">活動記錄</button>
-        <button class="btn btn-secondary btn-sm feed-filter-btn" data-filter="note" onclick="setFeedFilter('note',this)">備註</button>
-      </div>
+      <button class="btn btn-secondary btn-sm feed-filter-btn active" data-filter="all" onclick="setFeedFilter('all',this)">全部</button>
+      <button class="btn btn-secondary btn-sm feed-filter-btn" data-filter="activity" onclick="setFeedFilter('activity',this)">活動</button>
+      <button class="btn btn-secondary btn-sm feed-filter-btn" data-filter="note" onclick="setFeedFilter('note',this)">備註</button>
     </div>
   `;
 
@@ -1783,7 +1989,7 @@ async function renderFeed() {
 }
 
 function setFeedFilter(filter, btn) {
-  document.querySelectorAll('.feed-filter-btn').forEach(b => b.classList.remove('active', 'btn-primary'));
+  document.querySelectorAll('.feed-filter-btn').forEach(b => { b.classList.remove('active'); });
   btn.classList.add('active');
   const items = filter === 'all' ? window._feedItems : window._feedItems.filter(i => i._type === filter);
   renderFeedList(items);
@@ -1795,7 +2001,6 @@ function renderFeedList(items) {
     content.innerHTML = '<div class="empty-state"><div class="empty-icon">📰</div><div class="empty-text">尚無動態</div></div>';
     return;
   }
-
   const rows = items.map(item => {
     const isAct = item._type === 'activity';
     const t = isAct ? (ACTIVITY_TYPES[item.type] || ACTIVITY_TYPES['note']) : null;
@@ -1803,30 +2008,45 @@ function renderFeedList(items) {
     const iconColor = isAct ? t.color : '#6b7280';
     const typeLabel = isAct ? t.label : '備註';
     const lead = item.leads;
-    const leadInfo = lead ? `<span class="feed-lead-link" onclick="event.stopPropagation();openLeadFromFeed('${lead.id}')">${esc(lead.name)}${lead.company?' · '+esc(lead.company):''}</span>` : '';
-
+    const contact = item.contacts;
+    const leadInfo = lead ? `<span style="color:var(--accent);cursor:pointer;font-size:11.5px" onclick="event.stopPropagation();openLeadFromFeed('${lead.id}')">${esc(lead.name)}${lead.company?' · '+esc(lead.company):''}</span>` : '';
+    const contactInfo = contact ? `<span style="font-size:11px;color:var(--text3)"> · ${esc(contact.name)}</span>` : '';
     return `
-      <div class="feed-item" style="cursor:pointer" onclick="openLeadFromFeed('${item.lead_id}')">
+      <div style="display:flex;gap:12px;padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.1s" onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''" onclick="openLeadFromFeed('${item.lead_id}')">
         <div style="width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;background:${iconColor}20;color:${iconColor}">${icon}</div>
         <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap">
             <span style="font-size:12px;font-weight:600;color:var(--text2)">${typeLabel}</span>
-            ${leadInfo}
+            ${leadInfo}${contactInfo}
           </div>
           <div style="font-size:13px;color:var(--text);white-space:pre-wrap;word-break:break-word">${esc(item.content||'')}</div>
           <div style="font-size:11px;color:var(--text3);margin-top:3px">${fmtDate(item.created_at)}</div>
         </div>
-      </div>
-    `;
+      </div>`;
   }).join('');
-
   content.innerHTML = `<div class="panel">${rows}</div>`;
 }
 
 function openLeadFromFeed(leadId) {
   if (!leadId) return;
   navigate('leads');
-  setTimeout(() => openLeadDrawer(leadId), 300);
+  setTimeout(() => openLeadDrawer(leadId), 400);
+}
+
+// ── Import template download ──
+function downloadImportTemplate() {
+  const sample = [
+    { 'Lead_ID':'（留空=新增，填ID=更新）', '名稱':'Example Corp', '公司':'範例有限公司', '階段':'新名單', '來源':'', '預估金額':500000, '優先級':'高',
+      '聯絡人_姓名':'王小明', '聯絡人_職稱':'採購經理', '聯絡人_Email':'wang@example.com', '聯絡人_電話':'0912-345-678' },
+    { 'Lead_ID':'', '名稱':'Example Corp', '公司':'範例有限公司', '階段':'', '來源':'', '預估金額':'', '優先級':'',
+      '聯絡人_姓名':'李大華', '聯絡人_職稱':'CEO', '聯絡人_Email':'li@example.com', '聯絡人_電話':'' },
+    { 'Lead_ID':'', '名稱':'Test Company', '公司':'測試股份有限公司', '階段':'已聯繫窗口', '來源':'', '預估金額':120000, '優先級':'中',
+      '聯絡人_姓名':'陳美麗', '聯絡人_職稱':'IT主管', '聯絡人_Email':'chen@test.com', '聯絡人_電話':'' }
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sample), '匯入格式說明');
+  XLSX.writeFile(wb, 'saleflow_import_template.xlsx');
+  toast('範本下載成功（以聯絡人為主體，同公司多排）', 'success');
 }
 
 // ── Import / Export ──
@@ -1843,42 +2063,68 @@ function importLeadsExcel() {
     const rows = XLSX.utils.sheet_to_json(ws);
     if (!rows.length) { toast('檔案無資料', 'error'); return; }
 
-    let leadCount = 0, contactCount = 0;
-    for (const row of rows) {
-      const name = row['名稱'] || row['name'] || row['Name'];
-      if (!name) continue;
-      const stageName = row['階段'] || row['stage'];
-      const srcName = row['來源'] || row['source'];
-      const stage = stagesData.find(s => s.name === stageName) || stagesData[0];
-      const src = sourcesData.find(s => s.name === srcName);
-      const prioMap = {'高':'high','中':'mid','低':'low','high':'high','mid':'mid','low':'low'};
-      const { data: lead, error } = await db.from('leads').insert({
-        name: String(name),
-        company: String(row['公司'] || row['company'] || ''),
-        amount: parseFloat(row['預估金額'] || row['金額'] || row['amount']) || null,
-        priority: prioMap[row['優先級'] || row['priority']] || null,
-        stage_id: stage?.id,
-        source_id: src?.id || null,
-        user_id: currentUser.id, created_at: new Date().toISOString()
-      }).select().single();
-      if (error || !lead) continue;
-      leadCount++;
+    const prioMap = {'高':'high','中':'mid','低':'low','high':'high','mid':'mid','low':'low'};
+    // contact-first format: group rows by 名稱+公司, each row = one contact
+    const leadMap = {}; // key = 名稱+公司 → lead record
+    let leadCount = 0, contactCount = 0, updateCount = 0;
 
-      // Import up to 3 contacts per row (聯絡人1~3)
-      for (let i = 1; i <= 3; i++) {
-        const cName = row[`聯絡人${i}_姓名`] || row[`contact${i}_name`];
-        if (!cName) continue;
+    for (const row of rows) {
+      const leadName = String(row['名稱'] || row['name'] || '').trim();
+      if (!leadName) continue;
+      const company = String(row['公司'] || row['company'] || '').trim();
+      const leadId = String(row['Lead_ID'] || row['lead_id'] || '').trim();
+      const key = leadId || (leadName + '||' + company);
+
+      if (!leadMap[key]) {
+        if (leadId && leadId !== '（留空=新增，填ID=更新）') {
+          // UPDATE existing lead
+          const stageName = row['階段'] || row['stage'];
+          const srcName = row['來源'] || row['source'];
+          const stage = stagesData.find(s => s.name === stageName);
+          const src = sourcesData.find(s => s.name === srcName);
+          const updates = {};
+          if (company) updates.company = company;
+          if (stage) updates.stage_id = stage.id;
+          if (src) updates.source_id = src.id;
+          if (row['預估金額']) updates.amount = parseFloat(row['預估金額']) || null;
+          if (row['優先級']) updates.priority = prioMap[row['優先級']] || null;
+          await db.from('leads').update(updates).eq('id', leadId);
+          leadMap[key] = { id: leadId };
+          updateCount++;
+        } else {
+          // INSERT new lead
+          const stageName = row['階段'] || row['stage'];
+          const srcName = row['來源'] || row['source'];
+          const stage = stagesData.find(s => s.name === stageName) || stagesData[0];
+          const src = sourcesData.find(s => s.name === srcName);
+          const { data: lead, error } = await db.from('leads').insert({
+            name: leadName, company,
+            amount: parseFloat(row['預估金額'] || row['金額']) || null,
+            priority: prioMap[row['優先級']] || null,
+            stage_id: stage?.id,
+            source_id: src?.id || null,
+            user_id: currentUser.id, created_at: new Date().toISOString()
+          }).select().single();
+          if (error || !lead) continue;
+          leadMap[key] = lead;
+          leadCount++;
+        }
+      }
+
+      // Add contact if name provided
+      const cName = String(row['聯絡人_姓名'] || row['contact_name'] || '').trim();
+      if (cName && leadMap[key]?.id) {
         await db.from('contacts').insert({
-          name: String(cName),
-          role: String(row[`聯絡人${i}_職稱`] || row[`contact${i}_role`] || ''),
-          email: String(row[`聯絡人${i}_Email`] || row[`contact${i}_email`] || ''),
-          phone: String(row[`聯絡人${i}_電話`] || row[`contact${i}_phone`] || ''),
-          lead_id: lead.id, user_id: currentUser.id, created_at: new Date().toISOString()
+          name: cName,
+          role: String(row['聯絡人_職稱'] || row['contact_role'] || '').trim(),
+          email: String(row['聯絡人_Email'] || row['contact_email'] || '').trim(),
+          phone: String(row['聯絡人_電話'] || row['contact_phone'] || '').trim(),
+          lead_id: leadMap[key].id, user_id: currentUser.id, created_at: new Date().toISOString()
         });
         contactCount++;
       }
     }
-    toast(`匯入完成：${leadCount} 筆 Lead，${contactCount} 位聯絡人`, 'success');
+    toast(`匯入完成：新增 ${leadCount} Lead，更新 ${updateCount}，新增 ${contactCount} 聯絡人`, 'success');
     navigate('leads');
   };
   input.click();
@@ -1887,8 +2133,6 @@ function importLeadsExcel() {
 async function exportLeadsExcel() {
   const { data: leads } = await db.from('leads').select('*, stages(name), sources(name)');
   const { data: contacts } = await db.from('contacts').select('*');
-
-  // Sheet 1: Leads (with system ID for reference)
   const leadRows = (leads||[]).map(l => ({
     'Lead_ID': l.id,
     '名稱': l.name,
@@ -1899,39 +2143,17 @@ async function exportLeadsExcel() {
     '優先級': {high:'高',mid:'中',low:'低'}[l.priority] || '',
     '建立日期': fmtDate(l.created_at)
   }));
-
-  // Sheet 2: Contacts (linked to lead by Lead_ID)
-  const contactRows = (contacts||[]).map(c => ({
-    'Contact_ID': c.id,
-    'Lead_ID': c.lead_id,
-    '聯絡人姓名': c.name,
-    '職稱': c.role || '',
-    'Email': c.email || '',
-    '電話': c.phone || '',
-    '備註': c.note || ''
-  }));
-
+  // Contact-first export sheet (for re-import)
+  const contactRows = (leads||[]).flatMap(l => {
+    const lcs = (contacts||[]).filter(c => c.lead_id === l.id);
+    if (!lcs.length) return [{ 'Lead_ID':l.id, '名稱':l.name, '公司':l.company||'', '階段':l.stages?.name||'', '來源':l.sources?.name||'', '預估金額':l.amount||'', '優先級':{high:'高',mid:'中',low:'低'}[l.priority]||'', '聯絡人_姓名':'', '聯絡人_職稱':'', '聯絡人_Email':'', '聯絡人_電話':'' }];
+    return lcs.map(c => ({ 'Lead_ID':l.id, '名稱':l.name, '公司':l.company||'', '階段':l.stages?.name||'', '來源':l.sources?.name||'', '預估金額':l.amount||'', '優先級':{high:'高',mid:'中',low:'低'}[l.priority]||'', '聯絡人_姓名':c.name, '聯絡人_職稱':c.role||'', '聯絡人_Email':c.email||'', '聯絡人_電話':c.phone||'' }));
+  });
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(leadRows), 'Leads');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(contactRows), 'Contacts');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(contactRows), '可重新匯入格式');
   XLSX.writeFile(wb, `saleflow_export_${new Date().toISOString().split('T')[0]}.xlsx`);
-  toast('匯出成功（Leads + Contacts 兩個分頁）', 'success');
-}
-
-// Download import template
-function downloadImportTemplate() {
-  const leadSample = [
-    { '名稱': 'Example Corp', '公司': '範例有限公司', '階段': '新名單', '來源': '', '預估金額': 500000, '優先級': '高',
-      '聯絡人1_姓名': '王小明', '聯絡人1_職稱': '採購經理', '聯絡人1_Email': 'wang@example.com', '聯絡人1_電話': '0912-345-678',
-      '聯絡人2_姓名': '', '聯絡人2_職稱': '', '聯絡人2_Email': '', '聯絡人2_電話': '' },
-    { '名稱': 'Test Company', '公司': '測試股份有限公司', '階段': '已聯繫窗口', '來源': '', '預估金額': 120000, '優先級': '中',
-      '聯絡人1_姓名': '李大華', '聯絡人1_職稱': 'CEO', '聯絡人1_Email': 'li@test.com', '聯絡人1_電話': '',
-      '聯絡人2_姓名': '', '聯絡人2_職稱': '', '聯絡人2_Email': '', '聯絡人2_電話': '' }
-  ];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(leadSample), 'Leads_匯入格式');
-  XLSX.writeFile(wb, 'saleflow_import_template.xlsx');
-  toast('範本下載成功', 'success');
+  toast('匯出成功（Leads + 可重新匯入格式）', 'success');
 }
 
 // ── User Menu ──
@@ -2034,10 +2256,13 @@ CREATE TABLE IF NOT EXISTS leads (
   source_id UUID REFERENCES sources(id),
   amount NUMERIC,
   priority TEXT,
+  sort_order INT DEFAULT 0,
   user_id UUID,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+-- If leads table already exists:
+-- ALTER TABLE leads ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0;
 CREATE TABLE IF NOT EXISTS contacts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -2054,20 +2279,23 @@ CREATE TABLE IF NOT EXISTS activities (
   type TEXT DEFAULT 'note',
   content TEXT,
   lead_id UUID REFERENCES leads(id) ON DELETE CASCADE,
+  contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
   user_id UUID,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+-- If activities table already exists:
+-- ALTER TABLE activities ADD COLUMN IF NOT EXISTS contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL;
 CREATE TABLE IF NOT EXISTS notes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   content TEXT NOT NULL,
   lead_id UUID REFERENCES leads(id) ON DELETE CASCADE,
   account_id UUID,
   contact_id UUID,
-  contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE,
+  contract_id UUID,
   user_id UUID,
   created_at TIMESTAMPTZ DEFAULT now()
 );
--- If notes table already exists, add column:
+-- If notes table already exists:
 -- ALTER TABLE notes ADD COLUMN IF NOT EXISTS contract_id UUID REFERENCES contracts(id) ON DELETE CASCADE;
 CREATE TABLE IF NOT EXISTS accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2077,6 +2305,16 @@ CREATE TABLE IF NOT EXISTS accounts (
   user_id UUID,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS activity_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  content TEXT DEFAULT '',
+  user_id UUID,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE POLICY "auth_all" ON activity_templates FOR ALL TO authenticated USING (true) WITH CHECK (true);
+-- ALTER TABLE activity_templates ENABLE ROW LEVEL SECURITY;
+
 CREATE TABLE IF NOT EXISTS contracts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT,
@@ -2110,5 +2348,25 @@ CREATE POLICY "auth_all" ON notes FOR ALL TO authenticated USING (true) WITH CHE
 CREATE POLICY "auth_all" ON accounts FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "auth_all" ON contracts FOR ALL TO authenticated USING (true) WITH CHECK (true);
 -->
+<!-- Bottom Nav (mobile) -->
+<div id="bottom-nav">
+  <div class="bnav-item" id="bnav-dashboard" onclick="navigate('dashboard')">
+    <div class="bnav-icon">📊</div><div class="bnav-label">Dashboard</div>
+  </div>
+  <div class="bnav-item" id="bnav-leads" onclick="navigate('leads')">
+    <div class="bnav-icon">🎯</div><div class="bnav-label">Leads</div>
+  </div>
+  <div class="bnav-item" id="bnav-feed" onclick="navigate('feed')">
+    <div class="bnav-icon">📰</div><div class="bnav-label">動態</div>
+  </div>
+  <div class="bnav-item" id="bnav-accounts" onclick="navigate('accounts')">
+    <div class="bnav-icon">🏢</div><div class="bnav-label">客戶</div>
+  </div>
+  <div class="bnav-item" id="bnav-settings" onclick="navigate('settings')">
+    <div class="bnav-icon">⚙️</div><div class="bnav-label">設定</div>
+  </div>
+</div>
+<!-- FAB -->
+<button id="fab" onclick="onFabClick()">＋</button>
 </body>
 </html>
