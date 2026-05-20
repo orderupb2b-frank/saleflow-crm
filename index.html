@@ -950,9 +950,9 @@ function renderDrawerInfo(lead) {
       <div><div class="form-label">建立時間</div><div style="font-size:12px;color:var(--text3)">${fmtDate(lead.created_at)}</div></div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-secondary btn-sm" onclick="openEditLeadModal(${lead.id})">✏️ 編輯</button>
-      <button class="btn btn-primary btn-sm" onclick="quickConvert(${lead.id})">🏢 轉為 Account</button>
-      <button class="btn btn-danger btn-sm" onclick="deleteLead(${lead.id})">🗑 刪除</button>
+      <button class="btn btn-secondary btn-sm" onclick="openEditLeadModal('${lead.id}')">✏️ 編輯</button>
+      <button class="btn btn-primary btn-sm" onclick="quickConvert('${lead.id}')">🏢 轉為 Account</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteLead('${lead.id}')">🗑 刪除</button>
     </div>
     <div style="margin-top:14px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -962,7 +962,7 @@ function renderDrawerInfo(lead) {
         ${stagesData.map(s => `
           <button class="btn btn-sm ${s.id===lead.stage_id?'btn-primary':'btn-secondary'}" 
             style="${s.id===lead.stage_id?'':'opacity:0.7'}"
-            onclick="quickStageChange(${lead.id},'${s.id}')">
+            onclick="quickStageChange('${lead.id}','${s.id}')">
             ${esc(s.name)}
           </button>
         `).join('')}
@@ -1008,14 +1008,14 @@ async function renderDrawerContacts(leadId) {
         <div class="contact-role">${esc(c.role||'')} ${c.email?'· '+esc(c.email):''} ${c.phone?'· '+esc(c.phone):''}</div>
       </div>
       <div class="contact-actions">
-        <button class="btn btn-ghost btn-sm btn-icon" onclick="editContact(${c.id})">✏️</button>
-        <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteContact(${c.id},${leadId})">🗑</button>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="editContact('${c.id}')">✏️</button>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteContact('${c.id}','${leadId}')">🗑</button>
       </div>
     </div>
   `).join('');
   panel.innerHTML = `
     <div style="margin-bottom:12px">
-      <button class="btn btn-primary btn-sm" onclick="openAddContact(${leadId})">＋ 新增聯絡人</button>
+      <button class="btn btn-primary btn-sm" onclick="openAddContact('${leadId}')">＋ 新增聯絡人</button>
     </div>
     ${list || '<div class="empty-state"><div class="empty-icon">👤</div><div class="empty-text">尚無聯絡人</div></div>'}
   `;
@@ -1097,7 +1097,7 @@ async function renderDrawerActivities(leadId) {
           <div class="activity-note">${esc(a.content||'')}</div>
           <div class="activity-meta">${fmtDate(a.created_at)}</div>
         </div>
-        <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteActivity(${a.id},${leadId})">🗑</button>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteActivity('${a.id}','${leadId}')">🗑</button>
       </div>
     `;
   }).join('');
@@ -1155,7 +1155,7 @@ async function renderDrawerNotes(leadId) {
         <div class="note-text">${esc(n.content)}</div>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div class="note-meta">${fmtDate(n.created_at)}</div>
-          <button class="btn btn-ghost btn-sm" onclick="deleteNote(${n.id},${leadId},'lead')">🗑</button>
+          <button class="btn btn-ghost btn-sm" onclick="deleteNote('${n.id}','${leadId}','lead')">🗑</button>
         </div>
       </div>
     `).join('')}
@@ -1388,7 +1388,7 @@ function renderContractList(contracts) {
       <div class="note-item" style="margin-bottom:8px">
         <div style="display:flex;align-items:center;justify-content:space-between">
           <div style="font-weight:500;font-size:13px">${esc(c.name||'合約')}</div>
-          <button class="btn btn-ghost btn-sm" onclick="deleteContract(${c.id})">🗑</button>
+          <button class="btn btn-ghost btn-sm" onclick="deleteContract('${c.id}')">🗑</button>
         </div>
         <div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap">
           ${c.amount ? `<span class="badge badge-green">$ ${fmtNum(c.amount)}</span>` : ''}
