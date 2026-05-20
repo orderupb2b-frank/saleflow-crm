@@ -319,17 +319,41 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
       </div>
     </div>
     <div class="login-error" id="loginError"></div>
-    <div class="form-group">
-      <label class="form-label">Email</label>
-      <input class="form-input" id="loginEmail" type="email" placeholder="you@company.com" autocomplete="email">
+
+    <!-- 登入表單 -->
+    <div id="loginForm">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" id="loginEmail" type="email" placeholder="you@company.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label">密碼</label>
+        <input class="form-input" id="loginPassword" type="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:4px" onclick="doLogin()">登入</button>
+      <div style="text-align:center;margin-top:12px;font-size:12.5px;color:var(--text3)">
+        沒有帳號？<span style="color:var(--accent);cursor:pointer" onclick="toggleRegister(true)">註冊</span>
+      </div>
     </div>
-    <div class="form-group">
-      <label class="form-label">密碼</label>
-      <input class="form-input" id="loginPassword" type="password" placeholder="••••••••" autocomplete="current-password">
-    </div>
-    <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:4px" onclick="doLogin()">登入</button>
-    <div style="text-align:center;margin-top:12px;font-size:12.5px;color:var(--text3)">
-      沒有帳號？<span style="color:var(--accent);cursor:pointer" onclick="showRegister()">註冊</span>
+
+    <!-- 註冊表單 -->
+    <div id="registerForm" style="display:none">
+      <div class="form-group">
+        <label class="form-label">姓名</label>
+        <input class="form-input" id="regName" placeholder="你的名字">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" id="regEmail" type="email" placeholder="you@company.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">密碼（至少 6 個字元）</label>
+        <input class="form-input" id="regPass" type="password" placeholder="••••••••">
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:4px" onclick="doRegister()">建立帳號</button>
+      <div style="text-align:center;margin-top:12px;font-size:12.5px;color:var(--text3)">
+        已有帳號？<span style="color:var(--accent);cursor:pointer" onclick="toggleRegister(false)">登入</span>
+      </div>
     </div>
   </div>
 </div>
@@ -479,26 +503,25 @@ async function doLogin() {
   } catch(e) { showLoginError('登入失敗，請稍後再試'); }
 }
 
-async function showRegister() {
-  openModal('建立帳號', `
-    <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="regEmail" type="email" placeholder="you@company.com"></div>
-    <div class="form-group"><label class="form-label">密碼</label><input class="form-input" id="regPass" type="password" placeholder="至少 6 個字元"></div>
-    <div class="form-group"><label class="form-label">姓名</label><input class="form-input" id="regName" placeholder="你的名字"></div>
-  `, [
-    { label: '取消', cls: 'btn-secondary', action: closeModal },
-    { label: '註冊', cls: 'btn-primary', action: doRegister }
-  ]);
+function toggleRegister(show) {
+  document.getElementById('loginForm').style.display = show ? 'none' : 'block';
+  document.getElementById('registerForm').style.display = show ? 'block' : 'none';
+  document.getElementById('loginError').style.display = 'none';
 }
 
 async function doRegister() {
   const email = document.getElementById('regEmail').value.trim();
   const pass = document.getElementById('regPass').value;
   const name = document.getElementById('regName').value.trim();
-  if (!email || !pass) { toast('請填寫必填欄位', 'error'); return; }
+  const errEl = document.getElementById('loginError');
+  if (!email || !pass) { errEl.textContent = '請填寫 Email 和密碼'; errEl.style.display = 'block'; return; }
   const { error } = await db.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
-  if (error) { toast(error.message, 'error'); return; }
-  closeModal();
-  toast('帳號建立成功！請登入', 'success');
+  if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return; }
+  // Auto login after register
+  const { data, error: loginErr } = await db.auth.signInWithPassword({ email, password: pass });
+  if (loginErr) { toggleRegister(false); errEl.textContent = '帳號建立成功！請登入'; errEl.style.display = 'block'; return; }
+  currentUser = data.user;
+  await bootApp();
 }
 
 function showLoginError(msg) {
