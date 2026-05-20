@@ -634,14 +634,16 @@ async function bootApp() {
 }
 
 async function loadGlobalData() {
-  const [s, src, tpl] = await Promise.all([
+  const [s, src] = await Promise.all([
     db.from('stages').select('*').order('order_index'),
-    db.from('sources').select('*').order('name'),
-    db.from('activity_templates').select('*').order('name').catch(() => ({data:[]}))
+    db.from('sources').select('*').order('name')
   ]);
   stagesData = s.data || [];
   sourcesData = src.data || [];
-  activityTemplates = tpl.data || [];
+  try {
+    const { data: tpl } = await db.from('activity_templates').select('*').order('name');
+    activityTemplates = tpl || [];
+  } catch(e) { activityTemplates = []; }
 }
 
 // ── Navigation ──
