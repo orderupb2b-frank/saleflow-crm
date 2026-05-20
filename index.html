@@ -785,13 +785,9 @@ async function renderDashboard() {
 // ── LEADS KANBAN ──
 async function renderLeads() {
   await loadGlobalData();
-  // Try ordering by sort_order; fallback to created_at if column doesn't exist yet
-  let { data, error: leadsErr } = await db.from('leads').select('*, contacts(id)').order('sort_order', {ascending:true});
-  if (leadsErr) {
-    const fallback = await db.from('leads').select('*, contacts(id)').order('created_at', {ascending:true});
-    data = fallback.data;
-  }
-  leadsData = data || [];
+  // Fetch leads without sort_order dependency (sort in JS to avoid NULL issues)
+  const { data } = await db.from('leads').select('*, contacts(id)').order('created_at', {ascending:true});
+  leadsData = (data || []).sort((a,b) => (a.sort_order ?? 999999) - (b.sort_order ?? 999999));
 
   // Load which leads have been converted to accounts
   const { data: accounts } = await db.from('accounts').select('lead_id').not('lead_id', 'is', null);
