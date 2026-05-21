@@ -846,8 +846,7 @@ async function renderLeads() {
 
   // Load unique users who created leads
   const userIds = [...new Set((leadsData).map(l => l.user_id).filter(Boolean))];
-  const { data: profiles } = await db.from('leads').select('user_id, user_name').not('user_name','is',null).limit(100).catch(()=>({data:[]}));
-  // Fallback: derive from email in auth (we store user_id, use metadata if available)
+  // Build user list from already-loaded leadsData (no extra query needed)
   usersData = [...new Map(leadsData.filter(l=>l.user_id&&l.user_name).map(l=>[l.user_id,{id:l.user_id,name:l.user_name}])).values()];
 
   document.getElementById('topbarActions').innerHTML = `
