@@ -319,6 +319,15 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .tpl-chip { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; background:var(--bg3); border:1px solid var(--border); border-radius:20px; font-size:12px; cursor:pointer; transition:all 0.15s; margin:2px; }
 .tpl-chip:hover { border-color:var(--accent); color:var(--accent); }
 
+/* ── Stage drag item ── */
+.stage-drag-item { user-select:none; transition:border 0.1s; }
+.stage-drag-item:active { cursor:grabbing; }
+
+/* ── Need type tags ── */
+.need-tag { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; background:var(--purple-bg); border:1px solid rgba(167,139,250,0.3); border-radius:20px; font-size:11.5px; color:var(--purple); margin:2px; cursor:pointer; transition:all 0.15s; }
+.need-tag.selected { background:var(--purple); color:#fff; border-color:var(--purple); }
+.need-tag:hover:not(.selected) { border-color:var(--purple); }
+
 /* ── Bottom nav (mobile) ── */
 #bottom-nav { display:none; position:fixed; bottom:0; left:0; right:0; height:60px; background:var(--bg2); border-top:1px solid var(--border); z-index:100; align-items:center; justify-content:space-around; padding:0 4px; }
 .bnav-item { display:flex; flex-direction:column; align-items:center; gap:2px; padding:6px 10px; cursor:pointer; color:var(--text3); border-radius:8px; min-width:52px; transition:all 0.15s; }
@@ -538,9 +547,13 @@ let dragSrcId = null;
 let dragSrcEl = null;
 let showConvertedLeads = false;
 let convertedLeadIds = new Set();
+let needTypesData = [];
 let leadsViewMode = 'kanban';
 let kanbanFilterPrio = 'all';
 let kanbanFilterSrc = 'all';
+let kanbanFilterStage = 'all';
+let kanbanFilterUser = 'all';
+let usersData = [];
 
 // Default stages
 const DEFAULT_STAGES = [
@@ -644,6 +657,10 @@ async function loadGlobalData() {
     const { data: tpl } = await db.from('activity_templates').select('*').order('name');
     activityTemplates = tpl || [];
   } catch(e) { activityTemplates = []; }
+  try {
+    const { data: nt } = await db.from('need_types').select('*').order('name');
+    needTypesData = nt || [];
+  } catch(e) { needTypesData = []; }
 }
 
 // ── Navigation ──
@@ -684,17 +701,25 @@ async function renderPage(page) {
 
 // ── DASHBOARD ──
 async function renderDashboard() {
-  const [leadsRes, accsRes, contractsRes] = await Promise.all([
+  const [leadsRes, accsRes, contractsRes, activitiesRes] = await Promise.all([
     db.from('leads').select('*'),
     db.from('accounts').select('*'),
-    db.from('contracts').select('*')
+    db.from('contracts').select('*'),
+    db.from('activities').select('id,created_at')
   ]);
   leadsData = leadsRes.data || [];
   accountsData = accsRes.data || [];
   const contracts = contractsRes.data || [];
+  const allActivities = activitiesRes.data || [];
 
   const today = new Date();
   const in30 = new Date(today); in30.setDate(today.getDate() + 30);
+
+  // 本月統計
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const thisMonthLeads = leadsData.filter(l => new Date(l.created_at) >= monthStart);
+  const thisMonthActivities = allActivities.filter(a => new Date(a.created_at) >= monthStart);
+  const thisMonthAccounts = accountsData.filter(a => new Date(a.created_at) >= monthStart);
 
   const activeLeads = leadsData.filter(l => !['暫停','結案'].includes(getStageName(l.stage_id)));
   const wonLeads = leadsData.filter(l => getStageName(l.stage_id) === '簽約進件');
@@ -713,6 +738,30 @@ async function renderDashboard() {
 
   const content = document.getElementById('content');
   content.innerHTML = `
+    <div style="margin-bottom:8px;font-size:12px;color:var(--text3);font-weight:600;letter-spacing:0.05em">本月動態</div>
+    <div class="stats-grid" style="margin-bottom:16px">
+      <div class="stat-card" style="border-left:3px solid var(--accent)">
+        <div class="stat-label">本月新增 Leads</div>
+        <div class="stat-value stat-accent">${thisMonthLeads.length}</div>
+        <div class="stat-sub">共 ${leadsData.length} 筆</div>
+      </div>
+      <div class="stat-card" style="border-left:3px solid var(--green)">
+        <div class="stat-label">本月聯繫活動</div>
+        <div class="stat-value stat-green">${thisMonthActivities.length}</div>
+        <div class="stat-sub">活動記錄次數</div>
+      </div>
+      <div class="stat-card" style="border-left:3px solid var(--yellow)">
+        <div class="stat-label">本月新進件</div>
+        <div class="stat-value" style="color:var(--yellow)">${thisMonthAccounts.length}</div>
+        <div class="stat-sub">轉換為客戶</div>
+      </div>
+      <div class="stat-card" style="border-left:3px solid var(--red)">
+        <div class="stat-label">30天內到期</div>
+        <div class="stat-value stat-${expiring.length>0?'red':'green'}">${expiring.length}</div>
+        <div class="stat-sub">需要續約</div>
+      </div>
+    </div>
+    <div style="margin-bottom:8px;font-size:12px;color:var(--text3);font-weight:600;letter-spacing:0.05em">總覽</div>
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-label">進行中 Leads</div>
@@ -722,7 +771,7 @@ async function renderDashboard() {
       <div class="stat-card">
         <div class="stat-label">轉換客戶</div>
         <div class="stat-value stat-green">${accountsData.length}</div>
-        <div class="stat-sub">成交 ${wonLeads.length} 次</div>
+        <div class="stat-sub">累積成交</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">合約總數</div>
@@ -730,9 +779,9 @@ async function renderDashboard() {
         <div class="stat-sub">合約管理</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">30天內到期</div>
-        <div class="stat-value stat-${expiring.length>0?'red':'green'}">${expiring.length}</div>
-        <div class="stat-sub">需要續約</div>
+        <div class="stat-label">進行中 / 總 Lead</div>
+        <div class="stat-value">${leadsData.length?Math.round(activeLeads.length/leadsData.length*100):0}%</div>
+        <div class="stat-sub">活躍比例</div>
       </div>
     </div>
     <div class="charts-grid">
@@ -795,6 +844,12 @@ async function renderLeads() {
   const { data: accounts } = await db.from('accounts').select('lead_id').not('lead_id', 'is', null);
   convertedLeadIds = new Set((accounts||[]).map(a => a.lead_id));
 
+  // Load unique users who created leads
+  const userIds = [...new Set((leadsData).map(l => l.user_id).filter(Boolean))];
+  const { data: profiles } = await db.from('leads').select('user_id, user_name').not('user_name','is',null).limit(100).catch(()=>({data:[]}));
+  // Fallback: derive from email in auth (we store user_id, use metadata if available)
+  usersData = [...new Map(leadsData.filter(l=>l.user_id&&l.user_name).map(l=>[l.user_id,{id:l.user_id,name:l.user_name}])).values()];
+
   document.getElementById('topbarActions').innerHTML = `
     <div class="action-bar">
       <div class="search-wrap">
@@ -813,6 +868,9 @@ async function renderLeads() {
     </div>
   `;
 
+  // Auto list-mode on mobile
+  const isMobile = window.innerWidth <= 768;
+  if (isMobile) { renderLeadsList(); return; }
   if (leadsViewMode === 'list') renderLeadsList();
   else renderKanban();
 }
@@ -831,12 +889,25 @@ function renderKanban(searchStr = '') {
     {val:'', label:'未設定'}
   ];
   const srcOptions = [{val:'all', label:'全部來源'}, ...sourcesData.map(s=>({val:s.id, label:s.name}))];
+  const stageOptions = [{val:'all', label:'全部階段'}, ...stagesData.map(s=>({val:s.id, label:s.name}))];
+
+  // Build user options from leads data
+  const userMap = {};
+  leadsData.forEach(l => { if (l.user_id && l.user_name) userMap[l.user_id] = l.user_name; });
+  const userOptions = [{val:'all', label:'全部業務'}, ...Object.entries(userMap).map(([id,name])=>({val:id, label:name}))];
 
   content.innerHTML = `
     <div class="kanban-filters">
+      <select class="form-select" style="width:auto;padding:3px 8px;font-size:12px;height:28px" onchange="setKanbanFilter('stage',this.value)">
+        ${stageOptions.map(o=>`<option value="${o.val}"${kanbanFilterStage===o.val?' selected':''}>${o.label}</option>`).join('')}
+      </select>
+      <select class="form-select" style="width:auto;padding:3px 8px;font-size:12px;height:28px" onchange="setKanbanFilter('user',this.value)">
+        ${userOptions.map(o=>`<option value="${o.val}"${kanbanFilterUser===o.val?' selected':''}>${o.label}</option>`).join('')}
+      </select>
+      <select class="form-select" style="width:auto;padding:3px 8px;font-size:12px;height:28px" onchange="setKanbanFilter('src',this.value)">
+        ${srcOptions.map(o=>`<option value="${o.val}"${kanbanFilterSrc===o.val?' selected':''}>${o.label}</option>`).join('')}
+      </select>
       ${prioOptions.map(o=>`<span class="filter-chip ${kanbanFilterPrio===o.val?'active':''}" onclick="setKanbanFilter('prio','${o.val}')">${o.label}</span>`).join('')}
-      <span style="color:var(--border2);padding:0 4px">|</span>
-      ${srcOptions.map(o=>`<span class="filter-chip ${kanbanFilterSrc===o.val?'active':''}" onclick="setKanbanFilter('src','${o.val}')">${o.label}</span>`).join('')}
     </div>
     <div id="kanban-board"></div>`;
 
@@ -846,15 +917,19 @@ function renderKanban(searchStr = '') {
     return;
   }
 
-  stagesData.forEach((stage, si) => {
+  const stagesToShow = kanbanFilterStage === 'all' ? stagesData : stagesData.filter(s => s.id === kanbanFilterStage);
+  stagesToShow.forEach((stage, si) => {
+    const stageIdx = stagesData.indexOf(stage);
     const stageleads = leadsData.filter(l => {
       if (l.stage_id !== stage.id) return false;
       if (!showConvertedLeads && convertedLeadIds.has(l.id)) return false;
       if (searchStr && !l.name?.toLowerCase().includes(searchStr.toLowerCase()) && !l.company?.toLowerCase().includes(searchStr.toLowerCase())) return false;
       if (kanbanFilterPrio !== 'all' && (l.priority||'') !== kanbanFilterPrio) return false;
       if (kanbanFilterSrc !== 'all' && (l.source_id||'') !== kanbanFilterSrc) return false;
+      if (kanbanFilterUser !== 'all' && (l.user_id||'') !== kanbanFilterUser) return false;
       return true;
     }).sort((a,b) => (a.sort_order||0) - (b.sort_order||0));
+    si = stageIdx;
 
     const col = document.createElement('div');
     col.className = 'kanban-col';
@@ -862,7 +937,7 @@ function renderKanban(searchStr = '') {
     col.innerHTML = `
       <div class="kanban-col-header">
         <div style="display:flex;align-items:center;gap:7px">
-          <div class="col-accent" style="background:${stage.color||STAGE_COLORS[si]||'var(--accent)'}"></div>
+          <div class="col-accent" style="background:${stage.color||STAGE_COLORS[stageIdx]||'var(--accent)'}"></div>
           <div class="kanban-col-title">${stage.name}</div>
         </div>
         <div class="kanban-col-count">${stageleads.length}</div>
@@ -890,7 +965,9 @@ function renderKanban(searchStr = '') {
 
 function setKanbanFilter(type, val) {
   if (type === 'prio') kanbanFilterPrio = val;
-  else kanbanFilterSrc = val;
+  else if (type === 'src') kanbanFilterSrc = val;
+  else if (type === 'stage') kanbanFilterStage = val;
+  else if (type === 'user') kanbanFilterUser = val;
   renderKanban(document.getElementById('leadSearch')?.value || '');
 }
 
@@ -903,12 +980,13 @@ function createKanbanCard(lead) {
   const prioClass = { high: 'prio-high', mid: 'prio-mid', low: 'prio-low' }[lead.priority] || '';
   card.innerHTML = `
     <div class="kc-name">${esc(lead.name)}</div>
-    ${lead.company ? `<div class="kc-company">🏢 ${esc(lead.company)}</div>` : ''}
+    ${lead.company ? `<div class="kc-company">👤 ${esc(lead.company)}</div>` : ''}
     <div class="kc-meta">
       ${lead.priority ? `<div class="kc-prio ${prioClass}" data-tip="${{high:'高',mid:'中',low:'低'}[lead.priority]}優先"></div>` : ''}
       ${src ? `<div class="kc-tag">${esc(src.name)}</div>` : ''}
       ${lead.amount ? `<div class="kc-tag">💰${fmtNum(lead.amount)}</div>` : ''}
     </div>
+    <div style="font-size:10.5px;color:var(--text3);margin-top:4px">${fmtDate(lead.created_at)}</div>
   `;
   card.addEventListener('dragstart', e => {
     dragSrcId = lead.id;
@@ -1014,7 +1092,7 @@ function renderLeadsList(searchStr = '') {
     </tr>`;
   }).join('');
   content.innerHTML = `<div class="panel"><table class="leads-list-table">
-    <thead><tr><th>名稱</th><th>公司</th><th>階段</th><th>來源</th><th>金額</th><th>優先</th><th>建立</th></tr></thead>
+    <thead><tr><th>公司名稱</th><th>聯絡人</th><th>階段</th><th>來源</th><th>金額</th><th>優先</th><th>建立</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
 }
@@ -1078,8 +1156,8 @@ function openNewLeadModal(stageId = null) {
   const defaultStage = stageId || stagesData[0]?.id || '';
   openModal('新增 Lead', `
     <div class="form-row">
-      <div class="form-group"><label class="form-label">名稱 *</label><input class="form-input" id="lName" placeholder="Lead 名稱"></div>
-      <div class="form-group"><label class="form-label">公司</label><input class="form-input" id="lCompany" placeholder="公司名稱"></div>
+      <div class="form-group"><label class="form-label">公司名稱 *</label><input class="form-input" id="lName" placeholder="公司名稱"></div>
+      <div class="form-group"><label class="form-label">聯絡人姓名</label><input class="form-input" id="lCompany" placeholder="主要聯絡人"></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">階段</label>
@@ -1105,6 +1183,13 @@ function openNewLeadModal(stageId = null) {
         </select>
       </div>
     </div>
+    ${needTypesData.length ? `<div class="form-group">
+      <label class="form-label">需求類型（可複選）</label>
+      <div id="lNeedTypes" style="display:flex;flex-wrap:wrap;gap:4px">
+        ${needTypesData.map(t=>`<span class="need-tag" data-id="${t.id}" onclick="toggleNeedTag(this)">${esc(t.name)}</span>`).join('')}
+      </div>
+    </div>` : ''}
+    <div class="form-group"><label class="form-label">客戶產品類型</label><input class="form-input" id="lProductType" placeholder="例：餐飲、電商、製造業...（自由填寫）"></div>
     <div class="form-group"><label class="form-label">備註</label><textarea class="form-textarea" id="lNote" placeholder="初始備註..."></textarea></div>
   `, [
     { label: '取消', cls: 'btn-secondary', action: closeModal },
@@ -1112,16 +1197,28 @@ function openNewLeadModal(stageId = null) {
   ]);
 }
 
+function toggleNeedTag(el) {
+  el.classList.toggle('selected');
+}
+
+function getSelectedNeedTypes(containerId) {
+  return [...document.querySelectorAll(`#${containerId} .need-tag.selected`)].map(el => el.dataset.id);
+}
+
 async function saveLead() {
   const name = document.getElementById('lName').value.trim();
   if (!name) { toast('請填寫名稱', 'error'); return; }
+  const selectedNeedTypes = getSelectedNeedTypes('lNeedTypes');
+  const userName = currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '';
   const payload = {
     name, company: document.getElementById('lCompany').value.trim(),
     stage_id: document.getElementById('lStage').value || stagesData[0]?.id,
     source_id: document.getElementById('lSource').value || null,
     amount: parseFloat(document.getElementById('lAmount').value) || null,
     priority: document.getElementById('lPriority').value || null,
-    user_id: currentUser.id, created_at: new Date().toISOString()
+    need_types: selectedNeedTypes.length ? selectedNeedTypes : null,
+    product_type: document.getElementById('lProductType')?.value.trim() || null,
+    user_id: currentUser.id, user_name: userName, created_at: new Date().toISOString()
   };
   const note = document.getElementById('lNote').value.trim();
   const { data: lead, error } = await db.from('leads').insert(payload).select().single();
@@ -1171,13 +1268,20 @@ function renderDrawerInfo(lead) {
   const panel = document.getElementById('drawerPanel-info');
   panel.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div><div class="form-label">公司</div><div style="font-size:13px">${esc(lead.company)||'—'}</div></div>
+      <div><div class="form-label">聯絡人</div><div style="font-size:13px">${esc(lead.company)||'—'}</div></div>
       <div><div class="form-label">階段</div><div><span class="badge badge-blue">${esc(stage?.name||'—')}</span></div></div>
       <div><div class="form-label">來源</div><div style="font-size:13px">${esc(src?.name||'—')}</div></div>
       <div><div class="form-label">優先級</div><div style="font-size:13px">${{high:'🔴 高',mid:'🟡 中',low:'🟢 低'}[lead.priority]||'—'}</div></div>
       <div><div class="form-label">預估金額</div><div style="font-size:13px;font-family:var(--mono)">${lead.amount ? '$ ' + fmtNum(lead.amount) : '—'}</div></div>
       <div><div class="form-label">建立時間</div><div style="font-size:12px;color:var(--text3)">${fmtDate(lead.created_at)}</div></div>
+      ${lead.product_type ? `<div style="grid-column:1/-1"><div class="form-label">客戶產品類型</div><div style="font-size:13px">${esc(lead.product_type)}</div></div>` : ''}
     </div>
+    ${(lead.need_types||[]).length ? `<div style="margin-bottom:14px">
+      <div class="form-label">需求類型</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
+        ${(lead.need_types||[]).map(id=>{const t=needTypesData.find(n=>n.id===id);return t?`<span class="need-tag selected" style="cursor:default">${esc(t.name)}</span>`:''}).join('')}
+      </div>
+    </div>` : ''}
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-secondary btn-sm" onclick="openEditLeadModal('${lead.id}')">✏️ 編輯</button>
       <button class="btn btn-primary btn-sm" onclick="quickConvert('${lead.id}')">🏢 轉為 Account</button>
@@ -1243,8 +1347,9 @@ async function renderDrawerContacts(leadId) {
     </div>
   `).join('');
   panel.innerHTML = `
-    <div style="margin-bottom:12px">
+    <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-primary btn-sm" onclick="openAddContact('${leadId}')">＋ 新增聯絡人</button>
+      <button class="btn btn-secondary btn-sm" onclick="openBatchContacts('${leadId}')">📋 批次貼入</button>
     </div>
     ${list || '<div class="empty-state"><div class="empty-icon">👤</div><div class="empty-text">尚無聯絡人</div></div>'}
   `;
@@ -1278,6 +1383,69 @@ function openAddContact(leadId) {
       renderDrawerContacts(leadId);
     }}
   ]);
+}
+
+function openBatchContacts(leadId) {
+  openModal('批次貼入聯絡人', `
+    <div style="margin-bottom:8px;font-size:12.5px;color:var(--text3);line-height:1.6">
+      從 Excel / Google Sheet 複製整欄資料貼入，系統會自動解析。<br>
+      支援格式：每行一筆，欄位用 <code>Tab</code> 分隔（直接從 Excel 複製即可）<br>
+      欄位順序：<strong>聯絡人姓名 &nbsp;職稱 &nbsp;Email &nbsp;電話</strong>（職稱/電話可省略）
+    </div>
+    <textarea class="form-textarea" id="batchContactsText" style="min-height:160px;font-family:var(--mono);font-size:12px" placeholder="王小明&#9;採購經理&#9;wang@company.com&#9;0912-345-678&#10;李大華&#9;CEO&#9;li@company.com&#10;陳美麗&#9;&#9;service@company.com"></textarea>
+    <div id="batchPreview" style="margin-top:8px;font-size:12px;color:var(--text3)"></div>
+  `, [
+    { label: '取消', cls: 'btn-secondary', action: closeModal },
+    { label: '預覽', cls: 'btn-secondary', action: () => previewBatchContacts() },
+    { label: '確認匯入', cls: 'btn-primary', action: async () => {
+      const rows = parseBatchContacts();
+      if (!rows.length) { toast('沒有可匯入的資料', 'error'); return; }
+      let count = 0;
+      for (const r of rows) {
+        await db.from('contacts').insert({
+          name: r.name, role: r.role||'', email: r.email||'', phone: r.phone||'',
+          lead_id: leadId, user_id: currentUser.id, created_at: new Date().toISOString()
+        });
+        count++;
+      }
+      closeModal();
+      toast(\`成功匯入 \${count} 筆聯絡人\`, 'success');
+      renderDrawerContacts(leadId);
+    }}
+  ]);
+  // Live preview on paste
+  setTimeout(() => {
+    const ta = document.getElementById('batchContactsText');
+    if (ta) ta.addEventListener('input', previewBatchContacts);
+  }, 100);
+}
+
+function parseBatchContacts() {
+  const text = document.getElementById('batchContactsText')?.value || '';
+  const rows = [];
+  text.split('\n').forEach(line => {
+    const parts = line.split('\t').map(s => s.trim());
+    // Also try comma if no tabs
+    const cols = parts.length >= 2 ? parts : line.split(',').map(s => s.trim());
+    const name = cols[0];
+    if (!name) return;
+    rows.push({ name, role: cols[1]||'', email: cols[2]||'', phone: cols[3]||'' });
+  });
+  return rows;
+}
+
+function previewBatchContacts() {
+  const rows = parseBatchContacts();
+  const el = document.getElementById('batchPreview');
+  if (!el) return;
+  if (!rows.length) { el.innerHTML = ''; return; }
+  el.innerHTML = \`<div style="margin-bottom:4px;font-weight:500">預覽（共 \${rows.length} 筆）：</div>\` +
+    rows.map(r => \`<div style="padding:3px 0;border-bottom:1px solid var(--border)">
+      <span style="font-weight:500">\${esc(r.name)}</span>
+      \${r.role ? \` · \${esc(r.role)}\` : ''}
+      \${r.email ? \` · \${esc(r.email)}\` : ''}
+      \${r.phone ? \` · \${esc(r.phone)}\` : ''}
+    </div>\`).join('');
 }
 
 async function editContact(cId) {
@@ -1353,9 +1521,10 @@ async function openAddActivity(leadId) {
   const tplChips = activityTemplates.length ? `
     <div class="form-group">
       <label class="form-label">套用模板（插入到內容）</label>
-      <div style="display:flex;flex-wrap:wrap;gap:4px">
-        ${activityTemplates.map(t=>`<span class="tpl-chip" onclick="applyActivityTemplate('${t.id}')">${esc(t.name)}</span>`).join('')}
-      </div>
+      <select class="form-select" id="actTemplate" onchange="applyActivityTemplate(this.value)">
+        <option value="">— 不使用模板 —</option>
+        ${activityTemplates.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}
+      </select>
     </div>` : '';
 
   openModal('記錄活動', `
@@ -1398,14 +1567,18 @@ async function openAddActivity(leadId) {
 }
 
 function applyActivityTemplate(tplId) {
+  if (!tplId) return;
   const tpl = activityTemplates.find(t => t.id === tplId);
   if (!tpl) return;
   const ta = document.getElementById('actContent');
   if (!ta) return;
-  const cur = ta.value;
+  const cur = ta.value.trim();
   ta.value = cur ? cur + '\n\n' + tpl.content : tpl.content;
   ta.focus();
   ta.setSelectionRange(ta.value.length, ta.value.length);
+  // Reset select back to placeholder so they can pick another
+  const sel = document.getElementById('actTemplate');
+  if (sel) setTimeout(() => sel.value = '', 100);
 }
 
 async function deleteActivity(actId, leadId) {
@@ -1457,8 +1630,8 @@ async function openEditLeadModal(leadId) {
   const { data: lead } = await db.from('leads').select('*').eq('id', leadId).single();
   openModal('編輯 Lead', `
     <div class="form-row">
-      <div class="form-group"><label class="form-label">名稱</label><input class="form-input" id="elName" value="${esc(lead.name||'')}"></div>
-      <div class="form-group"><label class="form-label">公司</label><input class="form-input" id="elCompany" value="${esc(lead.company||'')}"></div>
+      <div class="form-group"><label class="form-label">公司名稱</label><input class="form-input" id="elName" value="${esc(lead.name||'')}"></div>
+      <div class="form-group"><label class="form-label">聯絡人姓名</label><input class="form-input" id="elCompany" value="${esc(lead.company||'')}"></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">階段</label>
@@ -1484,9 +1657,17 @@ async function openEditLeadModal(leadId) {
         </select>
       </div>
     </div>
+    <div class="form-group"><label class="form-label">客戶產品類型</label><input class="form-input" id="elProductType" placeholder="例：餐飲、電商、製造業..." value="${esc(lead.product_type||'')}"></div>
+    ${needTypesData.length ? `<div class="form-group">
+      <label class="form-label">需求類型（可複選）</label>
+      <div id="elNeedTypes" style="display:flex;flex-wrap:wrap;gap:4px">
+        ${needTypesData.map(t=>`<span class="need-tag ${(lead.need_types||[]).includes(t.id)?'selected':''}" data-id="${t.id}" onclick="toggleNeedTag(this)">${esc(t.name)}</span>`).join('')}
+      </div>
+    </div>` : ''}
   `, [
     { label: '取消', cls: 'btn-secondary', action: closeModal },
     { label: '儲存', cls: 'btn-primary', action: async () => {
+      const selNT = getSelectedNeedTypes('elNeedTypes');
       await db.from('leads').update({
         name: document.getElementById('elName').value.trim(),
         company: document.getElementById('elCompany').value.trim(),
@@ -1494,6 +1675,8 @@ async function openEditLeadModal(leadId) {
         source_id: document.getElementById('elSource').value || null,
         amount: parseFloat(document.getElementById('elAmount').value) || null,
         priority: document.getElementById('elPrio').value || null,
+        need_types: selNT.length ? selNT : null,
+        product_type: document.getElementById('elProductType')?.value.trim() || null,
         updated_at: new Date().toISOString()
       }).eq('id', leadId);
       closeModal();
@@ -1610,6 +1793,13 @@ async function openAccountDetail(accId) {
   const { data: contracts } = await db.from('contracts').select('*').eq('account_id', accId).order('created_at', {ascending:false});
   const { data: notes } = await db.from('notes').select('*').eq('account_id', accId).order('created_at', {ascending:false});
 
+  // Load original lead data if exists
+  let origLead = null;
+  if (acc.lead_id) {
+    const { data: ld } = await db.from('leads').select('*').eq('id', acc.lead_id).single();
+    origLead = ld;
+  }
+
   const isTerminated = acc.status === 'terminated';
   const statusBadge = isTerminated
     ? `<span class="badge badge-red">終止合作</span>`
@@ -1629,6 +1819,20 @@ async function openAccountDetail(accId) {
         ${acc.lead_id ? `<button class="btn btn-sm btn-secondary" onclick="revertToLead('${acc.lead_id}','${accId}')">↩ 轉回 Lead</button>` : ''}
       </div>
     </div>
+    ${origLead ? `<div class="chart-card" style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="chart-title">🎯 原始 Lead 資訊</div>
+        <button class="btn btn-ghost btn-sm" onclick="openLeadDrawerFromAccount('${acc.lead_id}')">查看 Lead ↗</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:13px">
+        <div><div class="form-label">來源</div>${esc(sourcesData.find(s=>s.id===origLead.source_id)?.name||'—')}</div>
+        <div><div class="form-label">優先級</div>${{high:'🔴 高',mid:'🟡 中',low:'🟢 低'}[origLead.priority]||'—'}</div>
+        <div><div class="form-label">預估金額</div><span style="font-family:var(--mono)">${origLead.amount?'$ '+fmtNum(origLead.amount):'—'}</span></div>
+        ${origLead.product_type ? `<div><div class="form-label">客戶產品類型</div>${esc(origLead.product_type)}</div>` : ''}
+        ${(origLead.need_types||[]).length ? `<div style="grid-column:1/-1"><div class="form-label">需求類型</div><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${(origLead.need_types||[]).map(id=>{const t=needTypesData.find(n=>n.id===id);return t?`<span class="need-tag selected" style="cursor:default">${esc(t.name)}</span>`:''}).join('')}</div></div>` : ''}
+        <div><div class="form-label">初次建立</div><span style="color:var(--text3);font-size:12px">${fmtDate(origLead.created_at)}</span></div>
+      </div>
+    </div>` : ''}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div>
         <div class="chart-card" style="margin-bottom:16px">
@@ -1671,6 +1875,11 @@ async function toggleAccountStatus(accId, newStatus) {
   await db.from('accounts').update({ status: newStatus }).eq('id', accId);
   toast(newStatus === 'terminated' ? '已標記終止合作' : '已恢復為合作中', 'success');
   openAccountDetail(accId);
+}
+
+function openLeadDrawerFromAccount(leadId) {
+  navigate('leads');
+  setTimeout(() => openLeadDrawer(leadId), 400);
 }
 
 async function revertToLead(leadId, accId) {
@@ -1896,6 +2105,18 @@ async function renderSettings() {
       </div>
 
       <div class="settings-section">
+        <div class="settings-title">🏷 需求類型管理</div>
+        <div class="card">
+          <div id="needTypesList" style="margin-bottom:10px"></div>
+          <div class="divider"></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input class="form-input" id="newNeedTypeName" placeholder="新增需求類型（例：官網需求）" style="flex:1">
+            <button class="btn btn-primary btn-sm" onclick="addNeedType()">新增</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
         <div class="settings-title">📝 活動記錄模板</div>
         <div class="card">
           <div id="templatesList" style="margin-bottom:10px"></div>
@@ -1920,18 +2141,76 @@ async function renderSettings() {
   renderStagesList();
   renderSourcesList();
   renderTemplatesList();
+  renderNeedTypesList();
 }
 
 function renderStagesList() {
   const el = document.getElementById('stagesList');
   if (!el) return;
-  el.innerHTML = stagesData.map(s => `
-    <div class="tag-item">
-      <div style="width:10px;height:10px;border-radius:50%;background:${s.color||'#888'}"></div>
-      ${esc(s.name)}
-      <span class="tag-del" onclick="deleteStage('${s.id}')">×</span>
+  el.innerHTML = `
+    <div style="font-size:11px;color:var(--text3);margin-bottom:6px">拖移 ⠿ 可調整順序</div>
+    <div id="stagesDragList" style="display:flex;flex-direction:column;gap:4px">
+      ${stagesData.map(s => `
+        <div class="tag-item stage-drag-item" draggable="true" data-id="${s.id}"
+          style="cursor:grab;justify-content:flex-start;gap:8px"
+          ondragstart="stageDragStart(event,this)"
+          ondragover="stageDragOver(event,this)"
+          ondrop="stageDrop(event,this)"
+          ondragend="stageDragEnd()">
+          <span style="color:var(--text3);font-size:14px;cursor:grab">⠿</span>
+          <div style="width:10px;height:10px;border-radius:50%;background:${s.color||'#888'};flex-shrink:0"></div>
+          <span style="flex:1">${esc(s.name)}</span>
+          <span class="tag-del" onclick="event.stopPropagation();deleteStage('${s.id}')">×</span>
+        </div>
+      `).join('')}
     </div>
-  `).join('') + '<div style="color:var(--text3);font-size:12px;padding:4px 6px">' + (stagesData.length===0?'尚無階段':'') + '</div>';
+    <div style="color:var(--text3);font-size:12px;padding:4px 6px">${stagesData.length===0?'尚無階段':''}</div>
+  `;
+}
+
+let stageDragSrc = null;
+function stageDragStart(e, el) {
+  stageDragSrc = el;
+  el.style.opacity = '0.4';
+  e.dataTransfer.effectAllowed = 'move';
+}
+function stageDragOver(e, el) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  if (el !== stageDragSrc) {
+    el.style.borderTop = '2px solid var(--accent)';
+  }
+}
+function stageDrop(e, el) {
+  e.stopPropagation(); e.preventDefault();
+  document.querySelectorAll('.stage-drag-item').forEach(i => i.style.borderTop = '');
+  if (stageDragSrc && el !== stageDragSrc) {
+    const list = document.getElementById('stagesDragList');
+    const items = [...list.querySelectorAll('.stage-drag-item')];
+    const srcIdx = items.indexOf(stageDragSrc);
+    const tgtIdx = items.indexOf(el);
+    if (srcIdx < tgtIdx) list.insertBefore(stageDragSrc, el.nextSibling);
+    else list.insertBefore(stageDragSrc, el);
+    saveStageOrder();
+  }
+}
+function stageDragEnd() {
+  document.querySelectorAll('.stage-drag-item').forEach(i => {
+    i.style.opacity = '';
+    i.style.borderTop = '';
+  });
+  stageDragSrc = null;
+}
+async function saveStageOrder() {
+  const items = document.querySelectorAll('#stagesDragList .stage-drag-item');
+  for (let i = 0; i < items.length; i++) {
+    const id = items[i].dataset.id;
+    await db.from('stages').update({ order_index: i }).eq('id', id);
+    const stage = stagesData.find(s => s.id === id);
+    if (stage) stage.order_index = i;
+  }
+  stagesData.sort((a,b) => (a.order_index||0) - (b.order_index||0));
+  toast('階段順序已儲存', 'success');
 }
 
 function renderSourcesList() {
@@ -1980,6 +2259,40 @@ async function deleteSource(id) {
   toast('來源已刪除', 'success');
 }
 
+
+// ── NEED TYPES ──
+function renderNeedTypesList() {
+  const el = document.getElementById('needTypesList');
+  if (!el) return;
+  if (!needTypesData.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:4px 0">尚無需求類型，新增一個吧</div>';
+    return;
+  }
+  el.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:6px">' + needTypesData.map(t => `
+    <div class="tag-item">
+      <span class="need-tag selected" style="cursor:default;margin:0">${esc(t.name)}</span>
+      <span class="tag-del" onclick="deleteNeedType('${t.id}')">×</span>
+    </div>
+  `).join('') + '</div>';
+}
+
+async function addNeedType() {
+  const name = document.getElementById('newNeedTypeName')?.value.trim();
+  if (!name) return;
+  const { error } = await db.from('need_types').insert({ name, created_at: new Date().toISOString() });
+  if (error) { toast('新增失敗：' + error.message, 'error'); return; }
+  document.getElementById('newNeedTypeName').value = '';
+  await loadGlobalData();
+  renderNeedTypesList();
+  toast('需求類型新增成功', 'success');
+}
+
+async function deleteNeedType(id) {
+  await db.from('need_types').delete().eq('id', id);
+  await loadGlobalData();
+  renderNeedTypesList();
+  toast('已刪除', 'success');
+}
 
 // ── ACTIVITY TEMPLATES ──
 function renderTemplatesList() {
@@ -2270,7 +2583,9 @@ function esc(s) {
 }
 function fmtDate(d) {
   if (!d) return '—';
-  try { return new Date(d).toLocaleDateString('zh-TW', {year:'numeric',month:'2-digit',day:'2-digit'}); } catch { return d; }
+  try {
+    return new Date(d).toLocaleString('zh-TW', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+  } catch { return d; }
 }
 function fmtNum(n) {
   if (!n) return '0';
@@ -2389,6 +2704,17 @@ CREATE TABLE IF NOT EXISTS contracts (
   user_id UUID,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Need types table (for lead requirement categories):
+-- CREATE TABLE IF NOT EXISTS need_types (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   name TEXT NOT NULL,
+--   created_at TIMESTAMPTZ DEFAULT now()
+-- );
+-- ALTER TABLE need_types ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "auth_all" ON need_types FOR ALL TO authenticated USING (true) WITH CHECK (true);
+-- ALTER TABLE leads ADD COLUMN IF NOT EXISTS need_types UUID[] DEFAULT '{}';
+-- ALTER TABLE leads ADD COLUMN IF NOT EXISTS user_name TEXT;
 
 -- Enable RLS and add policies for each table:
 ALTER TABLE stages ENABLE ROW LEVEL SECURITY;
