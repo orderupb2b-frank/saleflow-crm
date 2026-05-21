@@ -1409,11 +1409,10 @@ function openBatchContacts(leadId) {
         count++;
       }
       closeModal();
-      toast(\`成功匯入 \${count} 筆聯絡人\`, 'success');
+      toast('成功匯入 ' + count + ' 筆聯絡人', 'success');
       renderDrawerContacts(leadId);
     }}
   ]);
-  // Live preview on paste
   setTimeout(() => {
     const ta = document.getElementById('batchContactsText');
     if (ta) ta.addEventListener('input', previewBatchContacts);
@@ -1425,7 +1424,6 @@ function parseBatchContacts() {
   const rows = [];
   text.split('\n').forEach(line => {
     const parts = line.split('\t').map(s => s.trim());
-    // Also try comma if no tabs
     const cols = parts.length >= 2 ? parts : line.split(',').map(s => s.trim());
     const name = cols[0];
     if (!name) return;
@@ -1439,13 +1437,16 @@ function previewBatchContacts() {
   const el = document.getElementById('batchPreview');
   if (!el) return;
   if (!rows.length) { el.innerHTML = ''; return; }
-  el.innerHTML = \`<div style="margin-bottom:4px;font-weight:500">預覽（共 \${rows.length} 筆）：</div>\` +
-    rows.map(r => \`<div style="padding:3px 0;border-bottom:1px solid var(--border)">
-      <span style="font-weight:500">\${esc(r.name)}</span>
-      \${r.role ? \` · \${esc(r.role)}\` : ''}
-      \${r.email ? \` · \${esc(r.email)}\` : ''}
-      \${r.phone ? \` · \${esc(r.phone)}\` : ''}
-    </div>\`).join('');
+  let html2 = '<div style="margin-bottom:4px;font-weight:500">預覽（共 ' + rows.length + ' 筆）：</div>';
+  rows.forEach(r => {
+    html2 += '<div style="padding:3px 0;border-bottom:1px solid var(--border)">';
+    html2 += '<span style="font-weight:500">' + esc(r.name) + '</span>';
+    if (r.role)  html2 += ' · ' + esc(r.role);
+    if (r.email) html2 += ' · ' + esc(r.email);
+    if (r.phone) html2 += ' · ' + esc(r.phone);
+    html2 += '</div>';
+  });
+  el.innerHTML = html2;
 }
 
 async function editContact(cId) {
