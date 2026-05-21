@@ -2554,6 +2554,133 @@ function importLeadsExcel() {
   };
   input.click();
 }
+
+// ── Utility Functions ──
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  try {
+    return new Date(d).toLocaleString('zh-TW', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+  } catch { return d; }
+}
+
+function fmtNum(n) {
+  if (!n) return '0';
+  return Number(n).toLocaleString();
+}
+
+function getStageName(stageId) {
+  return stagesData.find(s => s.id === stageId)?.name || '';
+}
+
+function openModal(title, bodyHTML, buttons) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHTML;
+  const footer = document.getElementById('modalFooter');
+  footer.innerHTML = '';
+  (buttons||[]).forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'btn ' + (b.cls||'btn-secondary');
+    btn.textContent = b.label;
+    btn.onclick = b.action;
+    footer.appendChild(btn);
+  });
+  document.getElementById('modalOverlay').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').style.display = 'none';
+}
+
+function closeModalOnBg(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+function openConfirm(title, msg, onConfirm, onCancel, confirmLabel, cancelLabel) {
+  openModal(title, '<div style="font-size:14px;line-height:1.6;color:var(--text2)">' + msg + '</div>', [
+    { label: cancelLabel||'取消', cls: 'btn-secondary', action: onCancel||closeModal },
+    { label: confirmLabel||'確認', cls: 'btn-danger', action: onConfirm }
+  ]);
+}
+
+function toast(msg, type) {
+  const t = document.createElement('div');
+  t.className = 'toast toast-' + (type||'success');
+  t.innerHTML = (type==='error'?'✕ ':'✓ ') + esc(msg);
+  document.body.appendChild(t);
+  setTimeout(() => t.classList.add('show'), 10);
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3000);
+}
+
+function colDragOver(e, col) {
+  e.preventDefault();
+  col.classList.add('drag-over');
+}
+
+function colDragLeave(e, col) {
+  col.classList.remove('drag-over');
+}
+
+async function colDrop(e, stageId) {
+  e.preventDefault();
+  const col = document.getElementById('col-' + stageId);
+  if (col) col.classList.remove('drag-over');
+  if (!dragSrcId) return;
+  const lead = leadsData.find(l => l.id === dragSrcId);
+  if (!lead || lead.stage_id === stageId) return;
+  lead.stage_id = stageId;
+  await db.from('leads').update({ stage_id: stageId, updated_at: new Date().toISOString() }).eq('id', dragSrcId);
+  toast('已移至「' + (stagesData.find(s=>s.id===stageId)?.name||'') + '」', 'success');
+  renderKanban(document.getElementById('leadSearch')?.value || '');
+}
+
+async function deleteLead(leadId) {
+  openConfirm('刪除 Lead', '確定要刪除這筆 Lead？此操作無法復原。', async () => {
+    await db.from('leads').delete().eq('id', leadId);
+    closeModal();
+    closeDrawer();
+    toast('已刪除', 'success');
+    navigate('leads');
+  }, closeModal, '確定刪除', '取消');
+}
+
+async function deleteActivity(actId, leadId) {
+  await db.from('activities').delete().eq('id', actId);
+  toast('已刪除', 'success');
+  renderDrawerActivities(leadId);
+}
+
+async function addNote(refId, type) {
+  const text = document.getElementById('newNoteText')?.value?.trim();
+  if (!text) return;
+  const payload = { content: text, user_id: currentUser.id, created_at: new Date().toISOString() };
+  if (type === 'lead') payload.lead_id = refId;
+  else if (type === 'account') payload.account_id = refId;
+  await db.from('notes').insert(payload);
+  document.getElementById('newNoteText').value = '';
+  toast('備註已新增', 'success');
+  if (type === 'lead') renderDrawerNotes(refId);
+  else if (type === 'account') openAccountDetail(refId);
+}
+
+async function deleteNote(noteId, refId, type) {
+  await db.from('notes').delete().eq('id', noteId);
+  toast('已刪除', 'success');
+  if (type === 'lead') renderDrawerNotes(refId);
+  else if (type === 'account') openAccountDetail(refId);
+}
+
+async function quickStageChange(leadId, stageId) {
+  await db.from('leads').update({ stage_id: stageId, updated_at: new Date().toISOString() }).eq('id', leadId);
+  const lead = leadsData.find(l => l.id === leadId);
+  if (lead) lead.stage_id = stageId;
+  toast('階段已更新：' + (stagesData.find(s=>s.id===stageId)?.name||''), 'success');
+  openLeadDrawer(leadId);
+}
 </script>
 <!-- Bottom Nav (mobile) -->
 <div id="bottom-nav">
