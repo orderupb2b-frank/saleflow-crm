@@ -286,6 +286,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 
 /* ── List View ── */
 .leads-list-table { width: 100%; border-collapse: collapse; }
+.list-row-selected td { background: var(--accent-glow) !important; }
 .leads-list-table th { text-align:left; padding:9px 12px; font-size:11px; font-weight:600; color:var(--text3); border-bottom:1px solid var(--border); text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap; }
 .leads-list-table td { padding:10px 12px; border-bottom:1px solid var(--border); font-size:13px; vertical-align:middle; }
 .leads-list-table tr:last-child td { border-bottom:none; }
@@ -531,7 +532,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 const SUPABASE_URL = 'https://gsguqkyznapnanuzdoac.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_CWhs41Nk32zcc3RC2m_fkQ_oUHy0Auo';
 const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+const db = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+});
 
 // ── State ──
 let currentUser = null;
@@ -1045,7 +1048,6 @@ function createKanbanCard(lead) {
     <div class="kc-meta">
       ${lead.priority ? `<div class="kc-prio ${prioClass}" data-tip="${{high:'高',mid:'中',low:'低'}[lead.priority]}優先"></div>` : ''}
       ${src ? `<div class="kc-tag">${esc(src.name)}</div>` : ''}
-      ${lead.amount ? `<div class="kc-tag">💰${fmtNum(lead.amount)}</div>` : ''}
     </div>
     <div style="font-size:10.5px;color:var(--text3);margin-top:4px;display:flex;justify-content:space-between"><span>${lead.user_name ? "👤 "+esc(lead.user_name) : ""}</span><span>${fmtDate(lead.created_at)}</span></div>
   `;
@@ -1080,18 +1082,30 @@ function createKanbanCard(lead) {
   card.addEventListener('drop', async e => {
     e.preventDefault();
     e.stopPropagation();
-    if (!dragSrcEl || dragSrcEl === card) return;
+    document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
+    if (!dragSrcEl) return;
     const srcStage = dragSrcEl.closest('.kanban-col')?.dataset.stageId;
     const tgtStage = card.closest('.kanban-col')?.dataset.stageId;
-    document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
-    if (srcStage === tgtStage) {
+    if (!tgtStage) return;
+    if (srcStage === tgtStage && dragSrcEl !== card) {
+      // Same col: insert based on mouse Y position
       const rect = card.getBoundingClientRect();
       if (e.clientY < rect.top + rect.height / 2) card.parentElement.insertBefore(dragSrcEl, card);
       else card.parentElement.insertBefore(dragSrcEl, card.nextSibling);
       await saveColOrder(tgtStage);
-      dragSrcId = null; dragSrcEl = null;
+    } else if (srcStage !== tgtStage) {
+      // Cross-col: change stage
+      const lead = leadsData.find(l => l.id === dragSrcId);
+      if (lead) {
+        lead.stage_id = tgtStage;
+        await db.from('leads').update({ stage_id: tgtStage, updated_at: new Date().toISOString() }).eq('id', dragSrcId);
+        toast('已移至「' + (stagesData.find(s=>s.id===tgtStage)?.name||'') + '」', 'success');
+        dragSrcId = null; dragSrcEl = null;
+        renderKanban(document.getElementById('leadSearch')?.value || '');
+        return;
+      }
     }
-    // cross-col: handled by colDrop on the col element
+    dragSrcId = null; dragSrcEl = null;
   });
   card.addEventListener('click', () => openLeadDrawer(lead.id));
   return card;
@@ -1129,9 +1143,11 @@ function setLeadsView(mode) {
   filterLeads();
 }
 
+let listSelectedIds = new Set();
+
 function renderLeadsList(searchStr = '') {
   const content = document.getElementById('content');
-  content.style.padding = '24px';
+  content.style.padding = '16px';
   content.style.overflowX = 'auto';
   const filtered = leadsData.filter(l => {
     if (!showConvertedLeads && convertedLeadIds.has(l.id)) return false;
@@ -1141,26 +1157,90 @@ function renderLeadsList(searchStr = '') {
     content.innerHTML = '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-text">沒有符合的 Lead</div></div>';
     return;
   }
+  window._listFiltered = filtered;
   const rows = filtered.map(l => {
     const stage = stagesData.find(s => s.id === l.stage_id);
     const src = sourcesData.find(s => s.id === l.source_id);
-    const stageDot = stage ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${stage.color||'#888'};margin-right:5px"></span>` : '';
-    return `<tr onclick="openLeadDrawer('${l.id}')">
-      <td><div style="font-weight:500">${esc(l.name)}</div></td>
-      <td>${esc(l.company||'—')}</td>
+    const checked = listSelectedIds.has(l.id) ? 'checked' : '';
+    return `<tr data-id="${l.id}" class="${listSelectedIds.has(l.id)?'list-row-selected':''}">
+      <td onclick="event.stopPropagation()" style="width:36px;text-align:center;padding:0 8px">
+        <input type="checkbox" ${checked} onchange="toggleListSelect('${l.id}',this.checked)" style="width:15px;height:15px;cursor:pointer">
+      </td>
+      <td style="cursor:pointer;font-weight:500" onclick="openLeadDrawer('${l.id}')">${esc(l.name)}</td>
+      <td style="font-size:12px;color:var(--text3)">${esc(l.company||'—')}</td>
+      <td onclick="event.stopPropagation()">
+        <select class="form-select" style="padding:2px 4px;height:26px;font-size:11.5px;width:auto;max-width:120px" onchange="inlineUpdateLead('${l.id}','stage_id',this.value)">
+          ${stagesData.map(s=>`<option value="${s.id}"${s.id===l.stage_id?' selected':''}>${esc(s.name)}</option>`).join('')}
+        </select>
+      </td>
+      <td onclick="event.stopPropagation()">
+        <select class="form-select" style="padding:2px 4px;height:26px;font-size:11.5px;width:auto;max-width:100px" onchange="inlineUpdateLead('${l.id}','source_id',this.value)">
+          <option value="">—</option>
+          ${sourcesData.map(s=>`<option value="${s.id}"${s.id===l.source_id?' selected':''}>${esc(s.name)}</option>`).join('')}
+        </select>
+      </td>
       <td style="font-size:12px;color:var(--text3)">${esc(l.user_name||'—')}</td>
-      <td>${stageDot}<span style="font-size:12px">${esc(stage?.name||'—')}</span></td>
-      <td>${esc(src?.name||'—')}</td>
-      <td style="font-family:var(--mono);font-size:12px">${l.amount?'$ '+fmtNum(l.amount):'—'}</td>
-      <td>${{high:'🔴',mid:'🟡',low:'🟢'}[l.priority]||'—'}</td>
-      <td style="font-size:12px;color:var(--text3)">${fmtDate(l.created_at)}</td>
+      <td style="font-size:12px;color:var(--text3);cursor:pointer" onclick="openSetNextContact('${l.id}','${l.next_contact_date||''}')">${l.next_contact_date?new Date(l.next_contact_date).toLocaleDateString('zh-TW'):'<span style=\'color:var(--text3);font-size:11px\'>設定</span>'}</td>
+      <td style="font-size:11px;color:var(--text3)">${fmtDate(l.created_at)}</td>
     </tr>`;
   }).join('');
-  content.innerHTML = `<div class="panel"><table class="leads-list-table">
-    <thead><tr><th>公司名稱</th><th>聯絡人</th><th>業務</th><th>階段</th><th>來源</th><th>金額</th><th>優先</th><th>建立</th></tr></thead>
-    <tbody>${rows}</tbody>
-  </table></div>`;
+
+  const batchBar = listSelectedIds.size ? `
+    <div id="listBatchBar" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--accent-glow);border-radius:8px;margin-bottom:10px;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:500">已選 ${listSelectedIds.size} 筆</span>
+      <select class="form-select" id="batchStageSelect" style="width:auto;height:28px;font-size:12px">
+        <option value="">批次改階段...</option>
+        ${stagesData.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="batchUpdateField('stage_id','batchStageSelect')">套用</button>
+      <select class="form-select" id="batchSrcSelect" style="width:auto;height:28px;font-size:12px">
+        <option value="">批次改來源...</option>
+        ${sourcesData.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="batchUpdateField('source_id','batchSrcSelect')">套用</button>
+      <button class="btn btn-secondary btn-sm" onclick="listSelectedIds.clear();renderLeadsList(document.getElementById('leadSearch')?.value||'')">取消</button>
+    </div>` : '';
+
+  content.innerHTML = batchBar + `<div class="panel" style="overflow:auto">
+    <table class="leads-list-table" style="min-width:750px">
+      <thead><tr>
+        <th style="width:36px"><input type="checkbox" onchange="toggleSelectAll(this)" style="width:15px;height:15px;cursor:pointer"></th>
+        <th>公司名稱</th><th>聯絡人</th><th>階段</th><th>來源</th><th>業務</th><th>下次聯絡</th><th>建立時間</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
 }
+
+function toggleListSelect(id, checked) {
+  if (checked) listSelectedIds.add(id); else listSelectedIds.delete(id);
+  renderLeadsList(document.getElementById('leadSearch')?.value||'');
+}
+function toggleSelectAll(cb) {
+  const filtered = window._listFiltered || [];
+  if (cb.checked) filtered.forEach(l => listSelectedIds.add(l.id));
+  else listSelectedIds.clear();
+  renderLeadsList(document.getElementById('leadSearch')?.value||'');
+}
+async function inlineUpdateLead(leadId, field, value) {
+  const update = { updated_at: new Date().toISOString() };
+  update[field] = value || null;
+  await db.from('leads').update(update).eq('id', leadId);
+  const lead = leadsData.find(l => l.id === leadId);
+  if (lead) lead[field] = value || null;
+}
+async function batchUpdateField(field, selectId) {
+  const val = document.getElementById(selectId)?.value;
+  if (!val || !listSelectedIds.size) { toast('請先選擇選項', 'error'); return; }
+  for (const id of listSelectedIds) {
+    await db.from('leads').update({ [field]: val, updated_at: new Date().toISOString() }).eq('id', id);
+    const l = leadsData.find(l=>l.id===id); if (l) l[field] = val;
+  }
+  toast('已批次更新 ' + listSelectedIds.size + ' 筆', 'success');
+  listSelectedIds.clear();
+  renderLeadsList(document.getElementById('leadSearch')?.value||'');
+}
+
 
 function colDragOver(e, el) {
   e.preventDefault();
@@ -1237,17 +1317,7 @@ function openNewLeadModal(stageId = null) {
         </select>
       </div>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">預估金額</label><input class="form-input" id="lAmount" type="number" placeholder="0"></div>
-      <div class="form-group"><label class="form-label">優先級</label>
-        <select class="form-select" id="lPriority">
-          <option value="">-- 選擇 --</option>
-          <option value="high">🔴 高</option>
-          <option value="mid">🟡 中</option>
-          <option value="low">🟢 低</option>
-        </select>
-      </div>
-    </div>
+
     ${needTypesData.length ? `<div class="form-group">
       <label class="form-label">需求類型（可複選）</label>
       <div id="lNeedTypes" style="display:flex;flex-wrap:wrap;gap:4px">
@@ -1307,8 +1377,7 @@ async function saveLead() {
     name,
     stage_id: document.getElementById('lStage').value || stagesData[0]?.id,
     source_id: document.getElementById('lSource').value || null,
-    amount: parseFloat(document.getElementById('lAmount').value) || null,
-    priority: document.getElementById('lPriority').value || null,
+
     need_types: selectedNeedTypes.length ? selectedNeedTypes : null,
     product_type: document.getElementById('lProductType')?.value.trim() || null,
     user_id: currentUser.id, user_name: userName, created_at: new Date().toISOString()
@@ -1370,8 +1439,6 @@ function renderDrawerInfo(lead) {
       <div><div class="form-label">聯絡人</div><div style="font-size:13px">${esc(lead.company)||'—'}</div></div>
       <div><div class="form-label">階段</div><div><span class="badge badge-blue">${esc(stage?.name||'—')}</span></div></div>
       <div><div class="form-label">來源</div><div style="font-size:13px">${esc(src?.name||'—')}</div></div>
-      <div><div class="form-label">優先級</div><div style="font-size:13px">${{high:'🔴 高',mid:'🟡 中',low:'🟢 低'}[lead.priority]||'—'}</div></div>
-      <div><div class="form-label">預估金額</div><div style="font-size:13px;font-family:var(--mono)">${lead.amount ? '$ ' + fmtNum(lead.amount) : '—'}</div></div>
       <div><div class="form-label">建立時間</div><div style="font-size:12px;color:var(--text3)">${fmtDate(lead.created_at)}</div></div>
       <div><div class="form-label">負責業務</div><div style="font-size:13px">${esc(lead.user_name||"—")}</div></div>
       ${lead.next_contact_date ? `<div style="grid-column:1/-1;padding:8px 10px;background:${new Date(lead.next_contact_date)<new Date()?'var(--red-bg,rgba(239,68,68,0.1))':'var(--accent-glow)'};border-radius:6px;border:1px solid ${new Date(lead.next_contact_date)<new Date()?'rgba(239,68,68,0.3)':'var(--accent)'}"><div class="form-label">📅 下次聯絡日期</div><div style="font-size:13px;font-weight:500">${new Date(lead.next_contact_date).toLocaleDateString('zh-TW')} ${new Date(lead.next_contact_date)<new Date()?'⚠️ 已過期':''}</div></div>` : ''}
@@ -1385,7 +1452,7 @@ function renderDrawerInfo(lead) {
     </div>` : ''}
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-secondary btn-sm" onclick="openEditLeadModal('${lead.id}')">✏️ 編輯</button>
-      <button class="btn btn-secondary btn-sm" onclick="openSetNextContact('${lead.id}','${lead.next_contact_date||''}')" title="設定下次聯絡">📅</button>
+      <button class="btn btn-secondary btn-sm" onclick="openSetNextContact('${lead.id}','${lead.next_contact_date||''}')">📅 ${lead.next_contact_date ? new Date(lead.next_contact_date).toLocaleDateString('zh-TW') : '設定聯絡日'}</button>
       <button class="btn btn-primary btn-sm" onclick="quickConvert('${lead.id}')">🏢 轉為 Account</button>
       <button class="btn btn-danger btn-sm" onclick="deleteLead('${lead.id}')">🗑 刪除</button>
     </div>
@@ -1752,17 +1819,7 @@ async function openEditLeadModal(leadId) {
         </select>
       </div>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">金額</label><input class="form-input" id="elAmount" type="number" value="${lead.amount||''}"></div>
-      <div class="form-group"><label class="form-label">優先級</label>
-        <select class="form-select" id="elPrio">
-          <option value="">—</option>
-          <option value="high"${lead.priority==='high'?' selected':''}>🔴 高</option>
-          <option value="mid"${lead.priority==='mid'?' selected':''}>🟡 中</option>
-          <option value="low"${lead.priority==='low'?' selected':''}>🟢 低</option>
-        </select>
-      </div>
-    </div>
+
     <div class="form-group"><label class="form-label">客戶產品類型</label><input class="form-input" id="elProductType" placeholder="例：餐飲、電商、製造業..." value="${esc(lead.product_type||'')}"></div>
     <div class="form-group"><label class="form-label">📅 下次聯絡日期</label><input class="form-input" id="elNextContact" type="date" value="${lead.next_contact_date||''}"></div>
     ${needTypesData.length ? `<div class="form-group">
@@ -1780,8 +1837,7 @@ async function openEditLeadModal(leadId) {
         company: document.getElementById('elCompany').value.trim(),
         stage_id: document.getElementById('elStage').value,
         source_id: document.getElementById('elSource').value || null,
-        amount: parseFloat(document.getElementById('elAmount').value) || null,
-        priority: document.getElementById('elPrio').value || null,
+
         need_types: selNT.length ? selNT : null,
         product_type: document.getElementById('elProductType')?.value.trim() || null,
         next_contact_date: document.getElementById('elNextContact')?.value || null,
@@ -2942,6 +2998,30 @@ async function quickStageChange(leadId, stageId) {
   toast('階段已更新：' + (stagesData.find(s=>s.id===stageId)?.name||''), 'success');
   openLeadDrawer(leadId);
 }
+
+// ── Auto session restore on page load ──
+(async () => {
+  try {
+    const { data: { session } } = await db.auth.getSession();
+    if (session?.user) {
+      currentUser = session.user;
+      await bootApp();
+    } else {
+      document.getElementById('login-page').style.display = 'flex';
+    }
+  } catch(e) {
+    document.getElementById('login-page').style.display = 'flex';
+  }
+  // Keep session alive
+  db.auth.onAuthStateChange((event, session) => {
+    if (event === 'TOKEN_REFRESHED' && session) currentUser = session.user;
+    if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('login-page').style.display = 'flex';
+    }
+  });
+})();
 </script>
 <!-- Bottom Nav (mobile) -->
 <div id="bottom-nav">
