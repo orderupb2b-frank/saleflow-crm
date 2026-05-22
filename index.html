@@ -658,6 +658,10 @@ async function loadGlobalData() {
     const { data: nt } = await db.from('need_types').select('*').order('name');
     needTypesData = nt || [];
   } catch(e) { needTypesData = []; }
+  try {
+    const { data: up } = await db.from('user_profiles').select('id,full_name,role').order('full_name');
+    usersData = up || [];
+  } catch(e) { usersData = []; }
 }
 
 // ── Navigation ──
@@ -1295,11 +1299,20 @@ function openNewLeadModal(stageId = null) {
   openModal('新增 Lead', `
     <div class="form-row">
       <div class="form-group"><label class="form-label">公司名稱 *</label><input class="form-input" id="lName" placeholder="公司名稱"></div>
+      <div class="form-group"><label class="form-label">統一編號</label><input class="form-input" id="lTaxId" placeholder="8碼數字（選填）" maxlength="8" oninput="this.value=this.value.replace(/[^0-9]/g,'')"><div id="lTaxIdHint" style="font-size:11px;margin-top:3px;min-height:14px"></div></div>
+    </div>
+    <div class="form-row">
       <div class="form-group"><label class="form-label">客戶產品類型</label><input class="form-input" id="lProductType" placeholder="例：餐飲、電商、製造業..."></div>
+      <div></div>
     </div>
     <div class="form-group">
       <label class="form-label">負責業務</label>
-      <input class="form-input" id="lUserName" value="${myName}" ${window.isAdmin?'':'readonly style="opacity:0.6"'} placeholder="業務姓名">
+      ${window.isAdmin && usersData.length > 0
+        ? '<select class="form-select" id="lUserSelect"><option value="">-- 選擇業務 --</option>' +
+          usersData.map(u=>'<option value="'+u.id+'|'+esc(u.full_name||'')+'"'+(u.full_name===myName||u.id===currentUser.id?' selected':'')+'>'+esc(u.full_name||u.id)+'</option>').join('') +
+          '</select>'
+        : '<input class="form-input" id="lUserName" value="'+myName+'" readonly style="opacity:0.6" placeholder="業務姓名">'
+      }
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">階段</label>
@@ -1334,6 +1347,8 @@ function openNewLeadModal(stageId = null) {
   setTimeout(() => {
     const ta = document.getElementById('lContactsText');
     if (ta) ta.addEventListener('input', previewNewLeadContacts);
+    const taxEl = document.getElementById('lTaxId');
+    if (taxEl) taxEl.addEventListener('input', checkTaxIdDuplicate);
   }, 100);
 }
 
@@ -1365,19 +1380,61 @@ function getSelectedNeedTypes(containerId) {
   return [...document.querySelectorAll(`#${containerId} .need-tag.selected`)].map(el => el.dataset.id);
 }
 
+async function checkTaxIdDuplicate() {
+  const taxId = document.getElementById('lTaxId')?.value.trim();
+  const hint = document.getElementById('lTaxIdHint');
+  if (!hint) return;
+  if (!taxId || taxId.length < 8) { hint.innerHTML = ''; return; }
+  const { data } = await db.from('leads').select('id,name').eq('tax_id', taxId).limit(1);
+  if (data && data.length > 0) {
+    hint.innerHTML = `<span style="color:var(--red)">⚠️ 統編已存在：${esc(data[0].name)}</span>`;
+  } else {
+    hint.innerHTML = '<span style="color:var(--green)">✓ 統編可用</span>';
+  }
+}
+
+async function checkEditTaxIdDuplicate(leadId) {
+  const taxId = document.getElementById('elTaxId')?.value.trim();
+  const hint = document.getElementById('elTaxIdHint');
+  if (!hint) return;
+  if (!taxId || taxId.length < 8) { hint.innerHTML = ''; return; }
+  const { data } = await db.from('leads').select('id,name').eq('tax_id', taxId).neq('id', leadId).limit(1);
+  if (data && data.length > 0) {
+    hint.innerHTML = `<span style="color:var(--red)">⚠️ 統編已存在：${esc(data[0].name)}</span>`;
+  } else {
+    hint.innerHTML = '<span style="color:var(--green)">✓ 統編可用</span>';
+  }
+}
+
 async function saveLead() {
   const name = document.getElementById('lName').value.trim();
   if (!name) { toast('請填寫名稱', 'error'); return; }
+  const taxId = document.getElementById('lTaxId')?.value.trim() || null;
+  // 統編唯一性驗證（只在有填寫時才檢查）
+  if (taxId) {
+    if (taxId.length !== 8) { toast('統一編號須為 8 碼數字', 'error'); return; }
+    const { data: dup } = await db.from('leads').select('id,name').eq('tax_id', taxId).limit(1);
+    if (dup && dup.length > 0) { toast(`統編 ${taxId} 已存在於「${dup[0].name}」`, 'error'); return; }
+  }
   const selectedNeedTypes = getSelectedNeedTypes('lNeedTypes');
-  const userName = document.getElementById('lUserName')?.value.trim() || currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '';
+  let userId = currentUser.id;
+  let userName = currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '';
+  const userSelect = document.getElementById('lUserSelect');
+  if (userSelect && userSelect.value) {
+    const [selId, selName] = userSelect.value.split('|');
+    userId = selId; userName = selName;
+  } else {
+    const nameInput = document.getElementById('lUserName');
+    if (nameInput) userName = nameInput.value.trim() || userName;
+  }
   const payload = {
     name,
     stage_id: document.getElementById('lStage').value || stagesData[0]?.id,
     source_id: document.getElementById('lSource').value || null,
-
+    tax_id: taxId || null,
     need_types: selectedNeedTypes.length ? selectedNeedTypes : null,
     product_type: document.getElementById('lProductType')?.value.trim() || null,
-    user_id: currentUser.id, user_name: userName, created_at: new Date().toISOString()
+    user_id: userId, user_name: userName, created_at: new Date().toISOString()
   };
   const note = document.getElementById('lNote').value.trim();
   const { data: lead, error } = await db.from('leads').insert(payload).select().single();
@@ -1438,6 +1495,7 @@ function renderDrawerInfo(lead) {
       <div><div class="form-label">來源</div><div style="font-size:13px">${esc(src?.name||'—')}</div></div>
       <div><div class="form-label">建立時間</div><div style="font-size:12px;color:var(--text3)">${fmtDate(lead.created_at)}</div></div>
       <div><div class="form-label">負責業務</div><div style="font-size:13px">${esc(lead.user_name||"—")}</div></div>
+      ${lead.tax_id ? `<div><div class="form-label">統一編號</div><div style="font-size:13px;font-family:var(--mono)">${esc(lead.tax_id)}</div></div>` : ''}
       ${lead.next_contact_date ? `<div style="grid-column:1/-1;padding:8px 10px;background:${new Date(lead.next_contact_date)<new Date()?'var(--red-bg,rgba(239,68,68,0.1))':'var(--accent-glow)'};border-radius:6px;border:1px solid ${new Date(lead.next_contact_date)<new Date()?'rgba(239,68,68,0.3)':'var(--accent)'}"><div class="form-label">📅 下次聯絡日期</div><div style="font-size:13px;font-weight:500">${new Date(lead.next_contact_date).toLocaleDateString('zh-TW')} ${new Date(lead.next_contact_date)<new Date()?'⚠️ 已過期':''}</div></div>` : ''}
       ${lead.product_type ? `<div style="grid-column:1/-1"><div class="form-label">客戶產品類型</div><div style="font-size:13px">${esc(lead.product_type)}</div></div>` : ''}
     </div>
@@ -1817,6 +1875,20 @@ async function openEditLeadModal(leadId) {
       </div>
     </div>
 
+    <div class="form-group">
+      <label class="form-label">負責業務</label>
+      ${window.isAdmin && usersData.length > 0
+        ? '<select class="form-select" id="elUserSelect"><option value="">-- 選擇業務 --</option>' +
+          usersData.map(u=>'<option value="'+u.id+'|'+esc(u.full_name||'')+'"'+(u.id===lead.user_id?' selected':'')+'>'+esc(u.full_name||u.id)+'</option>').join('') +
+          '</select>'
+        : '<input class="form-input" id="elUserName" value="'+esc(lead.user_name||'')+'" readonly style="opacity:0.6">'
+      }
+    </div>
+    <div class="form-group">
+      <label class="form-label">統一編號</label>
+      <input class="form-input" id="elTaxId" placeholder="8碼數字（選填）" maxlength="8" value="${esc(lead.tax_id||'')}" oninput="this.value=this.value.replace(/[^0-9]/g,'');checkEditTaxIdDuplicate('${lead.id}')">
+      <div id="elTaxIdHint" style="font-size:11px;margin-top:3px;min-height:14px"></div>
+    </div>
     <div class="form-group"><label class="form-label">客戶產品類型</label><input class="form-input" id="elProductType" placeholder="例：餐飲、電商、製造業..." value="${esc(lead.product_type||'')}"></div>
     <div class="form-group"><label class="form-label">📅 下次聯絡日期</label><input class="form-input" id="elNextContact" type="date" value="${lead.next_contact_date||''}"></div>
     ${needTypesData.length ? `<div class="form-group">
@@ -1829,17 +1901,35 @@ async function openEditLeadModal(leadId) {
     { label: '取消', cls: 'btn-secondary', action: closeModal },
     { label: '儲存', cls: 'btn-primary', action: async () => {
       const selNT = getSelectedNeedTypes('elNeedTypes');
-      await db.from('leads').update({
+      const elTaxId = document.getElementById('elTaxId')?.value.trim() || null;
+      if (elTaxId) {
+        if (elTaxId.length !== 8) { toast('統一編號須為 8 碼數字', 'error'); return; }
+        const { data: dup } = await db.from('leads').select('id,name').eq('tax_id', elTaxId).neq('id', leadId).limit(1);
+        if (dup && dup.length > 0) { toast(`統編 ${elTaxId} 已存在於「${dup[0].name}」`, 'error'); return; }
+      }
+      let elUserId = null, elUserName = null;
+      const elUserSelect = document.getElementById('elUserSelect');
+      if (elUserSelect && elUserSelect.value) {
+        const [selUId, selUName] = elUserSelect.value.split('|');
+        elUserId = selUId; elUserName = selUName;
+      } else {
+        const elUserNameInput = document.getElementById('elUserName');
+        if (elUserNameInput) elUserName = elUserNameInput.value.trim();
+      }
+      const updatePayload = {
         name: document.getElementById('elName').value.trim(),
         company: document.getElementById('elCompany').value.trim(),
         stage_id: document.getElementById('elStage').value,
         source_id: document.getElementById('elSource').value || null,
-
+        tax_id: elTaxId || null,
         need_types: selNT.length ? selNT : null,
         product_type: document.getElementById('elProductType')?.value.trim() || null,
         next_contact_date: document.getElementById('elNextContact')?.value || null,
         updated_at: new Date().toISOString()
-      }).eq('id', leadId);
+      };
+      if (elUserId) updatePayload.user_id = elUserId;
+      if (elUserName) updatePayload.user_name = elUserName;
+      await db.from('leads').update(updatePayload).eq('id', leadId);
       closeModal();
       toast('Lead 已更新', 'success');
       openLeadDrawer(leadId);
@@ -2620,14 +2710,28 @@ async function createUser() {
   if (!name || !email || !pass) { toast('請填寫姓名、Email 和密碼', 'error'); return; }
   if (pass.length < 6) { toast('密碼至少 6 碼', 'error'); return; }
 
-  // Create auth user via Supabase signUp (creates in auth.users)
-  const { data, error } = await db.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
-  if (error) { toast('建立失敗：' + error.message, 'error'); return; }
+  // Save admin session BEFORE signUp (signUp overwrites current session)
+  const { data: { session: adminSession } } = await db.auth.getSession();
 
-  // Insert profile
+  // Create new auth user
+  const { data, error } = await db.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
+  if (error) {
+    // Restore session even on error
+    if (adminSession) await db.auth.setSession({ access_token: adminSession.access_token, refresh_token: adminSession.refresh_token });
+    toast('建立失敗：' + error.message, 'error');
+    return;
+  }
+
+  // Insert profile for new user
   const userId = data.user?.id;
   if (userId) {
     await db.from('user_profiles').insert({ id: userId, full_name: name, role, created_at: new Date().toISOString() });
+  }
+
+  // Restore admin session (signUp replaced it with the new user's session)
+  if (adminSession) {
+    await db.auth.setSession({ access_token: adminSession.access_token, refresh_token: adminSession.refresh_token });
+    currentUser = adminSession.user;
   }
 
   document.getElementById('newUserName').value = '';
