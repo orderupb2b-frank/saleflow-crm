@@ -659,9 +659,25 @@ async function loadGlobalData() {
     needTypesData = nt || [];
   } catch(e) { needTypesData = []; }
   try {
-    const { data: up } = await db.from('user_profiles').select('id,full_name,role,email').order('full_name');
-    usersData = up || [];
+    // Try to fetch all user profiles; RLS may limit results
+    const { data: up, error: upErr } = await db.from('user_profiles').select('id,full_name,role,email').order('created_at');
+    if (upErr) throw upErr;
+    usersData = (up || []).filter(u => u.full_name || u.email); // only include users with a name
     console.log('usersData loaded:', JSON.stringify(usersData));
+    // If RLS only returned 1 row (ourselves), also pull unique users from leads as fallback
+    if (usersData.length <= 1) {
+      const { data: leadUsers } = await db.from('leads').select('user_id,user_name').not('user_id','is',null);
+      if (leadUsers) {
+        const seen = new Set(usersData.map(u=>u.id));
+        leadUsers.forEach(l => {
+          if (l.user_id && l.user_name && !seen.has(l.user_id)) {
+            seen.add(l.user_id);
+            usersData.push({ id: l.user_id, full_name: l.user_name, role: 'sales', email: '' });
+          }
+        });
+      }
+    }
+    console.log('usersData final:', JSON.stringify(usersData));
   } catch(e) { console.error('usersData load failed:', e); usersData = []; }
 }
 
@@ -906,10 +922,13 @@ async function renderLeads() {
   const { data: accounts } = await db.from('accounts').select('lead_id').not('lead_id', 'is', null);
   convertedLeadIds = new Set((accounts||[]).map(a => a.lead_id));
 
-  // Load unique users who created leads
-  const userIds = [...new Set((leadsData).map(l => l.user_id).filter(Boolean))];
-  // Build user list from already-loaded leadsData (no extra query needed)
-  usersData = [...new Map(leadsData.filter(l=>l.user_id&&l.user_name).map(l=>[l.user_id,{id:l.user_id,name:l.user_name}])).values()];
+  // usersData already loaded from loadGlobalData() above - don't overwrite!
+  // But add any users from leads that aren't in usersData yet (edge case)
+  const seenIds = new Set(usersData.map(u => u.id));
+  leadsData.filter(l=>l.user_id&&l.user_name&&!seenIds.has(l.user_id)).forEach(l => {
+    usersData.push({ id: l.user_id, full_name: l.user_name, role: 'sales', email: '' });
+    seenIds.add(l.user_id);
+  });
 
   document.getElementById('topbarActions').innerHTML = `
     <div class="action-bar">
