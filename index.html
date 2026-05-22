@@ -413,31 +413,11 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
       </div>
       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:4px" onclick="doLogin()">登入</button>
       <div style="text-align:center;margin-top:12px;font-size:12.5px;color:var(--text3)">
-        沒有帳號？<span style="color:var(--accent);cursor:pointer" onclick="toggleRegister(true)">註冊</span>
+
       </div>
     </div>
 
-    <!-- 註冊表單 -->
-    <div id="registerForm" style="display:none">
-      <div class="form-group">
-        <label class="form-label">姓名</label>
-        <input class="form-input" id="regName" placeholder="你的名字">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Email</label>
-        <input class="form-input" id="regEmail" type="email" placeholder="you@company.com">
-      </div>
-      <div class="form-group">
-        <label class="form-label">密碼（至少 6 個字元）</label>
-        <input class="form-input" id="regPass" type="password" placeholder="••••••••">
-      </div>
-      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:4px" onclick="doRegister()">建立帳號</button>
-      <div style="text-align:center;margin-top:12px;font-size:12.5px;color:var(--text3)">
-        已有帳號？<span style="color:var(--accent);cursor:pointer" onclick="toggleRegister(false)">登入</span>
-      </div>
-    </div>
-  </div>
-</div>
+
 
 <!-- App -->
 <div id="app" style="display:none">
@@ -637,17 +617,22 @@ async function doLogout() {
 async function bootApp() {
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
-  const name = currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'User';
-  document.getElementById('sidebarName').textContent = name;
+
+  // Load user profile and role
+  const { data: profile } = await db.from('user_profiles').select('*').eq('id', currentUser.id).single();
+  window.userProfile = profile;
+  window.isAdmin = !profile || profile.role === 'admin';
+  const name = profile?.full_name || currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'User';
+
+  document.getElementById('sidebarName').textContent = name + (window.isAdmin ? ' 👑' : '');
   document.getElementById('sidebarEmail').textContent = currentUser.email || '';
   document.getElementById('sidebarAvatar').textContent = name[0].toUpperCase();
-  // Mobile: show topbar user initial
   const mobileUser = document.getElementById('mobileUserAvatar');
   if (mobileUser) mobileUser.textContent = name[0].toUpperCase();
+
+  // Hide settings for sales role (or keep but restricted - we restrict inside settings)
   await initDB();
   await loadGlobalData();
-  // Set admin flag - currently all users are admin, future: check role from DB
-  window.isAdmin = true; // TODO: fetch from user_roles table
   navigate('dashboard');
 }
 
@@ -1299,10 +1284,15 @@ async function convertToAccount(lead) {
 // ── LEAD MODAL ──
 function openNewLeadModal(stageId = null) {
   const defaultStage = stageId || stagesData[0]?.id || '';
+  const myName = window.userProfile?.full_name || currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '';
   openModal('新增 Lead', `
     <div class="form-row">
       <div class="form-group"><label class="form-label">公司名稱 *</label><input class="form-input" id="lName" placeholder="公司名稱"></div>
       <div class="form-group"><label class="form-label">客戶產品類型</label><input class="form-input" id="lProductType" placeholder="例：餐飲、電商、製造業..."></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">負責業務</label>
+      <input class="form-input" id="lUserName" value="${myName}" ${window.isAdmin?'':'readonly style="opacity:0.6"'} placeholder="業務姓名">
     </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">階段</label>
@@ -1372,7 +1362,7 @@ async function saveLead() {
   const name = document.getElementById('lName').value.trim();
   if (!name) { toast('請填寫名稱', 'error'); return; }
   const selectedNeedTypes = getSelectedNeedTypes('lNeedTypes');
-  const userName = currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '';
+  const userName = document.getElementById('lUserName')?.value.trim() || currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '';
   const payload = {
     name,
     stage_id: document.getElementById('lStage').value || stagesData[0]?.id,
@@ -1454,7 +1444,7 @@ function renderDrawerInfo(lead) {
       <button class="btn btn-secondary btn-sm" onclick="openEditLeadModal('${lead.id}')">✏️ 編輯</button>
       <button class="btn btn-secondary btn-sm" onclick="openSetNextContact('${lead.id}','${lead.next_contact_date||''}')">📅 ${lead.next_contact_date ? new Date(lead.next_contact_date).toLocaleDateString('zh-TW') : '設定聯絡日'}</button>
       <button class="btn btn-primary btn-sm" onclick="quickConvert('${lead.id}')">🏢 轉為 Account</button>
-      <button class="btn btn-danger btn-sm" onclick="deleteLead('${lead.id}')">🗑 刪除</button>
+      ${window.isAdmin ? `<button class="btn btn-danger btn-sm" onclick="deleteLead('${lead.id}')">🗑 刪除</button>` : ''}
     </div>
     <div style="margin-top:14px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -1929,7 +1919,7 @@ function renderAccountsList(accs) {
                 <td>${nearest ? '<span style="color:'+(daysLeft<=30?'var(--red)':'var(--text2)')+'">'+nearest.end_date+' ('+daysLeft+'天)</span>' : '—'}</td>
                 <td onclick="event.stopPropagation()" style="display:flex;gap:4px;align-items:center">
                   <button class="btn btn-ghost btn-sm" onclick="openAccountDetail('${a.id}')">詳情</button>
-                  <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteAccount('${a.id}','${esc(a.name)}')">🗑</button>
+                  ${window.isAdmin ? `<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteAccount('${a.id}','${esc(a.name)}')">🗑</button>` : ''}
                 </td>
               </tr>
             `;
@@ -2390,16 +2380,44 @@ async function renderSettings() {
       <div class="settings-section">
         <div class="settings-title">👤 帳號</div>
         <div class="card">
-          <div style="font-size:13px;color:var(--text2);margin-bottom:12px">登入中：<strong>${esc(currentUser?.email||'')}</strong></div>
+          <div style="font-size:13px;color:var(--text2);margin-bottom:8px">
+            登入中：<strong>${esc(currentUser?.email||'')}</strong>
+            <span class="badge ${window.isAdmin?'badge-blue':'badge-gray'}" style="margin-left:6px">${window.isAdmin?'管理員':'業務'}</span>
+          </div>
           <button class="btn btn-danger btn-sm" onclick="doLogout()">登出</button>
         </div>
       </div>
+      ${window.isAdmin ? `
+      <div class="settings-section">
+        <div class="settings-title">👥 業務帳號管理</div>
+        <div class="card">
+          <div id="usersList" style="margin-bottom:12px"></div>
+          <div class="divider"></div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">姓名</label><input class="form-input" id="newUserName" placeholder="業務姓名"></div>
+              <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="newUserEmail" type="email" placeholder="user@company.com"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">密碼</label><input class="form-input" id="newUserPass" type="password" placeholder="至少 6 碼"></div>
+              <div class="form-group"><label class="form-label">角色</label>
+                <select class="form-select" id="newUserRole">
+                  <option value="sales">業務（不能刪除資料/新增帳號）</option>
+                  <option value="admin">管理員</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="createUser()">＋ 建立帳號</button>
+          </div>
+        </div>
+      </div>` : ''}
     </div>
   `;
   renderStagesList();
   renderSourcesList();
   renderTemplatesList();
   renderNeedTypesList();
+  if (window.isAdmin) renderUsersList();
 }
 
 function renderStagesList() {
@@ -2554,6 +2572,76 @@ async function deleteNeedType(id) {
   await loadGlobalData();
   renderNeedTypesList();
   toast('已刪除', 'success');
+}
+
+
+// ── USER MANAGEMENT ──
+async function renderUsersList() {
+  const el = document.getElementById('usersList');
+  if (!el) return;
+  const { data: profiles } = await db.from('user_profiles').select('*').order('created_at');
+  if (!profiles?.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3)">尚無其他帳號</div>';
+    return;
+  }
+  el.innerHTML = profiles.map(p => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--accent-glow);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex-shrink:0">
+        ${esc(p.full_name?.[0]?.toUpperCase()||'?')}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500">${esc(p.full_name)}</div>
+        <div style="font-size:11.5px;color:var(--text3)">${p.role === 'admin' ? '👑 管理員' : '💼 業務'}</div>
+      </div>
+      ${p.id !== currentUser.id ? `
+        <select class="form-select" style="width:auto;height:26px;font-size:12px;padding:2px 6px"
+          onchange="updateUserRole('${p.id}',this.value)">
+          <option value="sales" ${p.role==='sales'?'selected':''}>業務</option>
+          <option value="admin" ${p.role==='admin'?'selected':''}>管理員</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteUserProfile('${p.id}','${esc(p.full_name)}')">🗑</button>
+      ` : '<span style="font-size:11px;color:var(--text3)">(自己)</span>'}
+    </div>
+  `).join('');
+}
+
+async function createUser() {
+  const name  = document.getElementById('newUserName')?.value.trim();
+  const email = document.getElementById('newUserEmail')?.value.trim();
+  const pass  = document.getElementById('newUserPass')?.value;
+  const role  = document.getElementById('newUserRole')?.value || 'sales';
+  if (!name || !email || !pass) { toast('請填寫姓名、Email 和密碼', 'error'); return; }
+  if (pass.length < 6) { toast('密碼至少 6 碼', 'error'); return; }
+
+  // Create auth user via Supabase signUp (creates in auth.users)
+  const { data, error } = await db.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
+  if (error) { toast('建立失敗：' + error.message, 'error'); return; }
+
+  // Insert profile
+  const userId = data.user?.id;
+  if (userId) {
+    await db.from('user_profiles').insert({ id: userId, full_name: name, role, created_at: new Date().toISOString() });
+  }
+
+  document.getElementById('newUserName').value = '';
+  document.getElementById('newUserEmail').value = '';
+  document.getElementById('newUserPass').value = '';
+  toast('帳號建立成功：' + name + ' (' + email + ')', 'success');
+  renderUsersList();
+}
+
+async function updateUserRole(userId, role) {
+  await db.from('user_profiles').update({ role }).eq('id', userId);
+  toast('角色已更新', 'success');
+}
+
+async function deleteUserProfile(userId, name) {
+  openConfirm('刪除帳號', '確定刪除「' + name + '」的帳號？此操作無法復原。', async () => {
+    await db.from('user_profiles').delete().eq('id', userId);
+    closeModal();
+    toast('帳號已刪除', 'success');
+    renderUsersList();
+  }, closeModal, '確定刪除', '取消');
 }
 
 // ── ACTIVITY TEMPLATES ──
@@ -2762,7 +2850,7 @@ function importLeadsExcel() {
     const prioMap = {'高':'high','中':'mid','低':'low','high':'high','mid':'mid','low':'low'};
     const leadMap = {};
     let addCount = 0, updateCount = 0, contactCount = 0, skipCount = 0;
-    const userName = currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '';
+    const userName = document.getElementById('lUserName')?.value.trim() || currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '';
     for (const row of rows) {
       const leadName = String(row['公司名稱'] || row['名稱'] || row['name'] || '').trim();
       if (!leadName) continue;
