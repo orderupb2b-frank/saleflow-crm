@@ -1018,7 +1018,7 @@ function createKanbanCard(lead) {
       ${src ? `<div class="kc-tag">${esc(src.name)}</div>` : ''}
       ${lead.amount ? `<div class="kc-tag">💰${fmtNum(lead.amount)}</div>` : ''}
     </div>
-    <div style="font-size:10.5px;color:var(--text3);margin-top:4px">${fmtDate(lead.created_at)}</div>
+    <div style="font-size:10.5px;color:var(--text3);margin-top:4px;display:flex;justify-content:space-between"><span>${lead.user_name ? "👤 "+esc(lead.user_name) : ""}</span><span>${fmtDate(lead.created_at)}</span></div>
   `;
   card.addEventListener('dragstart', e => {
     dragSrcId = lead.id;
@@ -1119,6 +1119,7 @@ function renderLeadsList(searchStr = '') {
     return `<tr onclick="openLeadDrawer('${l.id}')">
       <td><div style="font-weight:500">${esc(l.name)}</div></td>
       <td>${esc(l.company||'—')}</td>
+      <td style="font-size:12px;color:var(--text3)">${esc(l.user_name||'—')}</td>
       <td>${stageDot}<span style="font-size:12px">${esc(stage?.name||'—')}</span></td>
       <td>${esc(src?.name||'—')}</td>
       <td style="font-family:var(--mono);font-size:12px">${l.amount?'$ '+fmtNum(l.amount):'—'}</td>
@@ -1127,7 +1128,7 @@ function renderLeadsList(searchStr = '') {
     </tr>`;
   }).join('');
   content.innerHTML = `<div class="panel"><table class="leads-list-table">
-    <thead><tr><th>公司名稱</th><th>聯絡人</th><th>階段</th><th>來源</th><th>金額</th><th>優先</th><th>建立</th></tr></thead>
+    <thead><tr><th>公司名稱</th><th>聯絡人</th><th>業務</th><th>階段</th><th>來源</th><th>金額</th><th>優先</th><th>建立</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
 }
@@ -1226,7 +1227,7 @@ function openNewLeadModal(stageId = null) {
     </div>` : ''}
     <div class="form-group">
       <label class="form-label">聯絡人（可貼多筆，每行一人，逗號分隔：姓名,職稱,Email,電話）</label>
-      <textarea class="form-textarea" id="lContactsText" style="min-height:80px;font-family:var(--mono);font-size:12px" placeholder="王小明,採購經理,wang@company.com,0912-345-678&#10;李大華,CEO,li@company.com"></textarea>
+      <textarea class="form-textarea" id="lContactsText" style="min-height:80px;font-family:var(--mono);font-size:12px" placeholder="王小明,採購經理,wang@company.com,0912-345-678,@linehandle&#10;李大華,CEO,li@company.com"></textarea>
       <div id="lContactsPreview" style="font-size:11.5px;color:var(--text3);margin-top:4px"></div>
     </div>
     <div class="form-group"><label class="form-label">備註</label><textarea class="form-textarea" id="lNote" placeholder="初始備註..."></textarea></div>
@@ -1246,7 +1247,7 @@ function parseContactsText(text) {
     const sep = line.includes('\t') ? '\t' : ',';
     const cols = line.split(sep).map(s => s.trim());
     if (!cols[0]) return;
-    rows.push({ name: cols[0], role: cols[1]||'', email: cols[2]||'', phone: cols[3]||'' });
+    rows.push({ name: cols[0], role: cols[1]||'', email: cols[2]||'', phone: cols[3]||'', line_id: cols[4]||'' });
   });
   return rows;
 }
@@ -1343,6 +1344,7 @@ function renderDrawerInfo(lead) {
       <div><div class="form-label">優先級</div><div style="font-size:13px">${{high:'🔴 高',mid:'🟡 中',low:'🟢 低'}[lead.priority]||'—'}</div></div>
       <div><div class="form-label">預估金額</div><div style="font-size:13px;font-family:var(--mono)">${lead.amount ? '$ ' + fmtNum(lead.amount) : '—'}</div></div>
       <div><div class="form-label">建立時間</div><div style="font-size:12px;color:var(--text3)">${fmtDate(lead.created_at)}</div></div>
+      <div><div class="form-label">負責業務</div><div style="font-size:13px">${esc(lead.user_name||"—")}</div></div>
       ${lead.product_type ? `<div style="grid-column:1/-1"><div class="form-label">客戶產品類型</div><div style="font-size:13px">${esc(lead.product_type)}</div></div>` : ''}
     </div>
     ${(lead.need_types||[]).length ? `<div style="margin-bottom:14px">
@@ -1407,7 +1409,7 @@ async function renderDrawerContacts(leadId) {
       <div class="contact-avatar">${(c.name||'?')[0].toUpperCase()}</div>
       <div class="contact-info">
         <div class="contact-name">${esc(c.name)}</div>
-        <div class="contact-role">${esc(c.role||'')} ${c.email?'· '+esc(c.email):''} ${c.phone?'· '+esc(c.phone):''}</div>
+        <div class="contact-role">${esc(c.role||'')} ${c.email?'· '+esc(c.email):''} ${c.phone?'· 📞'+esc(c.phone):''} ${c.line_id?'· LINE: '+esc(c.line_id):''}</div>
       </div>
       <div class="contact-actions">
         <button class="btn btn-ghost btn-sm btn-icon" onclick="editContact('${c.id}')">✏️</button>
@@ -1433,6 +1435,7 @@ function openAddContact(leadId) {
     <div class="form-row">
       <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="cEmail" type="email" placeholder="email@company.com"></div>
       <div class="form-group"><label class="form-label">電話</label><input class="form-input" id="cPhone" placeholder="0912-345-678"></div>
+      <div class="form-group"><label class="form-label">LINE ID</label><input class="form-input" id="cLineId" placeholder="@linehandle"></div>
     </div>
     <div class="form-group"><label class="form-label">備註</label><input class="form-input" id="cNote" placeholder="備註"></div>
   `, [
@@ -1444,6 +1447,7 @@ function openAddContact(leadId) {
         name, role: document.getElementById('cRole').value.trim(),
         email: document.getElementById('cEmail').value.trim(),
         phone: document.getElementById('cPhone').value.trim(),
+        line_id: document.getElementById('cLineId').value.trim() || null,
         note: document.getElementById('cNote').value.trim(),
         lead_id: leadId, user_id: currentUser.id, created_at: new Date().toISOString()
       });
@@ -1528,6 +1532,7 @@ async function editContact(cId) {
     <div class="form-row">
       <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="ceEmail" value="${esc(c.email||'')}"></div>
       <div class="form-group"><label class="form-label">電話</label><input class="form-input" id="cePhone" value="${esc(c.phone||'')}"></div>
+      <div class="form-group"><label class="form-label">LINE ID</label><input class="form-input" id="ceLineId" value="${esc(c.line_id||'')}"></div>
     </div>
   `, [
     { label: '取消', cls: 'btn-secondary', action: closeModal },
@@ -1807,6 +1812,7 @@ function renderAccountsList(accs) {
           <tr>
             <th>客戶名稱</th>
             <th>公司</th>
+            <th>負責業務</th>
             <th>狀態</th>
             <th>合約數</th>
             <th>合約金額</th>
@@ -1827,6 +1833,7 @@ function renderAccountsList(accs) {
               <tr onclick="openAccountDetail('${a.id}')" style="${a.status==='terminated'?'opacity:0.6':''}">
                 <td><div style="font-weight:500">${esc(a.name)}</div></td>
                 <td>${esc(a.company||'—')}</td>
+                <td style="font-size:12px;color:var(--text3)">${esc(a.user_name||'—')}</td>
                 <td>${statusBadge}</td>
                 <td><span class="badge badge-gray">${contracts.length}</span></td>
                 <td style="font-family:var(--mono);font-size:12.5px">${totalAmt > 0 ? '$ '+fmtNum(totalAmt) : '—'}</td>
@@ -1856,7 +1863,7 @@ function openNewAccountModal() {
     { label: '建立', cls: 'btn-primary', action: async () => {
       const nm = document.getElementById('aNm').value.trim();
       if (!nm) { toast('請填寫名稱', 'error'); return; }
-      await db.from('accounts').insert({ name: nm, company: document.getElementById('aCo').value.trim(), user_id: currentUser.id, created_at: new Date().toISOString() });
+      await db.from('accounts').insert({ name: nm, company: document.getElementById('aCo').value.trim(), user_id: currentUser.id, user_name: currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '', created_at: new Date().toISOString() });
       closeModal(); toast('客戶建立成功', 'success'); navigate('accounts');
     }}
   ]);
@@ -1875,6 +1882,7 @@ async function openAccountDetail(accId) {
   }
 
   const isTerminated = acc.status === 'terminated';
+  const accUserName = acc.user_name || (origLead?.user_name) || '—';
   const statusBadge = isTerminated
     ? `<span class="badge badge-red">終止合作</span>`
     : `<span class="badge badge-green">合作中</span>`;
@@ -1886,6 +1894,7 @@ async function openAccountDetail(accId) {
       <div class="page-title">🏢 ${esc(acc.name)}</div>
       ${acc.company ? `<span class="badge badge-gray">${esc(acc.company)}</span>` : ''}
       ${statusBadge}
+      <span style="font-size:12px;color:var(--text3)">👤 ${esc(accUserName)}</span>
       <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-sm ${isTerminated?'btn-secondary':'btn-danger'}" onclick="toggleAccountStatus('${accId}','${isTerminated?'active':'terminated'}')">
           ${isTerminated ? '✅ 恢復合作' : '🚫 標記終止合作'}
@@ -2153,6 +2162,7 @@ function renderContactsTable(contacts) {
               <td>${esc(c.role||'—')}</td>
               <td>${c.email ? `<a href="mailto:${esc(c.email)}" style="color:var(--accent);text-decoration:none">${esc(c.email)}</a>` : '—'}</td>
               <td>${esc(c.phone||'—')}</td>
+              <td>${c.line_id?esc(c.line_id):'—'}</td>
               <td>${c.leads ? `<span class="badge badge-blue">${esc(c.leads.name)}</span>` : '—'}</td>
             </tr>
           `).join('')}
@@ -2502,34 +2512,80 @@ function openLeadFromFeed(leadId) {
 // ── Import template download ──
 function downloadImportTemplate() {
   const info = [
-    { '欄位':'Lead_ID', '說明':'★ 留空=新增；填ID=更新', '範例':'（從系統匯出取得）' },
-    { '欄位':'公司名稱', '說明':'必填', '範例':'範例有限公司' },
-    { '欄位':'聯絡人_姓名', '說明':'同公司多人就多排一行', '範例':'王小明' },
-    { '欄位':'聯絡人_職稱', '說明':'可留空', '範例':'採購經理' },
-    { '欄位':'聯絡人_Email', '說明':'可留空', '範例':'wang@company.com' },
-    { '欄位':'聯絡人_電話', '說明':'可留空', '範例':'0912-345-678' },
-    { '欄位':'階段', '說明':'須與設定中名稱一致', '範例':'已接觸/待回應' },
-    { '欄位':'來源', '說明':'須與設定中名稱一致', '範例':'名單' },
-    { '欄位':'產業（產品類型）', '說明':'自由填寫', '範例':'食品' },
-    { '欄位':'需求類型', '說明':'自由填寫', '範例':'下單系統需求' },
-    { '欄位':'預估金額', '說明':'純數字', '範例':'500000' },
-    { '欄位':'優先級', '說明':'高/中/低', '範例':'高' },
-    { '欄位':'備註', '說明':'可留空', '範例':'已寄信未回' },
+    { '欄位':'Lead_ID',        '說明':'★ 留空=新增；填入既有ID=更新該筆Lead',         '範例':'（從系統匯出取得）' },
+    { '欄位':'公司名稱',       '說明':'必填，同公司多聯絡人就多排一行，公司名稱相同即會合併', '範例':'範例有限公司' },
+    { '欄位':'聯絡人_姓名',    '說明':'可留空',                                          '範例':'王小明' },
+    { '欄位':'聯絡人_職稱',    '說明':'可留空',                                          '範例':'採購經理' },
+    { '欄位':'聯絡人_Email',   '說明':'可留空',                                          '範例':'wang@company.com' },
+    { '欄位':'聯絡人_電話',    '說明':'可留空',                                          '範例':'0912-345-678' },
+    { '欄位':'聯絡人_LINE',    '說明':'可留空',                                          '範例':'@wangxiaoming' },
+    { '欄位':'負責業務',       '說明':'可留空；留空則記為匯入者',                        '範例':'Frank' },
+    { '欄位':'階段',           '說明':'須與設定中名稱完全一致；留空用第一個階段',        '範例':'已接觸/待回應' },
+    { '欄位':'來源',           '說明':'須與設定中名稱完全一致；可留空',                  '範例':'名單' },
+    { '欄位':'產業（產品類型）','說明':'自由填寫',                                       '範例':'食品' },
+    { '欄位':'需求類型',       '說明':'多個需求用分號 ; 分隔，須與設定中名稱一致',      '範例':'下單系統需求;官網需求' },
+    { '欄位':'預估金額',       '說明':'純數字，不含符號',                                '範例':'500000' },
+    { '欄位':'優先級',         '說明':'高 / 中 / 低',                                   '範例':'高' },
+    { '欄位':'備註',           '說明':'可留空',                                          '範例':'2026/05 寄信未回' },
   ];
   const addSample = [
-    { 'Lead_ID':'', '公司名稱':'範例食品有限公司', '聯絡人_姓名':'王小明', '聯絡人_職稱':'採購經理', '聯絡人_Email':'wang@example.com', '聯絡人_電話':'0912-345-678', '階段':'已接觸/待回應', '來源':'名單', '產業（產品類型）':'食品', '需求類型':'下單系統需求', '預估金額':500000, '優先級':'高', '備註':'' },
-    { 'Lead_ID':'', '公司名稱':'範例食品有限公司', '聯絡人_姓名':'李大華', '聯絡人_職稱':'CEO', '聯絡人_Email':'li@example.com', '聯絡人_電話':'', '階段':'', '來源':'', '產業（產品類型）':'', '需求類型':'', '預估金額':'', '優先級':'', '備註':'' },
-    { 'Lead_ID':'', '公司名稱':'測試科技股份有限公司', '聯絡人_姓名':'陳美麗', '聯絡人_職稱':'IT主管', '聯絡人_Email':'chen@test.com', '聯絡人_電話':'', '階段':'已接觸/待回應', '來源':'關聯', '產業（產品類型）':'科技', '需求類型':'官網需求', '預估金額':120000, '優先級':'中', '備註':'' },
+    { 'Lead_ID':'', '公司名稱':'範例食品有限公司', '聯絡人_姓名':'王小明', '聯絡人_職稱':'採購經理', '聯絡人_Email':'wang@example.com', '聯絡人_電話':'0912-345-678', '聯絡人_LINE':'@wang', '負責業務':'Frank', '階段':'已接觸/待回應', '來源':'名單', '產業（產品類型）':'食品', '需求類型':'下單系統需求;官網需求', '預估金額':500000, '優先級':'高', '備註':'' },
+    { 'Lead_ID':'', '公司名稱':'範例食品有限公司', '聯絡人_姓名':'李大華', '聯絡人_職稱':'CEO',     '聯絡人_Email':'li@example.com',   '聯絡人_電話':'',             '聯絡人_LINE':'',      '負責業務':'',      '階段':'',            '來源':'',    '產業（產品類型）':'',   '需求類型':'',                   '預估金額':'',     '優先級':'',  '備註':'' },
+    { 'Lead_ID':'', '公司名稱':'測試科技股份有限公司', '聯絡人_姓名':'陳美麗', '聯絡人_職稱':'IT主管', '聯絡人_Email':'chen@test.com', '聯絡人_電話':'', '聯絡人_LINE':'@chen', '負責業務':'Amy', '階段':'已接觸/待回應', '來源':'關聯', '產業（產品類型）':'科技', '需求類型':'客製需求', '預估金額':120000, '優先級':'中', '備註':'' },
   ];
   const updateSample = [
-    { 'Lead_ID':'（從系統匯出的Lead_ID）', '公司名稱':'範例食品有限公司', '聯絡人_姓名':'', '聯絡人_職稱':'', '聯絡人_Email':'', '聯絡人_電話':'', '階段':'初次拜訪', '來源':'', '產業（產品類型）':'', '需求類型':'', '預估金額':800000, '優先級':'高', '備註':'已回信，安排拜訪' },
+    { 'Lead_ID':'（從系統匯出的Lead_ID）', '公司名稱':'範例食品有限公司', '聯絡人_姓名':'', '聯絡人_職稱':'', '聯絡人_Email':'', '聯絡人_電話':'', '聯絡人_LINE':'', '負責業務':'', '階段':'初次拜訪', '來源':'', '產業（產品類型）':'', '需求類型':'', '預估金額':800000, '優先級':'高', '備註':'已回信，安排拜訪' },
   ];
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(info), '★ 欄位說明');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(addSample), '新增範本');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(updateSample), '更新範本');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(info),        '★ 欄位說明（請先看）');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(addSample),   '新增範本（Lead_ID留空）');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(updateSample),'更新範本（填Lead_ID）');
   XLSX.writeFile(wb, 'saleflow_import_template.xlsx');
-  toast('範本下載成功（含欄位說明、新增、更新三個分頁）', 'success');
+  toast('範本下載成功', 'success');
+}
+
+async function exportLeadsExcel() {
+  const { data: leads } = await db.from('leads').select('*, stages(name), sources(name)');
+  const { data: contacts } = await db.from('contacts').select('*');
+  const prioLabel = {high:'高', mid:'中', low:'低'};
+
+  // Sheet1: Leads 總覽（含 ID 供更新用）
+  const leadRows = (leads||[]).map(l => ({
+    'Lead_ID':        l.id,
+    '公司名稱':       l.name,
+    '階段':           l.stages?.name || '',
+    '來源':           l.sources?.name || '',
+    '負責業務':       l.user_name || '',
+    '產業（產品類型）': l.product_type || '',
+    '需求類型':       (l.need_types||[]).map(id => needTypesData.find(n=>n.id===id)?.name||id).join(';'),
+    '預估金額':       l.amount || '',
+    '優先級':         prioLabel[l.priority] || '',
+    '建立時間':       fmtDate(l.created_at),
+  }));
+
+  // Sheet2: 可重新匯入格式（聯絡人為主體）
+  const importRows = (leads||[]).flatMap(l => {
+    const lcs = (contacts||[]).filter(c => c.lead_id === l.id);
+    const base = {
+      'Lead_ID': l.id,
+      '公司名稱': l.name,
+      '負責業務': l.user_name || '',
+      '階段': l.stages?.name || '',
+      '來源': l.sources?.name || '',
+      '產業（產品類型）': l.product_type || '',
+      '需求類型': (l.need_types||[]).map(id => needTypesData.find(n=>n.id===id)?.name||id).join(';'),
+      '預估金額': l.amount || '',
+      '優先級': prioLabel[l.priority] || '',
+    };
+    if (!lcs.length) return [{ ...base, '聯絡人_姓名':'', '聯絡人_職稱':'', '聯絡人_Email':'', '聯絡人_電話':'', '聯絡人_LINE':'' }];
+    return lcs.map(c => ({ ...base, '聯絡人_姓名':c.name, '聯絡人_職稱':c.role||'', '聯絡人_Email':c.email||'', '聯絡人_電話':c.phone||'', '聯絡人_LINE':c.line_id||'' }));
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(leadRows),   'Leads 總覽');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(importRows), '可重新匯入格式');
+  XLSX.writeFile(wb, 'saleflow_export_' + new Date().toISOString().split('T')[0] + '.xlsx');
+  toast('匯出成功（Leads 總覽 + 可重新匯入格式）', 'success');
 }
 
 // ── Import / Export ──
@@ -2568,6 +2624,11 @@ function importLeadsExcel() {
           if (prio)      updates.priority = prioMap[prio] || null;
           if (amt)       updates.amount = parseFloat(amt) || null;
           if (pt)        updates.product_type = pt;
+          const updNeedNames = String(row['需求類型'] || '').split(';').map(s=>s.trim()).filter(Boolean);
+          const updNeedIds = updNeedNames.map(n => needTypesData.find(t=>t.name===n)?.id).filter(Boolean);
+          if (updNeedIds.length) updates.need_types = updNeedIds;
+          const rowUser = String(row['負責業務'] || '').trim();
+          if (rowUser) updates.user_name = rowUser;
           updates.updated_at = new Date().toISOString();
           const { error } = await db.from('leads').update(updates).eq('id', leadId);
           if (error) { skipCount++; continue; }
@@ -2581,6 +2642,11 @@ function importLeadsExcel() {
           const stage = stagesData.find(s => s.name === stageName) || stagesData[0];
           const src = sourcesData.find(s => s.name === srcName);
           const pt = String(row['產業（產品類型）'] || row['產業'] || '').trim();
+          // 需求類型：分號分隔，對應 needTypesData
+          const needTypeNames = String(row['需求類型'] || '').split(';').map(s=>s.trim()).filter(Boolean);
+          const needTypeIds = needTypeNames.map(n => needTypesData.find(t=>t.name===n)?.id).filter(Boolean);
+          // 負責業務：優先用欄位，否則用匯入者
+          const rowUserName = String(row['負責業務'] || '').trim() || userName;
           const { data: lead, error } = await db.from('leads').insert({
             name: leadName,
             amount: parseFloat(row['預估金額'] || '') || null,
@@ -2588,7 +2654,8 @@ function importLeadsExcel() {
             stage_id: stage?.id,
             source_id: src?.id || null,
             product_type: pt || null,
-            user_id: currentUser.id, user_name: userName, created_at: new Date().toISOString()
+            need_types: needTypeIds.length ? needTypeIds : null,
+            user_id: currentUser.id, user_name: rowUserName, created_at: new Date().toISOString()
           }).select().single();
           if (error || !lead) { skipCount++; continue; }
           const note = String(row['備註'] || '').trim();
@@ -2601,9 +2668,10 @@ function importLeadsExcel() {
       if (cName && leadMap[key]?.id) {
         await db.from('contacts').insert({
           name: cName,
-          role: String(row['聯絡人_職稱'] || '').trim(),
-          email: String(row['聯絡人_Email'] || '').trim(),
-          phone: String(row['聯絡人_電話'] || '').trim(),
+          role:    String(row['聯絡人_職稱'] || '').trim(),
+          email:   String(row['聯絡人_Email'] || '').trim(),
+          phone:   String(row['聯絡人_電話'] || '').trim(),
+          line_id: String(row['聯絡人_LINE']  || '').trim() || null,
           lead_id: leadMap[key].id, user_id: currentUser.id, created_at: new Date().toISOString()
         });
         contactCount++;
