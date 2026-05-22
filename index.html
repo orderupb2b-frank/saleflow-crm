@@ -618,10 +618,14 @@ async function bootApp() {
   document.getElementById('login-page').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
 
-  // Load user profile and role
-  const { data: profile } = await db.from('user_profiles').select('*').eq('id', currentUser.id).single();
+  // Load user profile and role (safe - .maybeSingle() won't throw if no row)
+  let profile = null;
+  try {
+    const { data } = await db.from('user_profiles').select('*').eq('id', currentUser.id).maybeSingle();
+    profile = data;
+  } catch(e) { profile = null; }
   window.userProfile = profile;
-  window.isAdmin = !profile || profile.role === 'admin';
+  window.isAdmin = !profile || profile.role === 'admin'; // if no profile, default to admin
   const name = profile?.full_name || currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'User';
 
   document.getElementById('sidebarName').textContent = name + (window.isAdmin ? ' 👑' : '');
