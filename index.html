@@ -1723,7 +1723,10 @@ async function openEditLeadModal(leadId) {
 async function deleteLead(leadId) {
   openConfirm('刪除 Lead', '此操作不可還原，確定刪除？',
     async () => {
-      await db.from('leads').delete().eq('id', leadId);
+      // Clear lead_id from linked account first (avoid FK constraint)
+      await db.from('accounts').update({ lead_id: null }).eq('lead_id', leadId);
+      const { error } = await db.from('leads').delete().eq('id', leadId);
+      if (error) { toast('刪除失敗：' + error.message, 'error'); closeModal(); return; }
       closeModal(); closeDrawer();
       toast('Lead 已刪除', 'success');
       navigate('leads');
