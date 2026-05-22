@@ -1438,7 +1438,12 @@ async function saveLead() {
   };
   const note = document.getElementById('lNote').value.trim();
   const { data: lead, error } = await db.from('leads').insert(payload).select().single();
-  if (error) { toast('建立失敗：' + error.message, 'error'); return; }
+  if (error) { 
+    toast('建立失敗：' + error.message, 'error'); 
+    console.error('createUser error:', error);
+    alert('建立失敗：' + error.message);
+    return; 
+  }
   if (note) await db.from('notes').insert({ content: note, lead_id: lead.id, user_id: currentUser.id, created_at: new Date().toISOString() });
   const contactsText = document.getElementById('lContactsText')?.value || '';
   const contacts = parseContactsText(contactsText);
@@ -1535,24 +1540,7 @@ async function quickConvert(leadId) {
   closeDrawer();
 }
 
-async function quickStageChange(leadId, stageId) {
-  const lead = leadsData.find(l => l.id == leadId);
-  const stage = stagesData.find(s => s.id === stageId);
-  if (lead) lead.stage_id = stageId;
-  await db.from('leads').update({ stage_id: stageId }).eq('id', leadId);
-  toast(`階段更新：${stage?.name}`, 'success');
-  if (stage?.name === '簽約進件') {
-    openConfirm('🎉 轉換確認', '是否將此 Lead 轉換為 Account？',
-      async () => { await convertToAccount({id:leadId, name:lead?.name, company:lead?.company}); closeModal(); navigate('accounts'); },
-      () => { closeModal(); },
-      '轉換', '不轉換'
-    );
-  } else {
-    // Re-render info
-    const { data: updatedLead } = await db.from('leads').select('*').eq('id', leadId).single();
-    renderDrawerInfo(updatedLead);
-  }
-}
+// quickStageChange defined below
 
 async function renderDrawerContacts(leadId) {
   const { data: contacts } = await db.from('contacts').select('*').eq('lead_id', leadId);
@@ -2717,8 +2705,15 @@ async function createUser() {
     adminSession = sd?.session;
   } catch(e) {}
 
+  // Disable button to show it's working
+  const createBtn = document.querySelector('button[onclick="createUser()"]');
+  if (createBtn) { createBtn.disabled = true; createBtn.textContent = '建立中...'; }
+
   // Create new auth user
   const { data, error } = await db.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
+
+  // Re-enable button
+  if (createBtn) { createBtn.disabled = false; createBtn.textContent = '＋ 建立帳號'; }
 
   // Always restore admin session first
   if (adminSession) {
@@ -3148,26 +3143,7 @@ function colDragLeave(e, col) {
   col.classList.remove('drag-over');
 }
 
-async function colDrop(e, stageId) {
-  e.preventDefault();
-  e.stopPropagation();
-  document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
-  document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
-  if (!dragSrcId) return;
-  const lead = leadsData.find(l => l.id === dragSrcId);
-  if (!lead) return;
-  if (lead.stage_id === stageId) {
-    // Same stage - just save order
-    await saveColOrder(stageId);
-    return;
-  }
-  lead.stage_id = stageId;
-  await db.from('leads').update({ stage_id: stageId, updated_at: new Date().toISOString() }).eq('id', dragSrcId);
-  dragSrcId = null;
-  dragSrcEl = null;
-  toast('已移至「' + (stagesData.find(s=>s.id===stageId)?.name||'') + '」', 'success');
-  renderKanban(document.getElementById('leadSearch')?.value || '');
-}
+// colDrop defined above
 
 // deleteLead defined above
 
@@ -3199,10 +3175,24 @@ async function deleteNote(noteId, refId, type) {
 
 async function quickStageChange(leadId, stageId) {
   await db.from('leads').update({ stage_id: stageId, updated_at: new Date().toISOString() }).eq('id', leadId);
+  // Update local data
   const lead = leadsData.find(l => l.id === leadId);
   if (lead) lead.stage_id = stageId;
-  toast('階段已更新：' + (stagesData.find(s=>s.id===stageId)?.name||''), 'success');
-  openLeadDrawer(leadId);
+  const stageName = stagesData.find(s=>s.id===stageId)?.name||'';
+  toast('階段已更新：' + stageName, 'success');
+  // Re-render kanban in background so it reflects the change
+  renderKanban(document.getElementById('leadSearch')?.value || '');
+  // Re-render drawer info with fresh data
+  const { data: updatedLead } = await db.from('leads').select('*').eq('id', leadId).single();
+  if (updatedLead) renderDrawerInfo(updatedLead);
+  // Check for 簽約進件 auto-convert
+  if (stageName === '簽約進件') {
+    openConfirm('🎉 轉換確認', '是否將此 Lead 轉換為 Account？',
+      async () => { await convertToAccount({id:leadId, name:lead?.name, company:lead?.company}); closeModal(); navigate('accounts'); },
+      () => { closeModal(); },
+      '轉換', '不轉換'
+    );
+  }
 }
 
 // ── Auto session restore on page load ──
