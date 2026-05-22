@@ -222,7 +222,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .contact-actions { display: flex; gap: 4px; }
 
 /* ── Login ── */
-#login-page { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 300; }
+#login-page { position: fixed; inset: 0; background: var(--bg); display: none; align-items: center; justify-content: center; z-index: 300; }
 .login-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 36px 32px; width: 360px; box-shadow: var(--shadow); }
 .login-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
 .login-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
@@ -3096,28 +3096,34 @@ async function quickStageChange(leadId, stageId) {
 
 // ── Auto session restore on page load ──
 let _appBooted = false;
+
+// Listen for auth changes FIRST before checking session
+db.auth.onAuthStateChange(async (event, session) => {
+  if (event === 'SIGNED_OUT') {
+    _appBooted = false;
+    currentUser = null;
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('login-page').style.display = 'flex';
+  } else if (event === 'TOKEN_REFRESHED' && session) {
+    currentUser = session.user;
+  }
+  // SIGNED_IN is intentionally NOT handled here - handled by doLogin/bootApp directly
+});
+
+// Check for existing session on load
 (async () => {
-  // Show login page by default while checking session
-  document.getElementById('login-page').style.display = 'flex';
   try {
     const { data: { session } } = await db.auth.getSession();
-    if (session?.user) {
+    if (session?.user && !_appBooted) {
       currentUser = session.user;
-      if (!_appBooted) { _appBooted = true; await bootApp(); }
-    }
-  } catch(e) { /* stay on login */ }
-
-  db.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_OUT') {
-      _appBooted = false;
-      currentUser = null;
-      document.getElementById('app').style.display = 'none';
+      _appBooted = true;
+      await bootApp();
+    } else if (!session) {
       document.getElementById('login-page').style.display = 'flex';
     }
-    if (event === 'TOKEN_REFRESHED' && session) {
-      currentUser = session.user;
-    }
-  });
+  } catch(e) {
+    document.getElementById('login-page').style.display = 'flex';
+  }
 })();
 </script>
 <!-- Bottom Nav (mobile) -->
