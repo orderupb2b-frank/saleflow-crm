@@ -1045,8 +1045,28 @@ function createKanbanCard(lead) {
       ${lead.priority ? `<div class="kc-prio ${prioClass}" data-tip="${{high:'高',mid:'中',low:'低'}[lead.priority]}優先"></div>` : ''}
       ${src ? `<div class="kc-tag">${esc(src.name)}</div>` : ''}
     </div>
-    <div style="font-size:10.5px;color:var(--text3);margin-top:4px;display:flex;justify-content:space-between"><span>${lead.user_name ? "👤 "+esc(lead.user_name) : ""}</span><span>${fmtDate(lead.created_at)}</span></div>
+    <div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between;gap:4px">
+      <select class="kc-user-select" data-lead-id="${lead.id}" style="font-size:11px;background:var(--bg4);border:1px solid var(--border);border-radius:4px;color:var(--text2);padding:2px 4px;cursor:pointer;max-width:110px;outline:none">
+        <option value="">👤 未指派</option>
+        ${usersData.map(u => '<option value="'+u.id+'|'+(u.full_name||u.email||'')+'"'+((u.id===lead.user_id)?'selected':'')+'>'+esc(u.full_name||u.email||u.id)+'</option>').join('')}
+      </select>
+      <span style="font-size:10.5px;color:var(--text3)">${fmtDate(lead.created_at)}</span>
+    </div>
   `;
+  // Inline user assign - stop click from opening drawer
+  const userSel = card.querySelector('.kc-user-select');
+  if (userSel) {
+    userSel.addEventListener('mousedown', e => e.stopPropagation());
+    userSel.addEventListener('change', async e => {
+      e.stopPropagation();
+      const val = e.target.value;
+      const [uid, uname] = val ? val.split('|') : ['', ''];
+      await db.from('leads').update({ user_id: uid||null, user_name: uname||null, updated_at: new Date().toISOString() }).eq('id', lead.id);
+      const ld = leadsData.find(l => l.id === lead.id);
+      if (ld) { ld.user_id = uid||null; ld.user_name = uname||null; }
+      toast((uname||'未指派') + ' 已接手 ' + esc(lead.name), 'success');
+    });
+  }
   card.addEventListener('dragstart', e => {
     dragSrcId = lead.id;
     dragSrcEl = card;
