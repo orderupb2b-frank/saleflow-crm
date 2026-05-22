@@ -643,6 +643,8 @@ async function bootApp() {
   if (mobileUser) mobileUser.textContent = name[0].toUpperCase();
   await initDB();
   await loadGlobalData();
+  // Set admin flag - currently all users are admin, future: check role from DB
+  window.isAdmin = true; // TODO: fetch from user_roles table
   navigate('dashboard');
 }
 
@@ -721,6 +723,14 @@ async function renderDashboard() {
   const thisMonthActivities = allActivities.filter(a => new Date(a.created_at) >= monthStart);
   const thisMonthAccounts = accountsData.filter(a => new Date(a.created_at) >= monthStart);
 
+  // 今年至今統計
+  const yearStart = new Date(today.getFullYear(), 0, 1);
+  const thisYearLeads = leadsData.filter(l => new Date(l.created_at) >= yearStart);
+  const thisYearActivities = allActivities.filter(a => new Date(a.created_at) >= yearStart);
+  const thisYearAccounts = accountsData.filter(a => new Date(a.created_at) >= yearStart);
+  const thisYearContracts = contracts.filter(c => new Date(c.created_at) >= yearStart);
+  const thisYearRevenue = thisYearContracts.reduce((s,c) => s+(c.amount||0), 0);
+
   const activeLeads = leadsData.filter(l => !['暫停','結案'].includes(getStageName(l.stage_id)));
   const wonLeads = leadsData.filter(l => getStageName(l.stage_id) === '簽約進件');
   const expiring = contracts.filter(c => {
@@ -761,7 +771,30 @@ async function renderDashboard() {
         <div class="stat-sub">需要續約</div>
       </div>
     </div>
-    <div style="margin-bottom:8px;font-size:12px;color:var(--text3);font-weight:600;letter-spacing:0.05em">總覽</div>
+    <div style="margin-bottom:8px;font-size:12px;color:var(--text3);font-weight:600;letter-spacing:0.05em">今年至今（${today.getFullYear()}）</div>
+    <div class="stats-grid" style="margin-bottom:16px">
+      <div class="stat-card" style="border-left:3px solid var(--accent)">
+        <div class="stat-label">新增 Leads</div>
+        <div class="stat-value stat-accent">${thisYearLeads.length}</div>
+        <div class="stat-sub">今年共開發</div>
+      </div>
+      <div class="stat-card" style="border-left:3px solid var(--green)">
+        <div class="stat-label">聯繫活動</div>
+        <div class="stat-value stat-green">${thisYearActivities.length}</div>
+        <div class="stat-sub">今年活動次數</div>
+      </div>
+      <div class="stat-card" style="border-left:3px solid var(--yellow)">
+        <div class="stat-label">新進件</div>
+        <div class="stat-value" style="color:var(--yellow)">${thisYearAccounts.length}</div>
+        <div class="stat-sub">今年轉換客戶</div>
+      </div>
+      <div class="stat-card" style="border-left:3px solid var(--purple,#a78bfa)">
+        <div class="stat-label">合約金額</div>
+        <div class="stat-value" style="color:var(--purple,#a78bfa);font-size:18px">${thisYearRevenue>0?'$'+fmtNum(thisYearRevenue):'—'}</div>
+        <div class="stat-sub">今年新簽合約總額</div>
+      </div>
+    </div>
+    <div style="margin-bottom:8px;font-size:12px;color:var(--text3);font-weight:600;letter-spacing:0.05em">累積總覽</div>
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-label">進行中 Leads</div>
@@ -1798,8 +1831,9 @@ function renderAccountsList(accs) {
                 <td><span class="badge badge-gray">${contracts.length}</span></td>
                 <td style="font-family:var(--mono);font-size:12.5px">${totalAmt > 0 ? '$ '+fmtNum(totalAmt) : '—'}</td>
                 <td>${nearest ? '<span style="color:'+(daysLeft<=30?'var(--red)':'var(--text2)')+'">'+nearest.end_date+' ('+daysLeft+'天)</span>' : '—'}</td>
-                <td onclick="event.stopPropagation()">
+                <td onclick="event.stopPropagation()" style="display:flex;gap:4px;align-items:center">
                   <button class="btn btn-ghost btn-sm" onclick="openAccountDetail('${a.id}')">詳情</button>
+                  <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteAccount('${a.id}','${esc(a.name)}')">🗑</button>
                 </td>
               </tr>
             `;
@@ -1920,6 +1954,22 @@ async function toggleAccountStatus(accId, newStatus) {
 function openLeadDrawerFromAccount(leadId) {
   navigate('leads');
   setTimeout(() => openLeadDrawer(leadId), 400);
+}
+
+async function deleteAccount(accId, accName) {
+  openConfirm(
+    '刪除客戶',
+    '確定刪除「' + accName + '」？合約與備註也會一併刪除，此操作無法復原。',
+    async () => {
+      await db.from('notes').delete().eq('account_id', accId);
+      await db.from('contracts').delete().eq('account_id', accId);
+      await db.from('accounts').delete().eq('id', accId);
+      closeModal();
+      toast('客戶已刪除', 'success');
+      navigate('accounts');
+    },
+    closeModal, '確定刪除', '取消'
+  );
 }
 
 async function revertToLead(leadId, accId) {
@@ -2318,9 +2368,13 @@ function renderNeedTypesList() {
 
 async function addNeedType() {
   const name = document.getElementById('newNeedTypeName')?.value.trim();
-  if (!name) return;
-  const { error } = await db.from('need_types').insert({ name, created_at: new Date().toISOString() });
-  if (error) { toast('新增失敗：' + error.message, 'error'); return; }
+  if (!name) { toast('請輸入需求類型名稱', 'error'); return; }
+  const { data, error } = await db.from('need_types').insert({ name, user_id: currentUser.id, created_at: new Date().toISOString() }).select();
+  if (error) {
+    // Try without user_id if column doesn't exist
+    const { error: e2 } = await db.from('need_types').insert({ name, created_at: new Date().toISOString() });
+    if (e2) { toast('新增失敗：' + e2.message, 'error'); return; }
+  }
   document.getElementById('newNeedTypeName').value = '';
   await loadGlobalData();
   renderNeedTypesList();
