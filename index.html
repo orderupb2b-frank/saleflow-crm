@@ -659,7 +659,7 @@ async function loadGlobalData() {
     needTypesData = nt || [];
   } catch(e) { needTypesData = []; }
   try {
-    const { data: up } = await db.from('user_profiles').select('id,full_name,role').order('full_name');
+    const { data: up } = await db.from('user_profiles').select('id,full_name,role,email').order('full_name');
     usersData = up || [];
   } catch(e) { usersData = []; }
 }
@@ -1309,7 +1309,7 @@ function openNewLeadModal(stageId = null) {
       <label class="form-label">負責業務</label>
       ${window.isAdmin && usersData.length > 0
         ? '<select class="form-select" id="lUserSelect"><option value="">-- 選擇業務 --</option>' +
-          usersData.map(u=>'<option value="'+u.id+'|'+esc(u.full_name||'')+'"'+(u.full_name===myName||u.id===currentUser.id?' selected':'')+'>'+esc(u.full_name||u.id)+'</option>').join('') +
+          usersData.map(u=>{const label=u.full_name||u.email||u.id;return '<option value="'+u.id+'|'+esc(u.full_name||u.email||'')+'"'+(u.full_name===myName||u.id===currentUser.id?' selected':'')+'>'+esc(label)+'</option>';}).join('') +
           '</select>'
         : '<input class="form-input" id="lUserName" value="'+myName+'" readonly style="opacity:0.6" placeholder="業務姓名">'
       }
@@ -1879,7 +1879,7 @@ async function openEditLeadModal(leadId) {
       <label class="form-label">負責業務</label>
       ${window.isAdmin && usersData.length > 0
         ? '<select class="form-select" id="elUserSelect"><option value="">-- 選擇業務 --</option>' +
-          usersData.map(u=>'<option value="'+u.id+'|'+esc(u.full_name||'')+'"'+(u.id===lead.user_id?' selected':'')+'>'+esc(u.full_name||u.id)+'</option>').join('') +
+          usersData.map(u=>{const label=u.full_name||u.email||u.id;return '<option value="'+u.id+'|'+esc(u.full_name||u.email||'')+'"'+(u.id===lead.user_id?' selected':'')+'>'+esc(label)+'</option>';}).join('') +
           '</select>'
         : '<input class="form-input" id="elUserName" value="'+esc(lead.user_name||'')+'" readonly style="opacity:0.6">'
       }
@@ -2710,34 +2710,41 @@ async function createUser() {
   if (!name || !email || !pass) { toast('請填寫姓名、Email 和密碼', 'error'); return; }
   if (pass.length < 6) { toast('密碼至少 6 碼', 'error'); return; }
 
-  // Save admin session BEFORE signUp (signUp overwrites current session)
-  const { data: { session: adminSession } } = await db.auth.getSession();
+  // Save admin session BEFORE signUp (signUp may overwrite current session)
+  let adminSession = null;
+  try {
+    const { data: sd } = await db.auth.getSession();
+    adminSession = sd?.session;
+  } catch(e) {}
 
   // Create new auth user
   const { data, error } = await db.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
-  if (error) {
-    // Restore session even on error
-    if (adminSession) await db.auth.setSession({ access_token: adminSession.access_token, refresh_token: adminSession.refresh_token });
-    toast('建立失敗：' + error.message, 'error');
+
+  // Always restore admin session first
+  if (adminSession) {
+    try { await db.auth.setSession({ access_token: adminSession.access_token, refresh_token: adminSession.refresh_token }); currentUser = adminSession.user; } catch(e) {}
+  }
+
+  if (error) { toast('建立失敗：' + error.message, 'error'); return; }
+
+  const userId = data.user?.id;
+  if (!userId) {
+    // Supabase email confirmation is ON - user created but needs email confirm
+    toast('✅ 帳號已建立！對方需點擊確認信才能登入。（如要關閉此限制，請至 Supabase → Auth → Email → 關閉 Confirm email）', 'success');
+    document.getElementById('newUserName').value = '';
+    document.getElementById('newUserEmail').value = '';
+    document.getElementById('newUserPass').value = '';
     return;
   }
 
-  // Insert profile for new user
-  const userId = data.user?.id;
-  if (userId) {
-    await db.from('user_profiles').insert({ id: userId, full_name: name, role, created_at: new Date().toISOString() });
-  }
-
-  // Restore admin session (signUp replaced it with the new user's session)
-  if (adminSession) {
-    await db.auth.setSession({ access_token: adminSession.access_token, refresh_token: adminSession.refresh_token });
-    currentUser = adminSession.user;
-  }
+  // Insert profile
+  const { error: profileErr } = await db.from('user_profiles').insert({ id: userId, full_name: name, role, created_at: new Date().toISOString() });
+  if (profileErr) { toast('帳號建立成功但 profile 寫入失敗：' + profileErr.message, 'error'); return; }
 
   document.getElementById('newUserName').value = '';
   document.getElementById('newUserEmail').value = '';
   document.getElementById('newUserPass').value = '';
-  toast('帳號建立成功：' + name + ' (' + email + ')', 'success');
+  toast('✅ 帳號建立成功：' + name + ' (' + email + ')', 'success');
   renderUsersList();
 }
 
