@@ -576,6 +576,7 @@ async function doLogin() {
     const { data, error } = await db.auth.signInWithPassword({ email, password: pass });
     if (error) { showLoginError(error.message); return; }
     currentUser = data.user;
+    _appBooted = true;
     await bootApp();
   } catch(e) { showLoginError('登入失敗，請稍後再試'); }
 }
@@ -598,6 +599,7 @@ async function doRegister() {
   const { data, error: loginErr } = await db.auth.signInWithPassword({ email, password: pass });
   if (loginErr) { toggleRegister(false); errEl.textContent = '帳號建立成功！請登入'; errEl.style.display = 'block'; return; }
   currentUser = data.user;
+  _appBooted = true;
   await bootApp();
 }
 
@@ -608,6 +610,7 @@ function showLoginError(msg) {
 }
 
 async function doLogout() {
+  _appBooted = false;
   await db.auth.signOut();
   currentUser = null;
   document.getElementById('app').style.display = 'none';
@@ -3092,25 +3095,27 @@ async function quickStageChange(leadId, stageId) {
 }
 
 // ── Auto session restore on page load ──
+let _appBooted = false;
 (async () => {
+  // Show login page by default while checking session
+  document.getElementById('login-page').style.display = 'flex';
   try {
     const { data: { session } } = await db.auth.getSession();
     if (session?.user) {
       currentUser = session.user;
-      await bootApp();
-    } else {
-      document.getElementById('login-page').style.display = 'flex';
+      if (!_appBooted) { _appBooted = true; await bootApp(); }
     }
-  } catch(e) {
-    document.getElementById('login-page').style.display = 'flex';
-  }
-  // Keep session alive
-  db.auth.onAuthStateChange((event, session) => {
-    if (event === 'TOKEN_REFRESHED' && session) currentUser = session.user;
+  } catch(e) { /* stay on login */ }
+
+  db.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_OUT') {
+      _appBooted = false;
       currentUser = null;
       document.getElementById('app').style.display = 'none';
       document.getElementById('login-page').style.display = 'flex';
+    }
+    if (event === 'TOKEN_REFRESHED' && session) {
+      currentUser = session.user;
     }
   });
 })();
