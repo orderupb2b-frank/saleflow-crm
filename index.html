@@ -661,7 +661,8 @@ async function loadGlobalData() {
   try {
     const { data: up } = await db.from('user_profiles').select('id,full_name,role,email').order('full_name');
     usersData = up || [];
-  } catch(e) { usersData = []; }
+    console.log('usersData loaded:', JSON.stringify(usersData));
+  } catch(e) { console.error('usersData load failed:', e); usersData = []; }
 }
 
 // ── Navigation ──
@@ -1049,7 +1050,7 @@ function createKanbanCard(lead) {
       ${usersData.length > 0
         ? '<select class="kc-user-select" data-lead-id="'+lead.id+'" style="font-size:11px;background:var(--bg4);border:1px solid var(--border);border-radius:4px;color:var(--text2);padding:2px 4px;cursor:pointer;max-width:120px;outline:none">'
           + '<option value="">👤 未指派</option>'
-          + usersData.map(u => '<option value="'+u.id+'|'+(u.full_name||u.email||'')+'"'+(u.id===lead.user_id?' selected':'')+'>'+esc(u.full_name||u.email||'')+'</option>').join('')
+          + usersData.map(u => { const n=u.full_name||u.email||''; return '<option value="'+u.id+'|'+n+'"'+(u.id===lead.user_id?' selected':'')+'>'+n+'</option>'; }).join('')
           + '</select>'
         : '<span style="font-size:11px;color:var(--text3)">👤 '+(lead.user_name||'未指派')+'</span>'
       }
