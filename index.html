@@ -826,6 +826,10 @@ async function renderDashboard() {
         <div class="chart-title">⏰ 合約到期提醒</div>
         <div class="reminder-list" id="reminderList"></div>
       </div>
+      <div class="chart-card">
+        <div class="chart-title">📅 近期需聯絡</div>
+        <div id="nextContactList"></div>
+      </div>
     </div>
   `;
 
@@ -863,6 +867,31 @@ async function renderDashboard() {
         </div>
       `;
     }).join('');
+  }
+
+  // Render next contact list
+  const nextContactEl = document.getElementById('nextContactList');
+  if (nextContactEl) {
+    const upcoming = leadsData
+      .filter(l => l.next_contact_date)
+      .sort((a,b) => new Date(a.next_contact_date) - new Date(b.next_contact_date))
+      .slice(0, 10);
+    if (!upcoming.length) {
+      nextContactEl.innerHTML = '<div style="font-size:13px;color:var(--text3);padding:8px 0">無待聯絡的 Lead</div>';
+    } else {
+      nextContactEl.innerHTML = upcoming.map(l => {
+        const d = new Date(l.next_contact_date);
+        const isOverdue = d < today;
+        const diffDays = Math.ceil((d - today) / 86400000);
+        const label = isOverdue ? '已過期 '+Math.abs(diffDays)+'天' : diffDays === 0 ? '今天' : diffDays+'天後';
+        const color = isOverdue ? 'var(--red)' : diffDays <= 3 ? 'var(--yellow)' : 'var(--text3)';
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="navigate(\'leads\');setTimeout(()=>openLeadDrawer(\''+l.id+'\'),400)">'
+          + '<div><div style="font-size:13px;font-weight:500">'+esc(l.name)+'</div>'
+          + '<div style="font-size:11.5px;color:var(--text3)">'+new Date(l.next_contact_date).toLocaleDateString('zh-TW')+(l.user_name?' · '+esc(l.user_name):'')+'</div></div>'
+          + '<div style="font-size:12px;font-weight:600;color:'+color+'">'+label+'</div>'
+          + '</div>';
+      }).join('');
+    }
   }
 }
 
@@ -1345,6 +1374,7 @@ function renderDrawerInfo(lead) {
       <div><div class="form-label">預估金額</div><div style="font-size:13px;font-family:var(--mono)">${lead.amount ? '$ ' + fmtNum(lead.amount) : '—'}</div></div>
       <div><div class="form-label">建立時間</div><div style="font-size:12px;color:var(--text3)">${fmtDate(lead.created_at)}</div></div>
       <div><div class="form-label">負責業務</div><div style="font-size:13px">${esc(lead.user_name||"—")}</div></div>
+      ${lead.next_contact_date ? `<div style="grid-column:1/-1;padding:8px 10px;background:${new Date(lead.next_contact_date)<new Date()?'var(--red-bg,rgba(239,68,68,0.1))':'var(--accent-glow)'};border-radius:6px;border:1px solid ${new Date(lead.next_contact_date)<new Date()?'rgba(239,68,68,0.3)':'var(--accent)'}"><div class="form-label">📅 下次聯絡日期</div><div style="font-size:13px;font-weight:500">${new Date(lead.next_contact_date).toLocaleDateString('zh-TW')} ${new Date(lead.next_contact_date)<new Date()?'⚠️ 已過期':''}</div></div>` : ''}
       ${lead.product_type ? `<div style="grid-column:1/-1"><div class="form-label">客戶產品類型</div><div style="font-size:13px">${esc(lead.product_type)}</div></div>` : ''}
     </div>
     ${(lead.need_types||[]).length ? `<div style="margin-bottom:14px">
@@ -1355,6 +1385,7 @@ function renderDrawerInfo(lead) {
     </div>` : ''}
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-secondary btn-sm" onclick="openEditLeadModal('${lead.id}')">✏️ 編輯</button>
+      <button class="btn btn-secondary btn-sm" onclick="openSetNextContact('${lead.id}','${lead.next_contact_date||''}')" title="設定下次聯絡">📅</button>
       <button class="btn btn-primary btn-sm" onclick="quickConvert('${lead.id}')">🏢 轉為 Account</button>
       <button class="btn btn-danger btn-sm" onclick="deleteLead('${lead.id}')">🗑 刪除</button>
     </div>
@@ -1733,6 +1764,7 @@ async function openEditLeadModal(leadId) {
       </div>
     </div>
     <div class="form-group"><label class="form-label">客戶產品類型</label><input class="form-input" id="elProductType" placeholder="例：餐飲、電商、製造業..." value="${esc(lead.product_type||'')}"></div>
+    <div class="form-group"><label class="form-label">📅 下次聯絡日期</label><input class="form-input" id="elNextContact" type="date" value="${lead.next_contact_date||''}"></div>
     ${needTypesData.length ? `<div class="form-group">
       <label class="form-label">需求類型（可複選）</label>
       <div id="elNeedTypes" style="display:flex;flex-wrap:wrap;gap:4px">
@@ -1752,6 +1784,7 @@ async function openEditLeadModal(leadId) {
         priority: document.getElementById('elPrio').value || null,
         need_types: selNT.length ? selNT : null,
         product_type: document.getElementById('elProductType')?.value.trim() || null,
+        next_contact_date: document.getElementById('elNextContact')?.value || null,
         updated_at: new Date().toISOString()
       }).eq('id', leadId);
       closeModal();
@@ -1870,73 +1903,106 @@ function openNewAccountModal() {
 }
 
 async function openAccountDetail(accId) {
-  const { data: acc } = await db.from('accounts').select('*').eq('id', accId).single();
-  const { data: contracts } = await db.from('contracts').select('*').eq('account_id', accId).order('created_at', {ascending:false});
-  const { data: notes } = await db.from('notes').select('*').eq('account_id', accId).order('created_at', {ascending:false});
+  const [accRes, contractsRes, notesRes, contactsRes] = await Promise.all([
+    db.from('accounts').select('*').eq('id', accId).single(),
+    db.from('contracts').select('*').eq('account_id', accId).order('created_at', {ascending:false}),
+    db.from('notes').select('*').eq('account_id', accId).order('created_at', {ascending:false}),
+    db.from('contacts').select('*').eq('lead_id', 'placeholder').limit(0) // placeholder
+  ]);
+  const acc = accRes.data;
+  const contracts = contractsRes.data || [];
+  const notes = notesRes.data || [];
 
-  // Load original lead data if exists
-  let origLead = null;
+  let origLead = null, leadContacts = [];
   if (acc.lead_id) {
-    const { data: ld } = await db.from('leads').select('*').eq('id', acc.lead_id).single();
-    origLead = ld;
+    const [ldRes, lcRes] = await Promise.all([
+      db.from('leads').select('*').eq('id', acc.lead_id).single(),
+      db.from('contacts').select('*').eq('lead_id', acc.lead_id)
+    ]);
+    origLead = ldRes.data;
+    leadContacts = lcRes.data || [];
   }
 
   const isTerminated = acc.status === 'terminated';
-  const accUserName = acc.user_name || (origLead?.user_name) || '—';
+  const accUserName = acc.user_name || origLead?.user_name || '—';
   const statusBadge = isTerminated
-    ? `<span class="badge badge-red">終止合作</span>`
-    : `<span class="badge badge-green">合作中</span>`;
+    ? '<span class="badge badge-red">終止合作</span>'
+    : '<span class="badge badge-green">合作中</span>';
+  const totalRevenue = contracts.reduce((s,c)=>s+(c.amount||0),0);
 
   const content = document.getElementById('content');
   content.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="navigate('accounts')">← 返回</button>
       <div class="page-title">🏢 ${esc(acc.name)}</div>
-      ${acc.company ? `<span class="badge badge-gray">${esc(acc.company)}</span>` : ''}
       ${statusBadge}
-      <span style="font-size:12px;color:var(--text3)">👤 ${esc(accUserName)}</span>
       <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-secondary" onclick="openEditAccount('${accId}')">✏️ 編輯客戶資訊</button>
         <button class="btn btn-sm ${isTerminated?'btn-secondary':'btn-danger'}" onclick="toggleAccountStatus('${accId}','${isTerminated?'active':'terminated'}')">
-          ${isTerminated ? '✅ 恢復合作' : '🚫 標記終止合作'}
+          ${isTerminated ? '✅ 恢復合作' : '🚫 終止合作'}
         </button>
         ${acc.lead_id ? `<button class="btn btn-sm btn-secondary" onclick="revertToLead('${acc.lead_id}','${accId}')">↩ 轉回 Lead</button>` : ''}
       </div>
     </div>
-    ${origLead ? `<div class="chart-card" style="margin-bottom:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+
+    <!-- 客戶基本資訊 -->
+    <div class="chart-card" style="margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;font-size:13px">
+        <div><div class="form-label">公司名稱</div>${esc(acc.company||acc.name)}</div>
+        <div><div class="form-label">負責業務</div>👤 ${esc(accUserName)}</div>
+        <div><div class="form-label">合約總金額</div><span style="font-family:var(--mono);font-weight:600">${totalRevenue?'$ '+fmtNum(totalRevenue):'—'}</span></div>
+        <div><div class="form-label">合約數</div>${contracts.length} 筆</div>
+        <div><div class="form-label">成為客戶時間</div><span style="font-size:11.5px;color:var(--text3)">${fmtDate(acc.created_at)}</span></div>
+        ${acc.website ? `<div style="grid-column:1/-1"><div class="form-label">網站</div><a href="${esc(acc.website)}" target="_blank" style="color:var(--accent);font-size:13px">${esc(acc.website)}</a></div>` : '<div><div class="form-label">網站</div><span style="color:var(--text3);font-size:12px">未填寫</span></div>'}
+        ${acc.industry ? `<div><div class="form-label">產業</div>${esc(acc.industry)}</div>` : ''}
+        ${acc.address ? `<div style="grid-column:1/-1"><div class="form-label">地址</div>${esc(acc.address)}</div>` : ''}
+        ${acc.note ? `<div style="grid-column:1/-1"><div class="form-label">備註</div><div style="color:var(--text2)">${esc(acc.note)}</div></div>` : ''}
+      </div>
+    </div>
+
+    <!-- 聯絡人 -->
+    ${leadContacts.length ? `<div class="chart-card" style="margin-bottom:14px">
+      <div class="chart-title" style="margin-bottom:10px">👥 聯絡人</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">
+        ${leadContacts.map(c=>`<div style="padding:10px;background:var(--bg3);border-radius:8px;font-size:12.5px">
+          <div style="font-weight:600;margin-bottom:4px">${esc(c.name)}${c.role?` <span style="color:var(--text3);font-weight:400">· ${esc(c.role)}</span>`:''}
+          </div>
+          ${c.email?`<div style="color:var(--text3)">✉️ ${esc(c.email)}</div>`:''}
+          ${c.phone?`<div style="color:var(--text3)">📞 ${esc(c.phone)}</div>`:''}
+          ${c.line_id?`<div style="color:var(--text3)">LINE: ${esc(c.line_id)}</div>`:''}
+        </div>`).join('')}
+      </div>
+    </div>` : ''}
+
+    <!-- 原始 Lead 資訊 -->
+    ${origLead ? `<div class="chart-card" style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <div class="chart-title">🎯 原始 Lead 資訊</div>
         <button class="btn btn-ghost btn-sm" onclick="openLeadDrawerFromAccount('${acc.lead_id}')">查看 Lead ↗</button>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:13px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;font-size:13px">
         <div><div class="form-label">來源</div>${esc(sourcesData.find(s=>s.id===origLead.source_id)?.name||'—')}</div>
-        <div><div class="form-label">優先級</div>${{high:'🔴 高',mid:'🟡 中',low:'🟢 低'}[origLead.priority]||'—'}</div>
-        <div><div class="form-label">預估金額</div><span style="font-family:var(--mono)">${origLead.amount?'$ '+fmtNum(origLead.amount):'—'}</span></div>
-        ${origLead.product_type ? `<div><div class="form-label">客戶產品類型</div>${esc(origLead.product_type)}</div>` : ''}
+        <div><div class="form-label">產業類型</div>${esc(origLead.product_type||'—')}</div>
+        <div><div class="form-label">預估金額</div>${origLead.amount?'$ '+fmtNum(origLead.amount):'—'}</div>
         ${(origLead.need_types||[]).length ? `<div style="grid-column:1/-1"><div class="form-label">需求類型</div><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${(origLead.need_types||[]).map(id=>{const t=needTypesData.find(n=>n.id===id);return t?`<span class="need-tag selected" style="cursor:default">${esc(t.name)}</span>`:''}).join('')}</div></div>` : ''}
-        <div><div class="form-label">初次建立</div><span style="color:var(--text3);font-size:12px">${fmtDate(origLead.created_at)}</span></div>
       </div>
     </div>` : ''}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
       <div>
-        <div class="chart-card" style="margin-bottom:16px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div class="chart-card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
             <div class="chart-title">📄 合約列表</div>
             <button class="btn btn-primary btn-sm" onclick="openAddContract('${accId}')">＋ 新增合約</button>
           </div>
-          <div id="contractList">
-            ${renderContractList(contracts||[])}
-          </div>
+          <div id="contractList">${renderContractList(contracts)}</div>
         </div>
       </div>
       <div>
         <div class="chart-card">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-            <div class="chart-title">📝 備註</div>
-          </div>
-          <div>
-            <textarea class="form-textarea" id="newNoteText" placeholder="新增備註..."></textarea>
-            <button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="addNote('${accId}','account')">＋ 新增</button>
-          </div>
+          <div class="chart-title" style="margin-bottom:10px">📝 備註</div>
+          <textarea class="form-textarea" id="newNoteText" placeholder="新增備註..."></textarea>
+          <button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="addNote('${accId}','account')">＋ 新增</button>
           <div style="margin-top:12px" id="accountNotesList">
             ${(notes||[]).map(n=>`
               <div class="note-item">
@@ -1945,13 +2011,49 @@ async function openAccountDetail(accId) {
                   <div class="note-meta">${fmtDate(n.created_at)}</div>
                   <button class="btn btn-ghost btn-sm" onclick="deleteNote('${n.id}','${accId}','account')">🗑</button>
                 </div>
-              </div>
-            `).join('') || '<div class="empty-state" style="padding:16px"><div class="empty-text">尚無備註</div></div>'}
+              </div>`).join('') || '<div class="empty-state" style="padding:16px"><div class="empty-text">尚無備註</div></div>'}
           </div>
         </div>
       </div>
     </div>
   `;
+}
+
+function openEditAccount(accId) {
+  const acc = accountsData.find(a => a.id === accId);
+  if (!acc) return;
+  openModal('編輯客戶資訊', `
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">客戶名稱 *</label><input class="form-input" id="eaName" value="${esc(acc.name||'')}"></div>
+      <div class="form-group"><label class="form-label">公司名稱</label><input class="form-input" id="eaCompany" value="${esc(acc.company||'')}"></div>
+    </div>
+    <div class="form-group"><label class="form-label">網站 URL</label><input class="form-input" id="eaWebsite" type="url" placeholder="https://example.com" value="${esc(acc.website||'')}"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">產業</label><input class="form-input" id="eaIndustry" placeholder="例：食品、科技..." value="${esc(acc.industry||'')}"></div>
+      <div class="form-group"><label class="form-label">負責業務</label><input class="form-input" id="eaUserName" value="${esc(acc.user_name||'')}"></div>
+    </div>
+    <div class="form-group"><label class="form-label">地址</label><input class="form-input" id="eaAddress" placeholder="公司地址" value="${esc(acc.address||'')}"></div>
+    <div class="form-group"><label class="form-label">備註</label><textarea class="form-textarea" id="eaNote">${esc(acc.note||'')}</textarea></div>
+  `, [
+    { label: '取消', cls: 'btn-secondary', action: closeModal },
+    { label: '儲存', cls: 'btn-primary', action: async () => {
+      const name = document.getElementById('eaName').value.trim();
+      if (!name) { toast('請填寫名稱', 'error'); return; }
+      await db.from('accounts').update({
+        name,
+        company:   document.getElementById('eaCompany').value.trim() || null,
+        website:   document.getElementById('eaWebsite').value.trim() || null,
+        industry:  document.getElementById('eaIndustry').value.trim() || null,
+        user_name: document.getElementById('eaUserName').value.trim() || null,
+        address:   document.getElementById('eaAddress').value.trim() || null,
+        note:      document.getElementById('eaNote').value.trim() || null,
+        updated_at: new Date().toISOString()
+      }).eq('id', accId);
+      closeModal();
+      toast('客戶資訊已更新', 'success');
+      openAccountDetail(accId);
+    }}
+  ]);
 }
 
 async function toggleAccountStatus(accId, newStatus) {
@@ -2681,6 +2783,37 @@ function importLeadsExcel() {
     navigate('leads');
   };
   input.click();
+}
+
+// ── Next Contact Date ──
+function openSetNextContact(leadId, currentDate) {
+  openModal('設定下次聯絡日期', `
+    <div class="form-group">
+      <label class="form-label">下次聯絡日期</label>
+      <input class="form-input" id="nextContactDate" type="date" value="${currentDate}" style="font-size:15px">
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="clearNextContact('${leadId}')">清除日期</button>
+  `, [
+    { label: '取消', cls: 'btn-secondary', action: closeModal },
+    { label: '儲存', cls: 'btn-primary', action: async () => {
+      const d = document.getElementById('nextContactDate').value;
+      await db.from('leads').update({ next_contact_date: d || null, updated_at: new Date().toISOString() }).eq('id', leadId);
+      const lead = leadsData.find(l => l.id === leadId);
+      if (lead) lead.next_contact_date = d || null;
+      closeModal();
+      toast('下次聯絡日期已設定', 'success');
+      openLeadDrawer(leadId);
+    }}
+  ]);
+}
+
+async function clearNextContact(leadId) {
+  await db.from('leads').update({ next_contact_date: null, updated_at: new Date().toISOString() }).eq('id', leadId);
+  const lead = leadsData.find(l => l.id === leadId);
+  if (lead) lead.next_contact_date = null;
+  closeModal();
+  toast('已清除', 'success');
+  openLeadDrawer(leadId);
 }
 
 // ── Utility Functions ──
