@@ -990,43 +990,46 @@ function createKanbanCard(lead) {
   card.addEventListener('dragstart', e => {
     dragSrcId = lead.id;
     dragSrcEl = card;
-    card.classList.add('dragging');
+    setTimeout(() => card.classList.add('dragging'), 0);
     e.dataTransfer.effectAllowed = 'move';
   });
   card.addEventListener('dragend', () => {
     card.classList.remove('dragging');
+    dragSrcId = null;
+    dragSrcEl = null;
     document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
+    document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
   });
-  // Within-col sort: dragover shows placeholder
   card.addEventListener('dragover', e => {
     e.preventDefault();
+    e.stopPropagation();
     if (!dragSrcEl || dragSrcEl === card) return;
-    const colCards = card.parentElement;
     const srcStage = dragSrcEl.closest('.kanban-col')?.dataset.stageId;
     const tgtStage = card.closest('.kanban-col')?.dataset.stageId;
-    if (srcStage !== tgtStage) return; // cross-col handled by colDrop
+    if (srcStage !== tgtStage) return;
     document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
-    const placeholder = document.createElement('div');
-    placeholder.className = 'drag-placeholder';
-    placeholder.style.cssText = 'height:4px;background:var(--accent);border-radius:2px;margin:2px 0;';
+    const ph = document.createElement('div');
+    ph.className = 'drag-placeholder';
+    ph.style.cssText = 'height:3px;background:var(--accent);border-radius:2px;margin:2px 0;pointer-events:none';
     const rect = card.getBoundingClientRect();
-    const midY = rect.top + rect.height / 2;
-    if (e.clientY < midY) colCards.insertBefore(placeholder, card);
-    else colCards.insertBefore(placeholder, card.nextSibling);
+    if (e.clientY < rect.top + rect.height / 2) card.parentElement.insertBefore(ph, card);
+    else card.parentElement.insertBefore(ph, card.nextSibling);
   });
   card.addEventListener('drop', async e => {
-    e.stopPropagation();
     e.preventDefault();
-    const srcStage = dragSrcEl?.closest('.kanban-col')?.dataset.stageId;
+    e.stopPropagation();
+    if (!dragSrcEl || dragSrcEl === card) return;
+    const srcStage = dragSrcEl.closest('.kanban-col')?.dataset.stageId;
     const tgtStage = card.closest('.kanban-col')?.dataset.stageId;
-    if (!dragSrcId || srcStage !== tgtStage) return;
     document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
-    const colCards = card.parentElement;
-    const rect = card.getBoundingClientRect();
-    const before = e.clientY < rect.top + rect.height / 2;
-    if (before) colCards.insertBefore(dragSrcEl, card);
-    else colCards.insertBefore(dragSrcEl, card.nextSibling);
-    await saveColOrder(tgtStage);
+    if (srcStage === tgtStage) {
+      const rect = card.getBoundingClientRect();
+      if (e.clientY < rect.top + rect.height / 2) card.parentElement.insertBefore(dragSrcEl, card);
+      else card.parentElement.insertBefore(dragSrcEl, card.nextSibling);
+      await saveColOrder(tgtStage);
+      dragSrcId = null; dragSrcEl = null;
+    }
+    // cross-col: handled by colDrop on the col element
   });
   card.addEventListener('click', () => openLeadDrawer(lead.id));
   return card;
@@ -2630,26 +2633,26 @@ function colDragLeave(e, col) {
 
 async function colDrop(e, stageId) {
   e.preventDefault();
-  const col = document.getElementById('col-' + stageId);
-  if (col) col.classList.remove('drag-over');
+  e.stopPropagation();
+  document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
+  document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
   if (!dragSrcId) return;
   const lead = leadsData.find(l => l.id === dragSrcId);
-  if (!lead || lead.stage_id === stageId) return;
+  if (!lead) return;
+  if (lead.stage_id === stageId) {
+    // Same stage - just save order
+    await saveColOrder(stageId);
+    return;
+  }
   lead.stage_id = stageId;
   await db.from('leads').update({ stage_id: stageId, updated_at: new Date().toISOString() }).eq('id', dragSrcId);
+  dragSrcId = null;
+  dragSrcEl = null;
   toast('已移至「' + (stagesData.find(s=>s.id===stageId)?.name||'') + '」', 'success');
   renderKanban(document.getElementById('leadSearch')?.value || '');
 }
 
-async function deleteLead(leadId) {
-  openConfirm('刪除 Lead', '確定要刪除這筆 Lead？此操作無法復原。', async () => {
-    await db.from('leads').delete().eq('id', leadId);
-    closeModal();
-    closeDrawer();
-    toast('已刪除', 'success');
-    navigate('leads');
-  }, closeModal, '確定刪除', '取消');
-}
+// deleteLead defined above
 
 async function deleteActivity(actId, leadId) {
   await db.from('activities').delete().eq('id', actId);
