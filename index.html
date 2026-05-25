@@ -531,11 +531,16 @@ let dragSrcEl = null;
 let showConvertedLeads = false;
 let convertedLeadIds = new Set();
 let needTypesData = [];
+let dealTypesData = [];
 let leadsViewMode = 'kanban';
 let kanbanFilterPrio = 'all';
 let kanbanFilterSrc = 'all';
 let kanbanFilterStage = 'all';
 let kanbanFilterUser = 'all';
+let listFilterSrc = 'all';
+let listFilterStage = 'all';
+let listFilterUser = 'all';
+let dashFilterUser = 'all';
 let usersData = [];
 
 // Default stages
@@ -659,6 +664,10 @@ async function loadGlobalData() {
     needTypesData = nt || [];
   } catch(e) { needTypesData = []; }
   try {
+    const { data: dt } = await db.from('deal_types').select('*').order('name');
+    dealTypesData = dt || [];
+  } catch(e) { dealTypesData = []; }
+  try {
     // Try to fetch all user profiles; RLS may limit results
     const { data: up, error: upErr } = await db.from('user_profiles').select('id,full_name,role,email').order('created_at');
     if (upErr) throw upErr;
@@ -723,32 +732,49 @@ async function renderDashboard() {
     db.from('leads').select('*'),
     db.from('accounts').select('*'),
     db.from('contracts').select('*'),
-    db.from('activities').select('id,created_at')
+    db.from('activities').select('id,created_at,lead_id')
   ]);
   leadsData = leadsRes.data || [];
   accountsData = accsRes.data || [];
   const contracts = contractsRes.data || [];
   const allActivities = activitiesRes.data || [];
 
+  // Build user filter options
+  const userMap3 = {};
+  leadsData.forEach(l => { if (l.user_id && l.user_name) userMap3[l.user_id] = l.user_name; });
+  const dashUserOpts = [{val:'all',label:'全部業務'}, ...Object.entries(userMap3).map(([id,nm])=>({val:id,label:nm}))];
+  document.getElementById('topbarActions').innerHTML = `
+    <div class="action-bar">
+      <select class="form-select" style="width:auto;height:32px;font-size:13px" onchange="dashFilterUser=this.value;renderDashboard()">
+        ${dashUserOpts.map(o=>`<option value="${o.val}"${dashFilterUser===o.val?' selected':''}>${o.label}</option>`).join('')}
+      </select>
+    </div>`;
+
+  // Filter data by selected user
+  const filtLeads = dashFilterUser==='all' ? leadsData : leadsData.filter(l=>l.user_id===dashFilterUser);
+  const filtAccounts = dashFilterUser==='all' ? accountsData : accountsData.filter(a=>a.user_id===dashFilterUser);
+  const filtLeadIds = new Set(filtLeads.map(l=>l.id));
+  const filtActivities = dashFilterUser==='all' ? allActivities : allActivities.filter(a=>filtLeadIds.has(a.lead_id));
+
   const today = new Date();
   const in30 = new Date(today); in30.setDate(today.getDate() + 30);
 
-  // 本月統計
+  // 本月統計 (use filtered data)
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-  const thisMonthLeads = leadsData.filter(l => new Date(l.created_at) >= monthStart);
-  const thisMonthActivities = allActivities.filter(a => new Date(a.created_at) >= monthStart);
-  const thisMonthAccounts = accountsData.filter(a => new Date(a.created_at) >= monthStart);
+  const thisMonthLeads = filtLeads.filter(l => new Date(l.created_at) >= monthStart);
+  const thisMonthActivities = filtActivities.filter(a => new Date(a.created_at) >= monthStart);
+  const thisMonthAccounts = filtAccounts.filter(a => new Date(a.created_at) >= monthStart);
 
   // 今年至今統計
   const yearStart = new Date(today.getFullYear(), 0, 1);
-  const thisYearLeads = leadsData.filter(l => new Date(l.created_at) >= yearStart);
-  const thisYearActivities = allActivities.filter(a => new Date(a.created_at) >= yearStart);
-  const thisYearAccounts = accountsData.filter(a => new Date(a.created_at) >= yearStart);
+  const thisYearLeads = filtLeads.filter(l => new Date(l.created_at) >= yearStart);
+  const thisYearActivities = filtActivities.filter(a => new Date(a.created_at) >= yearStart);
+  const thisYearAccounts = filtAccounts.filter(a => new Date(a.created_at) >= yearStart);
   const thisYearContracts = contracts.filter(c => new Date(c.created_at) >= yearStart);
   const thisYearRevenue = thisYearContracts.reduce((s,c) => s+(c.amount||0), 0);
 
-  const activeLeads = leadsData.filter(l => !['暫停','結案'].includes(getStageName(l.stage_id)));
-  const wonLeads = leadsData.filter(l => getStageName(l.stage_id) === '簽約進件');
+  const activeLeads = filtLeads.filter(l => !['暫停','結案'].includes(getStageName(l.stage_id)));
+  const wonLeads = filtLeads.filter(l => getStageName(l.stage_id) === '簽約進件');
   const expiring = contracts.filter(c => {
     const end = new Date(c.end_date);
     return end >= today && end <= in30;
@@ -758,7 +784,7 @@ async function renderDashboard() {
   const funnelStages = stagesData.filter(s => !['暫停','結案'].includes(s.name));
   const funnelData = funnelStages.map(s => ({
     name: s.name,
-    count: leadsData.filter(l => l.stage_id === s.id).length
+    count: filtLeads.filter(l => l.stage_id === s.id).length
   }));
   const maxCount = Math.max(...funnelData.map(f => f.count), 1);
 
@@ -815,11 +841,11 @@ async function renderDashboard() {
       <div class="stat-card">
         <div class="stat-label">進行中 Leads</div>
         <div class="stat-value stat-accent">${activeLeads.length}</div>
-        <div class="stat-sub">共 ${leadsData.length} 筆</div>
+        <div class="stat-sub">共 ${filtLeads.length} 筆</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">轉換客戶</div>
-        <div class="stat-value stat-green">${accountsData.length}</div>
+        <div class="stat-value stat-green">${filtAccounts.length}</div>
         <div class="stat-sub">累積成交</div>
       </div>
       <div class="stat-card">
@@ -829,7 +855,7 @@ async function renderDashboard() {
       </div>
       <div class="stat-card">
         <div class="stat-label">進行中 / 總 Lead</div>
-        <div class="stat-value">${leadsData.length?Math.round(activeLeads.length/leadsData.length*100):0}%</div>
+        <div class="stat-value">${filtLeads.length?Math.round(activeLeads.length/filtLeads.length*100):0}%</div>
         <div class="stat-sub">活躍比例</div>
       </div>
     </div>
@@ -888,7 +914,7 @@ async function renderDashboard() {
   // Render next contact list
   const nextContactEl = document.getElementById('nextContactList');
   if (nextContactEl) {
-    const upcoming = leadsData
+    const upcoming = filtLeads
       .filter(l => l.next_contact_date)
       .sort((a,b) => new Date(a.next_contact_date) - new Date(b.next_contact_date))
       .slice(0, 10);
@@ -961,13 +987,6 @@ function renderKanban(searchStr = '') {
   content.style.overflowX = 'auto';
 
   // Build filter bar
-  const prioOptions = [
-    {val:'all', label:'全部優先'},
-    {val:'high', label:'🔴 高'},
-    {val:'mid', label:'🟡 中'},
-    {val:'low', label:'🟢 低'},
-    {val:'', label:'未設定'}
-  ];
   const srcOptions = [{val:'all', label:'全部來源'}, ...sourcesData.map(s=>({val:s.id, label:s.name}))];
   const stageOptions = [{val:'all', label:'全部階段'}, ...stagesData.map(s=>({val:s.id, label:s.name}))];
 
@@ -987,7 +1006,6 @@ function renderKanban(searchStr = '') {
       <select class="form-select" style="width:auto;padding:3px 8px;font-size:12px;height:28px" onchange="setKanbanFilter('src',this.value)">
         ${srcOptions.map(o=>`<option value="${o.val}"${kanbanFilterSrc===o.val?' selected':''}>${o.label}</option>`).join('')}
       </select>
-      ${prioOptions.map(o=>`<span class="filter-chip ${kanbanFilterPrio===o.val?'active':''}" onclick="setKanbanFilter('prio','${o.val}')">${o.label}</span>`).join('')}
     </div>
     <div id="kanban-board"></div>`;
 
@@ -1004,7 +1022,6 @@ function renderKanban(searchStr = '') {
       if (l.stage_id !== stage.id) return false;
       if (!showConvertedLeads && convertedLeadIds.has(l.id)) return false;
       if (searchStr && !l.name?.toLowerCase().includes(searchStr.toLowerCase()) && !l.company?.toLowerCase().includes(searchStr.toLowerCase())) return false;
-      if (kanbanFilterPrio !== 'all' && (l.priority||'') !== kanbanFilterPrio) return false;
       if (kanbanFilterSrc !== 'all' && (l.source_id||'') !== kanbanFilterSrc) return false;
       if (kanbanFilterUser !== 'all' && (l.user_id||'') !== kanbanFilterUser) return false;
       return true;
@@ -1057,13 +1074,11 @@ function createKanbanCard(lead) {
   card.dataset.id = lead.id;
   card.draggable = true;
   const src = sourcesData.find(s => s.id === lead.source_id);
-  const prioClass = { high: 'prio-high', mid: 'prio-mid', low: 'prio-low' }[lead.priority] || '';
   card.innerHTML = `
     <div class="kc-name">${esc(lead.name)}</div>
     ${lead.company ? `<div class="kc-company">👤 ${esc(lead.company)}</div>` : ''}
     ${lead.tax_id ? `<div style="font-size:10.5px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">🏷 ${esc(lead.tax_id)}</div>` : ''}
     <div class="kc-meta">
-      ${lead.priority ? `<div class="kc-prio ${prioClass}" data-tip="${{high:'高',mid:'中',low:'低'}[lead.priority]}優先"></div>` : ''}
       ${src ? `<div class="kc-tag">${esc(src.name)}</div>` : ''}
     </div>
     <div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between;gap:4px">
@@ -1189,8 +1204,40 @@ function renderLeadsList(searchStr = '') {
   const content = document.getElementById('content');
   content.style.padding = '16px';
   content.style.overflowX = 'auto';
+
+  // Build filter bar
+  const srcOpts = [{val:'all',label:'全部來源'}, ...sourcesData.map(s=>({val:s.id,label:s.name}))];
+  const stageOpts = [{val:'all',label:'全部階段'}, ...stagesData.map(s=>({val:s.id,label:s.name}))];
+  const userMap2 = {};
+  leadsData.forEach(l => { if (l.user_id && l.user_name) userMap2[l.user_id] = l.user_name; });
+  const userOpts = [{val:'all',label:'全部業務'}, ...Object.entries(userMap2).map(([id,nm])=>({val:id,label:nm}))];
+
+  // Render filter bar (only update if not already rendered)
+  const existingBar = document.getElementById('listFilterBar');
+  if (!existingBar) {
+    const bar = document.createElement('div');
+    bar.id = 'listFilterBar';
+    bar.className = 'kanban-filters';
+    bar.style.marginBottom = '10px';
+    bar.innerHTML = `
+      <select class="form-select" style="width:auto;padding:3px 8px;font-size:12px;height:28px" onchange="setListFilter('stage',this.value)">
+        ${stageOpts.map(o=>`<option value="${o.val}"${listFilterStage===o.val?' selected':''}>${o.label}</option>`).join('')}
+      </select>
+      <select class="form-select" style="width:auto;padding:3px 8px;font-size:12px;height:28px" onchange="setListFilter('user',this.value)">
+        ${userOpts.map(o=>`<option value="${o.val}"${listFilterUser===o.val?' selected':''}>${o.label}</option>`).join('')}
+      </select>
+      <select class="form-select" style="width:auto;padding:3px 8px;font-size:12px;height:28px" onchange="setListFilter('src',this.value)">
+        ${srcOpts.map(o=>`<option value="${o.val}"${listFilterSrc===o.val?' selected':''}>${o.label}</option>`).join('')}
+      </select>`;
+    content.innerHTML = '';
+    content.appendChild(bar);
+  }
+
   const filtered = leadsData.filter(l => {
     if (!showConvertedLeads && convertedLeadIds.has(l.id)) return false;
+    if (listFilterStage !== 'all' && l.stage_id !== listFilterStage) return false;
+    if (listFilterSrc !== 'all' && (l.source_id||'') !== listFilterSrc) return false;
+    if (listFilterUser !== 'all' && (l.user_id||'') !== listFilterUser) return false;
     return !searchStr || l.name?.toLowerCase().includes(searchStr.toLowerCase()) || l.company?.toLowerCase().includes(searchStr.toLowerCase());
   });
   if (!filtered.length) {
@@ -1242,7 +1289,14 @@ function renderLeadsList(searchStr = '') {
       <button class="btn btn-secondary btn-sm" onclick="listSelectedIds.clear();renderLeadsList(document.getElementById('leadSearch')?.value||'')">取消</button>
     </div>` : '';
 
-  content.innerHTML = batchBar + `<div class="panel" style="overflow:auto">
+  // Append table below filter bar
+  let tableContainer = document.getElementById('listTableContainer');
+  if (!tableContainer) {
+    tableContainer = document.createElement('div');
+    tableContainer.id = 'listTableContainer';
+    content.appendChild(tableContainer);
+  }
+  tableContainer.innerHTML = batchBar + `<div class="panel" style="overflow:auto">
     <table class="leads-list-table" style="min-width:750px">
       <thead><tr>
         <th style="width:36px"><input type="checkbox" onchange="toggleSelectAll(this)" style="width:15px;height:15px;cursor:pointer"></th>
@@ -1251,6 +1305,18 @@ function renderLeadsList(searchStr = '') {
       <tbody>${rows}</tbody>
     </table>
   </div>`;
+}
+
+function setListFilter(type, val) {
+  if (type === 'src') listFilterSrc = val;
+  else if (type === 'stage') listFilterStage = val;
+  else if (type === 'user') listFilterUser = val;
+  // Clear the filter bar so it re-renders with correct selections
+  const bar = document.getElementById('listFilterBar');
+  if (bar) bar.remove();
+  const tbl = document.getElementById('listTableContainer');
+  if (tbl) tbl.remove();
+  renderLeadsList(document.getElementById('leadSearch')?.value || '');
 }
 
 function toggleListSelect(id, checked) {
@@ -1380,6 +1446,13 @@ function openNewLeadModal(stageId = null) {
       </div>
     </div>` : ''}
     <div class="form-group">
+      <label class="form-label">預計成交方案</label>
+      <select class="form-select" id="lDealType">
+        <option value="">— 未選擇 —</option>
+        ${dealTypesData.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
       <label class="form-label">聯絡人（可貼多筆，每行一人，逗號分隔：姓名,職稱,Email,電話）</label>
       <textarea class="form-textarea" id="lContactsText" style="min-height:80px;font-family:var(--mono);font-size:12px" placeholder="王小明,採購經理,wang@company.com,0912-345-678,@linehandle&#10;李大華,CEO,li@company.com"></textarea>
       <div id="lContactsPreview" style="font-size:11.5px;color:var(--text3);margin-top:4px"></div>
@@ -1479,6 +1552,7 @@ async function saveLead() {
     tax_id: taxId || null,
     need_types: selectedNeedTypes.length ? selectedNeedTypes : null,
     product_type: document.getElementById('lProductType')?.value.trim() || null,
+    deal_type_id: document.getElementById('lDealType')?.value || null,
     user_id: userId, user_name: userName, created_at: new Date().toISOString()
   };
   const note = document.getElementById('lNote').value.trim();
@@ -1561,6 +1635,10 @@ function renderDrawerInfo(lead) {
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
         ${(lead.need_types||[]).map(id=>{const t=needTypesData.find(n=>n.id===id);return t?`<span class="need-tag selected" style="cursor:default">${esc(t.name)}</span>`:''}).join('')}
       </div>
+    </div>` : ''}
+    ${lead.deal_type_id ? `<div style="margin-bottom:14px">
+      <div class="form-label">預計成交方案</div>
+      <div style="margin-top:4px"><span class="badge badge-purple">${esc(dealTypesData.find(d=>d.id===lead.deal_type_id)?.name||'—')}</span></div>
     </div>` : ''}
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-secondary btn-sm" onclick="openEditLeadModal('${lead.id}')">✏️ 編輯</button>
@@ -1937,6 +2015,13 @@ async function openEditLeadModal(leadId) {
         ${needTypesData.map(t=>`<span class="need-tag ${(lead.need_types||[]).includes(t.id)?'selected':''}" data-id="${t.id}" onclick="toggleNeedTag(this)">${esc(t.name)}</span>`).join('')}
       </div>
     </div>` : ''}
+    ${dealTypesData.length ? `<div class="form-group">
+      <label class="form-label">預計成交方案</label>
+      <select class="form-select" id="elDealType">
+        <option value="">— 未選擇 —</option>
+        ${dealTypesData.map(d=>`<option value="${d.id}"${d.id===lead.deal_type_id?' selected':''}>${esc(d.name)}</option>`).join('')}
+      </select>
+    </div>` : ''}
   `, [
     { label: '取消', cls: 'btn-secondary', action: closeModal },
     { label: '儲存', cls: 'btn-primary', action: async () => {
@@ -1964,6 +2049,7 @@ async function openEditLeadModal(leadId) {
         tax_id: elTaxId || null,
         need_types: selNT.length ? selNT : null,
         product_type: document.getElementById('elProductType')?.value.trim() || null,
+        deal_type_id: document.getElementById('elDealType')?.value || null,
         next_contact_date: document.getElementById('elNextContact')?.value || null,
         updated_at: new Date().toISOString()
       };
@@ -2370,7 +2456,14 @@ async function deleteContractNote(noteId, ctId) {
 
 function openAddContract(accId) {
   openModal('新增合約', `
-    <div class="form-group"><label class="form-label">合約名稱</label><input class="form-input" id="ctName" placeholder="合約名稱"></div>
+    <div class="form-group">
+      <label class="form-label">合約方案</label>
+      <select class="form-select" id="ctName">
+        <option value="">— 選擇方案 —</option>
+        ${dealTypesData.map(d=>`<option value="${esc(d.name)}">${esc(d.name)}</option>`).join('')}
+      </select>
+      <input class="form-input" id="ctNameCustom" placeholder="或自行輸入合約名稱..." style="margin-top:6px">
+    </div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">金額</label><input class="form-input" id="ctAmt" type="number" placeholder="0"></div>
       <div class="form-group"><label class="form-label">續約提醒（天前）</label><input class="form-input" id="ctRemind" type="number" placeholder="30"></div>
@@ -2384,7 +2477,7 @@ function openAddContract(accId) {
     { label: '取消', cls: 'btn-secondary', action: closeModal },
     { label: '建立合約', cls: 'btn-primary', action: async () => {
       const { error } = await db.from('contracts').insert({
-        name: document.getElementById('ctName').value.trim() || '合約',
+        name: document.getElementById('ctNameCustom').value.trim() || document.getElementById('ctName').value || '合約',
         amount: parseFloat(document.getElementById('ctAmt').value) || null,
         start_date: document.getElementById('ctStart').value || null,
         end_date: document.getElementById('ctEnd').value || null,
@@ -2502,6 +2595,18 @@ async function renderSettings() {
       </div>
 
       <div class="settings-section">
+        <div class="settings-title">📦 成交方案管理</div>
+        <div class="card">
+          <div id="dealTypesList" style="margin-bottom:10px"></div>
+          <div class="divider"></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input class="form-input" id="newDealTypeName" placeholder="新增方案名稱（例：基本方案、官網 Pro...）" style="flex:1">
+            <button class="btn btn-primary btn-sm" onclick="addDealType()">新增</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
         <div class="settings-title">🏷 需求類型管理</div>
         <div class="card">
           <div id="needTypesList" style="margin-bottom:10px"></div>
@@ -2566,6 +2671,7 @@ async function renderSettings() {
   renderSourcesList();
   renderTemplatesList();
   renderNeedTypesList();
+  renderDealTypesList();
   if (window.isAdmin) renderUsersList();
 }
 
@@ -2720,6 +2826,40 @@ async function deleteNeedType(id) {
   await db.from('need_types').delete().eq('id', id);
   await loadGlobalData();
   renderNeedTypesList();
+  toast('已刪除', 'success');
+}
+
+// ── DEAL TYPES ──
+function renderDealTypesList() {
+  const el = document.getElementById('dealTypesList');
+  if (!el) return;
+  if (!dealTypesData.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:4px 0">尚無方案，新增一個吧</div>';
+    return;
+  }
+  el.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:6px">' + dealTypesData.map(t => `
+    <div class="tag-item">
+      <span style="font-size:12.5px">${esc(t.name)}</span>
+      <span class="tag-del" onclick="deleteDealType('${t.id}')">×</span>
+    </div>
+  `).join('') + '</div>';
+}
+
+async function addDealType() {
+  const name = document.getElementById('newDealTypeName')?.value.trim();
+  if (!name) { toast('請輸入方案名稱', 'error'); return; }
+  const { error } = await db.from('deal_types').insert({ name, created_at: new Date().toISOString() });
+  if (error) { toast('新增失敗：' + error.message, 'error'); return; }
+  document.getElementById('newDealTypeName').value = '';
+  await loadGlobalData();
+  renderDealTypesList();
+  toast('方案新增成功', 'success');
+}
+
+async function deleteDealType(id) {
+  await db.from('deal_types').delete().eq('id', id);
+  await loadGlobalData();
+  renderDealTypesList();
   toast('已刪除', 'success');
 }
 
@@ -3109,22 +3249,49 @@ function importLeadsExcel() {
 
 // ── Next Contact Date ──
 function openSetNextContact(leadId, currentDate) {
-  openModal('設定下次聯絡日期', `
+  openModal('聯絡日期管理', `
     <div class="form-group">
       <label class="form-label">下次聯絡日期</label>
       <input class="form-input" id="nextContactDate" type="date" value="${currentDate}" style="font-size:15px">
     </div>
-    <button class="btn btn-ghost btn-sm" onclick="clearNextContact('${leadId}')">清除日期</button>
+    ${currentDate ? `
+    <div style="margin-top:8px;padding:10px 12px;background:var(--green-bg);border:1px solid rgba(52,211,153,0.3);border-radius:8px">
+      <div style="font-size:12.5px;color:var(--green);font-weight:500;margin-bottom:6px">✅ 確認已聯繫</div>
+      <select class="form-select" id="contactedActType" style="margin-bottom:6px">
+        ${Object.entries(ACTIVITY_TYPES).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}
+      </select>
+      <textarea class="form-textarea" id="contactedNote" placeholder="聯繫摘要（選填）..." style="min-height:60px"></textarea>
+    </div>` : ''}
+    <div style="margin-top:8px">
+      <button class="btn btn-ghost btn-sm" onclick="clearNextContact('${leadId}')">清除日期</button>
+    </div>
   `, [
     { label: '取消', cls: 'btn-secondary', action: closeModal },
-    { label: '儲存', cls: 'btn-primary', action: async () => {
+    ...(currentDate ? [{ label: '✅ 確認已聯繫', cls: 'btn-primary', action: async () => {
+      const actType = document.getElementById('contactedActType')?.value || 'call';
+      const note = document.getElementById('contactedNote')?.value.trim() || '已完成聯繫';
+      await db.from('activities').insert({
+        type: actType, content: note, lead_id: leadId,
+        user_id: currentUser.id, created_at: new Date().toISOString()
+      });
+      await db.from('leads').update({ next_contact_date: null, updated_at: new Date().toISOString() }).eq('id', leadId);
+      const lead = leadsData.find(l => l.id === leadId);
+      if (lead) lead.next_contact_date = null;
+      closeModal();
+      toast('已記錄聯繫，聯絡日期已清除', 'success');
+      const { data: refreshedLead } = await db.from('leads').select('*').eq('id', leadId).single();
+      if (refreshedLead) renderDrawerInfo(refreshedLead);
+      renderDrawerActivities(leadId);
+    }}] : []),
+    { label: '儲存日期', cls: currentDate ? 'btn-secondary' : 'btn-primary', action: async () => {
       const d = document.getElementById('nextContactDate').value;
       await db.from('leads').update({ next_contact_date: d || null, updated_at: new Date().toISOString() }).eq('id', leadId);
       const lead = leadsData.find(l => l.id === leadId);
       if (lead) lead.next_contact_date = d || null;
       closeModal();
       toast('下次聯絡日期已設定', 'success');
-      openLeadDrawer(leadId);
+      const { data: refreshedLead } = await db.from('leads').select('*').eq('id', leadId).single();
+      if (refreshedLead) renderDrawerInfo(refreshedLead);
     }}
   ]);
 }
