@@ -1061,6 +1061,7 @@ function createKanbanCard(lead) {
   card.innerHTML = `
     <div class="kc-name">${esc(lead.name)}</div>
     ${lead.company ? `<div class="kc-company">👤 ${esc(lead.company)}</div>` : ''}
+    ${lead.tax_id ? `<div style="font-size:10.5px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">🏷 ${esc(lead.tax_id)}</div>` : ''}
     <div class="kc-meta">
       ${lead.priority ? `<div class="kc-prio ${prioClass}" data-tip="${{high:'高',mid:'中',low:'低'}[lead.priority]}優先"></div>` : ''}
       ${src ? `<div class="kc-tag">${esc(src.name)}</div>` : ''}
@@ -1207,6 +1208,7 @@ function renderLeadsList(searchStr = '') {
       </td>
       <td style="cursor:pointer;font-weight:500" onclick="openLeadDrawer('${l.id}')">${esc(l.name)}</td>
       <td style="font-size:12px;color:var(--text3)">${esc(l.company||'—')}</td>
+      <td style="font-size:12px;font-family:var(--mono);color:var(--text3)">${esc(l.tax_id||'—')}</td>
       <td onclick="event.stopPropagation()">
         <select class="form-select" style="padding:2px 4px;height:26px;font-size:11.5px;width:auto;max-width:120px" onchange="inlineUpdateLead('${l.id}','stage_id',this.value)">
           ${stagesData.map(s=>`<option value="${s.id}"${s.id===l.stage_id?' selected':''}>${esc(s.name)}</option>`).join('')}
@@ -1244,7 +1246,7 @@ function renderLeadsList(searchStr = '') {
     <table class="leads-list-table" style="min-width:750px">
       <thead><tr>
         <th style="width:36px"><input type="checkbox" onchange="toggleSelectAll(this)" style="width:15px;height:15px;cursor:pointer"></th>
-        <th>公司名稱</th><th>聯絡人</th><th>階段</th><th>來源</th><th>業務</th><th>下次聯絡</th><th>建立時間</th>
+        <th>公司名稱</th><th>聯絡人</th><th>統編</th><th>階段</th><th>來源</th><th>業務</th><th>下次聯絡</th><th>建立時間</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
@@ -1543,7 +1545,14 @@ function renderDrawerInfo(lead) {
       <div><div class="form-label">來源</div><div style="font-size:13px">${esc(src?.name||'—')}</div></div>
       <div><div class="form-label">建立時間</div><div style="font-size:12px;color:var(--text3)">${fmtDate(lead.created_at)}</div></div>
       <div><div class="form-label">負責業務</div><div style="font-size:13px">${esc(lead.user_name||"—")}</div></div>
-      ${lead.tax_id ? `<div><div class="form-label">統一編號</div><div style="font-size:13px;font-family:var(--mono)">${esc(lead.tax_id)}</div></div>` : ''}
+      <div>
+        <div class="form-label">統一編號</div>
+        <div style="font-size:13px;font-family:var(--mono)">
+          ${lead.tax_id 
+            ? `<span style="background:var(--bg4);padding:2px 8px;border-radius:4px;border:1px solid var(--border)">${esc(lead.tax_id)}</span>`
+            : '<span style="color:var(--text3);font-size:12px">未填寫</span>'}
+        </div>
+      </div>
       ${lead.next_contact_date ? `<div style="grid-column:1/-1;padding:8px 10px;background:${new Date(lead.next_contact_date)<new Date()?'var(--red-bg,rgba(239,68,68,0.1))':'var(--accent-glow)'};border-radius:6px;border:1px solid ${new Date(lead.next_contact_date)<new Date()?'rgba(239,68,68,0.3)':'var(--accent)'}"><div class="form-label">📅 下次聯絡日期</div><div style="font-size:13px;font-weight:500">${new Date(lead.next_contact_date).toLocaleDateString('zh-TW')} ${new Date(lead.next_contact_date)<new Date()?'⚠️ 已過期':''}</div></div>` : ''}
       ${lead.product_type ? `<div style="grid-column:1/-1"><div class="form-label">客戶產品類型</div><div style="font-size:13px">${esc(lead.product_type)}</div></div>` : ''}
     </div>
@@ -1960,10 +1969,22 @@ async function openEditLeadModal(leadId) {
       };
       if (elUserId) updatePayload.user_id = elUserId;
       if (elUserName) updatePayload.user_name = elUserName;
-      await db.from('leads').update(updatePayload).eq('id', leadId);
+      const { error: updateErr } = await db.from('leads').update(updatePayload).eq('id', leadId);
+      if (updateErr) { toast('更新失敗：' + updateErr.message, 'error'); return; }
+      // Refresh local leadsData cache
+      const updatedIdx = leadsData.findIndex(l => l.id === leadId);
+      if (updatedIdx >= 0) Object.assign(leadsData[updatedIdx], updatePayload);
       closeModal();
       toast('Lead 已更新', 'success');
-      openLeadDrawer(leadId);
+      // Refresh drawer in-place (without resetting tabs or re-animating)
+      const { data: refreshedLead } = await db.from('leads').select('*').eq('id', leadId).single();
+      if (refreshedLead) {
+        document.getElementById('drawerTitle').textContent = refreshedLead.name;
+        renderDrawerInfo(refreshedLead);
+      }
+      // Also refresh kanban/list in background
+      if (leadsViewMode === 'list') renderLeadsList(document.getElementById('leadSearch')?.value || '');
+      else renderKanban(document.getElementById('leadSearch')?.value || '');
     }}
   ]);
 }
@@ -2955,6 +2976,7 @@ async function exportLeadsExcel() {
   const leadRows = (leads||[]).map(l => ({
     'Lead_ID':        l.id,
     '公司名稱':       l.name,
+    '統一編號':       l.tax_id || '',
     '階段':           l.stages?.name || '',
     '來源':           l.sources?.name || '',
     '負責業務':       l.user_name || '',
