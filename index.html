@@ -1851,7 +1851,7 @@ async function renderDrawerNotes(leadId) {
   panel.innerHTML = `
     <div style="margin-bottom:12px">
       <textarea class="form-textarea" id="newNoteText" placeholder="新增備註..."></textarea>
-      <button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="addNote('${leadId}')">＋ 新增備註</button>
+      <button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="addNote('${leadId}','lead')">＋ 新增備註</button>
     </div>
     ${(notes||[]).map(n => `
       <div class="note-item">
@@ -3196,25 +3196,7 @@ async function deleteActivity(actId, leadId) {
   renderDrawerActivities(leadId);
 }
 
-async function addNote(refId, type) {
-  const text = document.getElementById('newNoteText')?.value?.trim();
-  if (!text) return;
-  const payload = { content: text, user_id: currentUser.id, created_at: new Date().toISOString() };
-  if (type === 'lead') payload.lead_id = refId;
-  else if (type === 'account') payload.account_id = refId;
-  await db.from('notes').insert(payload);
-  document.getElementById('newNoteText').value = '';
-  toast('備註已新增', 'success');
-  if (type === 'lead') renderDrawerNotes(refId);
-  else if (type === 'account') openAccountDetail(refId);
-}
-
-async function deleteNote(noteId, refId, type) {
-  await db.from('notes').delete().eq('id', noteId);
-  toast('已刪除', 'success');
-  if (type === 'lead') renderDrawerNotes(refId);
-  else if (type === 'account') openAccountDetail(refId);
-}
+// addNote and deleteNote defined above
 
 async function quickStageChange(leadId, stageId) {
   await db.from('leads').update({ stage_id: stageId, updated_at: new Date().toISOString() }).eq('id', leadId);
