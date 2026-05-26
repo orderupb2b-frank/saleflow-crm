@@ -743,12 +743,10 @@ async function renderDashboard() {
   const userMap3 = {};
   leadsData.forEach(l => { if (l.user_id && l.user_name) userMap3[l.user_id] = l.user_name; });
   const dashUserOpts = [{val:'all',label:'全部業務'}, ...Object.entries(userMap3).map(([id,nm])=>({val:id,label:nm}))];
-  document.getElementById('topbarActions').innerHTML = `
-    <div class="action-bar">
-      <select class="form-select" style="width:auto;height:32px;font-size:13px" onchange="dashFilterUser=this.value;renderDashboard()">
-        ${dashUserOpts.map(o=>`<option value="${o.val}"${dashFilterUser===o.val?' selected':''}>${o.label}</option>`).join('')}
-      </select>
-    </div>`;
+  let dashSelHtml = '<select class="form-select" style="width:auto;height:32px;font-size:13px" onchange="dashFilterUser=this.value;renderDashboard()">';
+  dashUserOpts.forEach(function(o) { dashSelHtml += '<option value="' + o.val + '"' + (o.val === dashFilterUser ? ' selected' : '') + '>' + o.label + '</option>'; });
+  dashSelHtml += '</select>';
+  document.getElementById('topbarActions').innerHTML = '<div class="action-bar">' + dashSelHtml + '</div>';
 
   // Filter data by selected user
   const filtLeads = dashFilterUser==='all' ? leadsData : leadsData.filter(l=>l.user_id===dashFilterUser);
@@ -1200,50 +1198,42 @@ function setLeadsView(mode) {
 
 let listSelectedIds = new Set();
 
-function renderLeadsList(searchStr = '') {
+function buildSelectHtml(opts, currentVal, onchangeFn) {
+  let s = '<select class="form-select" style="width:auto;padding:3px 8px;font-size:12px;height:28px" onchange="' + onchangeFn + '">';
+  opts.forEach(o => { s += '<option value="' + o.val + '"' + (o.val === currentVal ? ' selected' : '') + '>' + o.label + '</option>'; });
+  s += '</select>';
+  return s;
+}
+
+function renderLeadsList(searchStr) {
+  if (searchStr === undefined) searchStr = '';
   const content = document.getElementById('content');
   content.style.padding = '16px';
   content.style.overflowX = 'auto';
 
-  // Build filter bar
-  const srcOpts = [{val:'all',label:'全部來源'}, ...sourcesData.map(s=>({val:s.id,label:s.name}))];
-  const stageOpts = [{val:'all',label:'全部階段'}, ...stagesData.map(s=>({val:s.id,label:s.name}))];
+  // Build filter options
+  const srcOpts = [{val:'all',label:'全部來源'}].concat(sourcesData.map(s => ({val:s.id, label:s.name})));
+  const stageOpts = [{val:'all',label:'全部階段'}].concat(stagesData.map(s => ({val:s.id, label:s.name})));
   const userMap2 = {};
-  leadsData.forEach(l => { if (l.user_id && l.user_name) userMap2[l.user_id] = l.user_name; });
-  const userOpts = [{val:'all',label:'全部業務'}, ...Object.entries(userMap2).map(([id,nm])=>({val:id,label:nm}))];
+  leadsData.forEach(function(l) { if (l.user_id && l.user_name) userMap2[l.user_id] = l.user_name; });
+  const userOpts = [{val:'all',label:'全部業務'}].concat(Object.entries(userMap2).map(function(e) { return {val:e[0], label:e[1]}; }));
 
-  // Render filter bar (only update if not already rendered)
-  const existingBar = document.getElementById('listFilterBar');
-  if (!existingBar) {
-    const bar = document.createElement('div');
-    bar.id = 'listFilterBar';
-    bar.className = 'kanban-filters';
-    bar.style.marginBottom = '10px';
-    bar.innerHTML = `
-      <select class="form-select" style="width:auto;padding:3px 8px;font-size:12px;height:28px" onchange="setListFilter('stage',this.value)">
-        ${stageOpts.map(o=>`<option value="${o.val}"${listFilterStage===o.val?' selected':''}>${o.label}</option>`).join('')}
-      </select>
-      <select class="form-select" style="width:auto;padding:3px 8px;font-size:12px;height:28px" onchange="setListFilter('user',this.value)">
-        ${userOpts.map(o=>`<option value="${o.val}"${listFilterUser===o.val?' selected':''}>${o.label}</option>`).join('')}
-      </select>
-      <select class="form-select" style="width:auto;padding:3px 8px;font-size:12px;height:28px" onchange="setListFilter('src',this.value)">
-        ${srcOpts.map(o=>`<option value="${o.val}"${listFilterSrc===o.val?' selected':''}>${o.label}</option>`).join('')}
-      </select>`;
-    content.innerHTML = '';
-    content.appendChild(bar);
-  }
+  // Always rebuild the full content (filter bar + table)
+  const stageSelectHtml = buildSelectHtml(stageOpts, listFilterStage, "setListFilter('stage',this.value)");
+  const userSelectHtml  = buildSelectHtml(userOpts,  listFilterUser,  "setListFilter('user',this.value)");
+  const srcSelectHtml   = buildSelectHtml(srcOpts,   listFilterSrc,   "setListFilter('src',this.value)");
 
-  const filtered = leadsData.filter(l => {
+  const filtered = leadsData.filter(function(l) {
     if (!showConvertedLeads && convertedLeadIds.has(l.id)) return false;
     if (listFilterStage !== 'all' && l.stage_id !== listFilterStage) return false;
-    if (listFilterSrc !== 'all' && (l.source_id||'') !== listFilterSrc) return false;
-    if (listFilterUser !== 'all' && (l.user_id||'') !== listFilterUser) return false;
-    return !searchStr || l.name?.toLowerCase().includes(searchStr.toLowerCase()) || l.company?.toLowerCase().includes(searchStr.toLowerCase());
+    if (listFilterSrc   !== 'all' && (l.source_id||'') !== listFilterSrc) return false;
+    if (listFilterUser  !== 'all' && (l.user_id||'')   !== listFilterUser) return false;
+    if (searchStr) {
+      const q = searchStr.toLowerCase();
+      return (l.name||'').toLowerCase().includes(q) || (l.company||'').toLowerCase().includes(q);
+    }
+    return true;
   });
-  if (!filtered.length) {
-    content.innerHTML = '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-text">沒有符合的 Lead</div></div>';
-    return;
-  }
   window._listFiltered = filtered;
   const rows = filtered.map(l => {
     const stage = stagesData.find(s => s.id === l.stage_id);
@@ -1289,22 +1279,12 @@ function renderLeadsList(searchStr = '') {
       <button class="btn btn-secondary btn-sm" onclick="listSelectedIds.clear();renderLeadsList(document.getElementById('leadSearch')?.value||'')">取消</button>
     </div>` : '';
 
-  // Append table below filter bar
-  let tableContainer = document.getElementById('listTableContainer');
-  if (!tableContainer) {
-    tableContainer = document.createElement('div');
-    tableContainer.id = 'listTableContainer';
-    content.appendChild(tableContainer);
+  const filterBar = '<div class="kanban-filters" style="margin-bottom:10px">' + stageSelectHtml + userSelectHtml + srcSelectHtml + '</div>';
+  if (filtered.length === 0) {
+    content.innerHTML = filterBar + '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-text">沒有符合的 Lead</div></div>';
+    return;
   }
-  tableContainer.innerHTML = batchBar + `<div class="panel" style="overflow:auto">
-    <table class="leads-list-table" style="min-width:750px">
-      <thead><tr>
-        <th style="width:36px"><input type="checkbox" onchange="toggleSelectAll(this)" style="width:15px;height:15px;cursor:pointer"></th>
-        <th>公司名稱</th><th>聯絡人</th><th>統編</th><th>階段</th><th>來源</th><th>業務</th><th>下次聯絡</th><th>建立時間</th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </div>`;
+  content.innerHTML = filterBar + batchBar + '<div class="panel" style="overflow:auto"><table class="leads-list-table" style="min-width:750px"><thead><tr><th style="width:36px"><input type="checkbox" onchange="toggleSelectAll(this)" style="width:15px;height:15px;cursor:pointer"></th><th>公司名稱</th><th>聯絡人</th><th>統編</th><th>階段</th><th>來源</th><th>業務</th><th>下次聯絡</th><th>建立時間</th></tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
 }
 
 function setListFilter(type, val) {
@@ -3366,24 +3346,7 @@ function toast(msg, type) {
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3000);
 }
 
-function colDragOver(e, col) {
-  e.preventDefault();
-  col.classList.add('drag-over');
-}
-
-function colDragLeave(e, col) {
-  col.classList.remove('drag-over');
-}
-
-// colDrop defined above
-
-// deleteLead defined above
-
-async function deleteActivity(actId, leadId) {
-  await db.from('activities').delete().eq('id', actId);
-  toast('已刪除', 'success');
-  renderDrawerActivities(leadId);
-}
+// colDragOver, colDragLeave, deleteActivity defined above
 
 // addNote and deleteNote defined above
 
