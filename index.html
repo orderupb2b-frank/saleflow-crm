@@ -1212,16 +1212,6 @@ function renderLeadsList(searchStr) {
   content.style.padding = '16px';
   content.style.overflowX = 'auto';
 
-  // Guard: if data not loaded yet, show loading
-  if (!leadsData || leadsData.length === 0) {
-    content.innerHTML = '<div class="loading"><span class="dot-pulse">載入中</span></div>';
-    // Try loading data then re-render
-    if (!leadsData) {
-      renderLeads();
-      return;
-    }
-  }
-
   // Build filter options
   const srcOpts = [{val:'all',label:'全部來源'}].concat(sourcesData.map(s => ({val:s.id, label:s.name})));
   const stageOpts = [{val:'all',label:'全部階段'}].concat(stagesData.map(s => ({val:s.id, label:s.name})));
