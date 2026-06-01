@@ -1208,8 +1208,19 @@ function buildSelectHtml(opts, currentVal, onchangeFn) {
 function renderLeadsList(searchStr) {
   if (searchStr === undefined) searchStr = '';
   const content = document.getElementById('content');
+  if (!content) return;
   content.style.padding = '16px';
   content.style.overflowX = 'auto';
+
+  // Guard: if data not loaded yet, show loading
+  if (!leadsData || leadsData.length === 0) {
+    content.innerHTML = '<div class="loading"><span class="dot-pulse">載入中</span></div>';
+    // Try loading data then re-render
+    if (!leadsData) {
+      renderLeads();
+      return;
+    }
+  }
 
   // Build filter options
   const srcOpts = [{val:'all',label:'全部來源'}].concat(sourcesData.map(s => ({val:s.id, label:s.name})));
@@ -1284,7 +1295,7 @@ function renderLeadsList(searchStr) {
     content.innerHTML = filterBar + '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-text">沒有符合的 Lead</div></div>';
     return;
   }
-  content.innerHTML = filterBar + batchBar + '<div class="panel" style="overflow:auto"><table class="leads-list-table" style="min-width:750px"><thead><tr><th style="width:36px"><input type="checkbox" onchange="toggleSelectAll(this)" style="width:15px;height:15px;cursor:pointer"></th><th>公司名稱</th><th>聯絡人</th><th>統編</th><th>階段</th><th>來源</th><th>業務</th><th>下次聯絡</th><th>建立時間</th></tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
+  content.innerHTML = filterBar + batchBar + '<div class="panel" style="overflow:auto"><table class="leads-list-table" style="min-width:750px"><thead><tr><th style="width:36px"><input type="checkbox" onchange="toggleSelectAll(this)" style="width:15px;height:15px;cursor:pointer"></th><th>聯絡人</th><th>公司名稱</th><th>統編</th><th>階段</th><th>來源</th><th>業務</th><th>下次聯絡</th><th>建立時間</th></tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
 }
 
 function setListFilter(type, val) {
