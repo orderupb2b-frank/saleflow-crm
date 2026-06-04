@@ -1826,7 +1826,10 @@ async function renderDrawerActivities(leadId) {
           <div class="activity-note" style="white-space:pre-wrap">${esc(a.content||'')}</div>
           <div class="activity-meta">${fmtDate(a.created_at)}</div>
         </div>
-        <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteActivity('${a.id}','${leadId}')">🗑</button>
+        <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditActivity('${a.id}','${leadId}')">✏️</button>
+          <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteActivity('${a.id}','${leadId}')">🗑</button>
+        </div>
       </div>
     `;
   }).join('');
@@ -1866,11 +1869,18 @@ async function openAddActivity(leadId) {
       </select>
     </div>` : ''}
     ${tplChips}
-    <div class="form-group"><label class="form-label">內容</label>
-      <textarea class="form-textarea" id="actContent" placeholder="活動內容、重點摘要..." style="min-height:100px"></textarea>
+    <div class="form-group">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <label class="form-label" style="margin:0">內容</label>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="startVoiceInput('actContent', this)">🎤 語音輸入</button>
+      </div>
+      <textarea class="form-textarea" id="actContent" placeholder="活動內容、重點摘要...（可點 🎤 語音輸入）" style="min-height:100px"></textarea>
     </div>
-    <div class="form-group"><label class="form-label">日期</label>
-      <input class="form-input" id="actDate" type="date" value="${new Date().toISOString().split('T')[0]}">
+    <div class="form-group"><label class="form-label">日期與時間</label>
+      <div style="display:flex;gap:8px">
+        <input class="form-input" id="actDate" type="date" value="${nowDateStr()}" style="flex:1">
+        <input class="form-input" id="actTime" type="time" value="${nowTimeStr()}" style="flex:1">
+      </div>
     </div>
   `, [
     { label: '取消', cls: 'btn-secondary', action: closeModal },
@@ -1883,7 +1893,7 @@ async function openAddActivity(leadId) {
         content, lead_id: leadId,
         contact_id: contactId || null,
         user_id: currentUser.id,
-        created_at: document.getElementById('actDate').value + 'T00:00:00Z'
+        created_at: localToISO(document.getElementById('actDate').value, document.getElementById('actTime').value)
       });
       closeModal();
       toast('活動記錄成功', 'success');
@@ -1910,6 +1920,105 @@ function applyActivityTemplate(tplId) {
 async function deleteActivity(actId, leadId) {
   await db.from('activities').delete().eq('id', actId);
   renderDrawerActivities(leadId);
+}
+
+// ── Activity time helpers ──
+function _pad2(n){ return String(n).padStart(2,'0'); }
+function nowDateStr(){ const d=new Date(); return d.getFullYear()+'-'+_pad2(d.getMonth()+1)+'-'+_pad2(d.getDate()); }
+function nowTimeStr(){ const d=new Date(); return _pad2(d.getHours())+':'+_pad2(d.getMinutes()); }
+function isoToLocalDate(iso){ if(!iso) return nowDateStr(); const d=new Date(iso); if(isNaN(d.getTime())) return nowDateStr(); return d.getFullYear()+'-'+_pad2(d.getMonth()+1)+'-'+_pad2(d.getDate()); }
+function isoToLocalTime(iso){ if(!iso) return nowTimeStr(); const d=new Date(iso); if(isNaN(d.getTime())) return nowTimeStr(); return _pad2(d.getHours())+':'+_pad2(d.getMinutes()); }
+// Combine local date + time inputs into a correct UTC ISO timestamp
+function localToISO(dateStr, timeStr){
+  if(!dateStr) return new Date().toISOString();
+  const t = timeStr || '00:00';
+  const dt = new Date(dateStr + 'T' + t + ':00'); // parsed as local time
+  if(isNaN(dt.getTime())) return new Date().toISOString();
+  return dt.toISOString();
+}
+
+// ── Edit an existing activity ──
+async function openEditActivity(actId, leadId) {
+  const { data: act } = await db.from('activities').select('*').eq('id', actId).single();
+  if (!act) { toast('找不到該記錄', 'error'); return; }
+  const { data: contacts } = await db.from('contacts').select('id, name, role').eq('lead_id', leadId);
+  const typeOpts = Object.entries(ACTIVITY_TYPES).map(([k,v]) => '<option value="'+k+'"'+(k===act.type?' selected':'')+'>'+v.icon+' '+v.label+'</option>').join('');
+  let contactBlock = '';
+  if (contacts && contacts.length) {
+    const contactOpts = contacts.map(c => '<option value="'+c.id+'"'+(c.id===act.contact_id?' selected':'')+'>'+esc(c.name)+(c.role?' · '+esc(c.role):'')+'</option>').join('');
+    contactBlock = '<div class="form-group"><label class="form-label">互動聯絡人</label><select class="form-select" id="editActContact"><option value="">— 未指定 —</option>'+contactOpts+'</select></div>';
+  }
+  const body = `
+    <div class="form-group"><label class="form-label">類型</label>
+      <select class="form-select" id="editActType">${typeOpts}</select>
+    </div>
+    ${contactBlock}
+    <div class="form-group">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <label class="form-label" style="margin:0">內容</label>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="startVoiceInput('editActContent', this)">🎤 語音輸入</button>
+      </div>
+      <textarea class="form-textarea" id="editActContent" style="min-height:120px">${esc(act.content||'')}</textarea>
+    </div>
+    <div class="form-group"><label class="form-label">日期與時間</label>
+      <div style="display:flex;gap:8px">
+        <input class="form-input" id="editActDate" type="date" value="${isoToLocalDate(act.created_at)}" style="flex:1">
+        <input class="form-input" id="editActTime" type="time" value="${isoToLocalTime(act.created_at)}" style="flex:1">
+      </div>
+    </div>
+  `;
+  openModal('編輯活動記錄', body, [
+    { label: '取消', cls: 'btn-secondary', action: closeModal },
+    { label: '儲存', cls: 'btn-primary', action: async () => {
+      const content = document.getElementById('editActContent').value.trim();
+      if (!content) { toast('請填寫內容', 'error'); return; }
+      const contactSel = document.getElementById('editActContact');
+      const { error } = await db.from('activities').update({
+        type: document.getElementById('editActType').value,
+        content,
+        contact_id: contactSel ? (contactSel.value || null) : (act.contact_id || null),
+        created_at: localToISO(document.getElementById('editActDate').value, document.getElementById('editActTime').value)
+      }).eq('id', actId);
+      if (error) { toast('更新失敗：' + error.message, 'error'); return; }
+      closeModal();
+      toast('記錄已更新', 'success');
+      renderDrawerActivities(leadId);
+    }}
+  ]);
+}
+
+// ── Voice-to-text (mobile-friendly) ──
+let _recognition = null;
+function startVoiceInput(targetId, btnEl) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  // Already recording → stop
+  if (_recognition) { try { _recognition.stop(); } catch(e){} return; }
+  if (!SR) {
+    toast('此瀏覽器不支援語音按鈕，請改用手機鍵盤上的麥克風圖示', 'error');
+    return;
+  }
+  const ta = document.getElementById(targetId);
+  if (!ta) return;
+  const rec = new SR();
+  rec.lang = 'zh-TW';
+  rec.continuous = true;
+  rec.interimResults = true;
+  _recognition = rec;
+  const baseText = ta.value ? (ta.value.endsWith('\n') ? ta.value : ta.value + '\n') : '';
+  if (btnEl) { btnEl.textContent = '⏹ 停止錄音'; btnEl.classList.remove('btn-secondary'); btnEl.classList.add('btn-danger'); }
+  rec.onresult = (e) => {
+    let txt = '';
+    for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
+    ta.value = baseText + txt;
+  };
+  rec.onerror = (e) => {
+    if (e.error !== 'aborted' && e.error !== 'no-speech') toast('語音辨識錯誤：' + (e.error || ''), 'error');
+  };
+  rec.onend = () => {
+    _recognition = null;
+    if (btnEl) { btnEl.textContent = '🎤 語音輸入'; btnEl.classList.remove('btn-danger'); btnEl.classList.add('btn-secondary'); }
+  };
+  try { rec.start(); } catch(e) { toast('無法啟動語音輸入', 'error'); _recognition = null; }
 }
 
 async function renderDrawerNotes(leadId) {
@@ -3323,6 +3432,7 @@ function openModal(title, bodyHTML, buttons) {
 }
 
 function closeModal() {
+  if (typeof _recognition !== 'undefined' && _recognition) { try { _recognition.stop(); } catch(e){} _recognition = null; }
   document.getElementById('modalOverlay').style.display = 'none';
 }
 
