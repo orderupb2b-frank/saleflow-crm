@@ -454,7 +454,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
       </div>
     </nav>
     <div class="sidebar-footer">
-      <div class="user-card" onclick="showUserMenu()">
+      <div class="user-card" onclick="navigate('settings')">
         <div class="avatar" id="sidebarAvatar">?</div>
         <div class="user-info">
           <div class="user-name" id="sidebarName">User</div>
@@ -475,7 +475,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 </div>
 
 <!-- Drawer (Lead detail) -->
-<div class="drawer-overlay" id="drawerOverlay" style="display:none" onclick="closeDrawer()"></div>
+<div class="drawer-overlay" id="drawerOverlay" style="display:none" onclick="closeDrawerOnBg()"></div>
 <div class="drawer" id="leadDrawer">
   <div class="drawer-header">
     <div class="drawer-title" id="drawerTitle">Lead 詳情</div>
@@ -496,7 +496,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 </div>
 
 <!-- Generic Modal -->
-<div class="modal-overlay" id="modalOverlay" style="display:none" onclick="closeModalOnBg(event)">
+<div class="modal-overlay" id="modalOverlay" style="display:none" onmousedown="modalBgMouseDown(event)" onclick="closeModalOnBg(event)">
   <div class="modal" id="modalBox">
     <div class="modal-header">
       <div class="modal-title" id="modalTitle"></div>
@@ -540,6 +540,7 @@ let kanbanFilterUser = 'all';
 let listFilterSrc = 'all';
 let listFilterStage = 'all';
 let listFilterUser = 'all';
+let listSortMode = 'default';
 let dashFilterUser = 'all';
 let usersData = [];
 
@@ -645,7 +646,14 @@ async function bootApp() {
   // Hide settings for sales role (or keep but restricted - we restrict inside settings)
   await initDB();
   await loadGlobalData();
-  navigate('dashboard');
+  // 若網址帶有 #lead=xxx，登入後直接開啟該 Lead
+  const hashLead = location.hash.match(/^#lead=([0-9a-fA-F\-]+)/);
+  if (hashLead) {
+    navigate('leads');
+    setTimeout(() => openLeadDrawer(hashLead[1]), 400);
+  } else {
+    navigate('dashboard');
+  }
 }
 
 async function loadGlobalData() {
@@ -1219,9 +1227,16 @@ function renderLeadsList(searchStr) {
   const userOpts = [{val:'all',label:'全部業務'}].concat(Object.entries(userMap2).map(function(e) { return {val:e[0], label:e[1]}; }));
 
   // Always rebuild the full content (filter bar + table)
+  const sortOpts = [
+    {val:'default',      label:'排序：看板順序'},
+    {val:'updated_desc', label:'最近更新（新→舊）'},
+    {val:'created_desc', label:'建立日（新→舊）'},
+    {val:'created_asc',  label:'建立日（舊→新）'},
+  ];
   const stageSelectHtml = buildSelectHtml(stageOpts, listFilterStage, "setListFilter('stage',this.value)");
   const userSelectHtml  = buildSelectHtml(userOpts,  listFilterUser,  "setListFilter('user',this.value)");
   const srcSelectHtml   = buildSelectHtml(srcOpts,   listFilterSrc,   "setListFilter('src',this.value)");
+  const sortSelectHtml  = buildSelectHtml(sortOpts,  listSortMode,    "setListSort(this.value)");
 
   const filtered = leadsData.filter(function(l) {
     if (!showConvertedLeads && convertedLeadIds.has(l.id)) return false;
@@ -1234,6 +1249,9 @@ function renderLeadsList(searchStr) {
     }
     return true;
   });
+  if (listSortMode === 'updated_desc') filtered.sort(function(a,b){ return new Date(b.updated_at||b.created_at) - new Date(a.updated_at||a.created_at); });
+  else if (listSortMode === 'created_desc') filtered.sort(function(a,b){ return new Date(b.created_at) - new Date(a.created_at); });
+  else if (listSortMode === 'created_asc') filtered.sort(function(a,b){ return new Date(a.created_at) - new Date(b.created_at); });
   window._listFiltered = filtered;
   const rows = filtered.map(l => {
     const stage = stagesData.find(s => s.id === l.stage_id);
@@ -1259,6 +1277,7 @@ function renderLeadsList(searchStr) {
       </td>
       <td style="font-size:12px;color:var(--text3)">${esc(l.user_name||'—')}</td>
       <td style="font-size:12px;color:var(--text3);cursor:pointer" onclick="openSetNextContact('${l.id}','${l.next_contact_date||''}')">${l.next_contact_date?new Date(l.next_contact_date).toLocaleDateString('zh-TW'):'<span style=\'color:var(--text3);font-size:11px\'>設定</span>'}</td>
+      <td style="font-size:11px;color:var(--text3)">${fmtDate(l.updated_at || l.created_at)}</td>
       <td style="font-size:11px;color:var(--text3)">${fmtDate(l.created_at)}</td>
     </tr>`;
   });
@@ -1279,12 +1298,12 @@ function renderLeadsList(searchStr) {
       <button class="btn btn-secondary btn-sm" onclick="listSelectedIds.clear();renderLeadsList(document.getElementById('leadSearch')?.value||'')">取消</button>
     </div>` : '';
 
-  const filterBar = '<div class="kanban-filters" style="margin-bottom:10px">' + stageSelectHtml + userSelectHtml + srcSelectHtml + '</div>';
+  const filterBar = '<div class="kanban-filters" style="margin-bottom:10px">' + stageSelectHtml + userSelectHtml + srcSelectHtml + sortSelectHtml + '</div>';
   if (filtered.length === 0) {
     content.innerHTML = filterBar + '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-text">沒有符合的 Lead</div></div>';
     return;
   }
-  content.innerHTML = filterBar + batchBar + '<div class="panel" style="overflow:auto"><table class="leads-list-table" style="min-width:750px"><thead><tr><th style="width:36px"><input type="checkbox" onchange="toggleSelectAll(this)" style="width:15px;height:15px;cursor:pointer"></th><th>聯絡人</th><th>公司名稱</th><th>統編</th><th>階段</th><th>來源</th><th>業務</th><th>下次聯絡</th><th>建立時間</th></tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
+  content.innerHTML = filterBar + batchBar + '<div class="panel" style="overflow:auto"><table class="leads-list-table" style="min-width:860px"><thead><tr><th style="width:36px"><input type="checkbox" onchange="toggleSelectAll(this)" style="width:15px;height:15px;cursor:pointer"></th><th>公司名稱</th><th>聯絡人</th><th>統編</th><th>階段</th><th>來源</th><th>業務</th><th>下次聯絡</th><th>最後更新</th><th>建立時間</th></tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
 }
 
 function setListFilter(type, val) {
@@ -1296,6 +1315,11 @@ function setListFilter(type, val) {
   if (bar) bar.remove();
   const tbl = document.getElementById('listTableContainer');
   if (tbl) tbl.remove();
+  renderLeadsList(document.getElementById('leadSearch')?.value || '');
+}
+
+function setListSort(val) {
+  listSortMode = val;
   renderLeadsList(document.getElementById('leadSearch')?.value || '');
 }
 
@@ -1537,11 +1561,10 @@ async function saveLead() {
   };
   const note = document.getElementById('lNote').value.trim();
   const { data: lead, error } = await db.from('leads').insert(payload).select().single();
-  if (error) { 
-    toast('建立失敗：' + error.message, 'error'); 
-    console.error('createUser error:', error);
-    alert('建立失敗：' + error.message);
-    return; 
+  if (error) {
+    toast('建立失敗：' + error.message, 'error');
+    console.error('saveLead error:', error);
+    return;
   }
   if (note) await db.from('notes').insert({ content: note, lead_id: lead.id, user_id: currentUser.id, created_at: new Date().toISOString() });
   const contactsText = document.getElementById('lContactsText')?.value || '';
@@ -1559,7 +1582,8 @@ async function saveLead() {
 async function openLeadDrawer(leadId) {
   currentLeadId = leadId;
   const { data: lead } = await db.from('leads').select('*').eq('id', leadId).single();
-  if (!lead) return;
+  if (!lead) { currentLeadId = null; setLeadHash(null); toast('找不到此 Lead，可能已被刪除', 'error'); return; }
+  setLeadHash(leadId);
 
   document.getElementById('drawerTitle').textContent = lead.name;
   document.getElementById('drawerOverlay').style.display = 'block';
@@ -1579,6 +1603,65 @@ function closeDrawer() {
   document.getElementById('leadDrawer').classList.remove('open');
   document.getElementById('drawerOverlay').style.display = 'none';
   currentLeadId = null;
+  setLeadHash(null);
+}
+
+// ── Lead 專屬連結（#lead=xxx）──
+function leadUrl(leadId) {
+  return location.origin + location.pathname + '#lead=' + leadId;
+}
+function setLeadHash(leadId) {
+  try {
+    if (leadId) history.replaceState(null, '', '#lead=' + leadId);
+    else history.replaceState(null, '', location.pathname + location.search);
+  } catch(e) {}
+}
+async function copyLeadLink(leadId) {
+  const url = leadUrl(leadId);
+  try {
+    await navigator.clipboard.writeText(url);
+    toast('Lead 連結已複製', 'success');
+  } catch(e) {
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    ta.style.cssText = 'position:fixed;left:-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast('Lead 連結已複製', 'success'); }
+    catch(e2) { prompt('請手動複製連結：', url); }
+    ta.remove();
+  }
+}
+// 使用者貼上/修改網址 hash 時同步開關 Drawer（程式內部用 replaceState，不會觸發此事件）
+window.addEventListener('hashchange', () => {
+  const m = location.hash.match(/^#lead=([0-9a-fA-F\-]+)/);
+  if (m) {
+    if (!currentUser) return;
+    if (currentLeadId === m[1]) return;
+    if (currentPage !== 'leads') { navigate('leads'); setTimeout(() => openLeadDrawer(m[1]), 400); }
+    else openLeadDrawer(m[1]);
+  } else if (currentLeadId) {
+    closeDrawer();
+  }
+});
+
+// ── 防止未儲存內容因誤點背景而遺失 ──
+function containerHasTypedContent(rootEl) {
+  if (!rootEl) return false;
+  const els = rootEl.querySelectorAll('input:not([type=checkbox]):not([type=radio]):not([type=date]):not([type=time]):not([type=color]), textarea');
+  for (const el of els) {
+    const v = (el.value || '').trim();
+    const dv = (el.defaultValue || '').trim();
+    if (v && v !== dv) return true;
+  }
+  return false;
+}
+function closeDrawerOnBg() {
+  if (containerHasTypedContent(document.getElementById('leadDrawer'))) {
+    toast('有尚未儲存的輸入內容，為避免遺失請先儲存，或用 ✕ 關閉', 'error');
+    return;
+  }
+  closeDrawer();
 }
 
 function switchDrawerTab(tab, el) {
@@ -1622,6 +1705,7 @@ function renderDrawerInfo(lead) {
     </div>` : ''}
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-secondary btn-sm" onclick="openEditLeadModal('${lead.id}')">✏️ 編輯</button>
+      <button class="btn btn-secondary btn-sm" onclick="copyLeadLink('${lead.id}')">🔗 複製連結</button>
       <button class="btn btn-secondary btn-sm" onclick="openSetNextContact('${lead.id}','${lead.next_contact_date||''}')">📅 ${lead.next_contact_date ? new Date(lead.next_contact_date).toLocaleDateString('zh-TW') : '設定聯絡日'}</button>
       <button class="btn btn-primary btn-sm" onclick="quickConvert('${lead.id}')">🏢 轉為 Account</button>
       ${window.isAdmin ? `<button class="btn btn-danger btn-sm" onclick="deleteLead('${lead.id}')">🗑 刪除</button>` : ''}
@@ -1792,7 +1876,8 @@ async function editContact(cId) {
         name: document.getElementById('ceName').value.trim(),
         role: document.getElementById('ceRole').value.trim(),
         email: document.getElementById('ceEmail').value.trim(),
-        phone: document.getElementById('cePhone').value.trim()
+        phone: document.getElementById('cePhone').value.trim(),
+        line_id: document.getElementById('ceLineId').value.trim() || null
       }).eq('id', cId);
       closeModal();
       toast('已更新', 'success');
@@ -2630,7 +2715,7 @@ function renderContactsTable(contacts) {
   content.innerHTML = `
     <div class="panel">
       <table class="data-table">
-        <thead><tr><th>姓名</th><th>職稱</th><th>Email</th><th>電話</th><th>所屬 Lead</th></tr></thead>
+        <thead><tr><th>姓名</th><th>職稱</th><th>Email</th><th>電話</th><th>LINE</th><th>所屬 Lead</th></tr></thead>
         <tbody>
           ${contacts.map(c => `
             <tr>
@@ -3436,8 +3521,20 @@ function closeModal() {
   document.getElementById('modalOverlay').style.display = 'none';
 }
 
+let _modalMouseDownOnBg = false;
+function modalBgMouseDown(e) {
+  // 只有 mousedown 真的發生在背景上才算數（在輸入框內選字、拖曳到外面放開，不會被誤判成點背景）
+  _modalMouseDownOnBg = (e.target === document.getElementById('modalOverlay'));
+}
 function closeModalOnBg(e) {
-  if (e.target === document.getElementById('modalOverlay')) closeModal();
+  if (e.target !== document.getElementById('modalOverlay')) return;
+  if (!_modalMouseDownOnBg) return;
+  _modalMouseDownOnBg = false;
+  if (containerHasTypedContent(document.getElementById('modalBody'))) {
+    toast('有尚未儲存的輸入內容，為避免遺失請用「取消」或 ✕ 關閉', 'error');
+    return;
+  }
+  closeModal();
 }
 
 function openConfirm(title, msg, onConfirm, onCancel, confirmLabel, cancelLabel) {
