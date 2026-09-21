@@ -936,6 +936,10 @@ async function renderDashboard() {
         <div class="chart-title">📅 近期需聯絡</div>
         <div id="nextContactList"></div>
       </div>
+      <div class="chart-card">
+        <div class="chart-title">💵 待收款（逾期與 14 天內）</div>
+        <div id="dueList"></div>
+      </div>
     </div>
   `;
 
@@ -972,6 +976,34 @@ async function renderDashboard() {
         + '<div class="reminder-days" style="color:' + color + '">' + days + '天</div>'
         + '</div>';
     }).join('');
+  }
+
+  // Render 待收款
+  const dueEl = document.getElementById('dueList');
+  if (dueEl) {
+    const rows = [];
+    contracts.forEach(function (c) {
+      const uid = c.sales_user_id || c.user_id;
+      if (!window.isAdmin && uid !== currentUser.id) return;
+      if (window.isAdmin && dashFilterUser !== 'all' && uid !== dashFilterUser) return;
+      dealInstallments(c).forEach(function (p, i) {
+        if (p.paid_date) return;
+        const d = daysUntil(p.due_date || dealDate(c));
+        if (d == null || d > 14) return;
+        rows.push({ c: c, p: p, i: i, d: d });
+      });
+    });
+    rows.sort(function (a, b) { return a.d - b.d; });
+    dueEl.innerHTML = rows.length ? rows.slice(0, 10).map(function (r) {
+      const accNm = (accountsData.find(a => a.id === r.c.account_id) || {}).name || '';
+      const color = r.d < 0 ? 'var(--red)' : 'var(--text2)';
+      return '<div class="reminder-item" style="cursor:pointer" onclick="goToAccount(\'' + r.c.account_id + '\')">'
+        + '<div class="reminder-dot" style="background:' + (r.d < 0 ? 'var(--red)' : 'var(--yellow)') + '"></div>'
+        + '<div class="reminder-name">' + esc(accNm) + ' · ' + esc(r.p.label || '') + ' <span style="font-family:var(--mono)">$' + fmtNum(r.p.amount) + '</span></div>'
+        + '<div class="reminder-days" style="color:' + color + '">' + (r.d < 0 ? '逾期 ' + (-r.d) + ' 天' : (r.d === 0 ? '今天' : r.d + ' 天後')) + '</div>'
+        + (window.isAdmin ? '<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="event.stopPropagation();confirmPayment(\'' + r.c.id + '\',' + r.i + ',null)">收款</button>' : '')
+        + '</div>';
+    }).join('') : '<div style="font-size:13px;color:var(--text3);padding:8px 0">沒有逾期或近期待收的款項</div>';
   }
 
   // Render next contact list
@@ -1506,13 +1538,54 @@ function renewalBadgeHtml(c) {
   return '<span style="color:' + color + '">' + c.end_date + '（' + tail + '）</span>';
 }
 
+const BONUS_TYPES = { standard: '標準業績', custom: '客製案件', renewal: '續約（軟體）', none: '不計獎金' };
+const ALLOC_OPTS = [['prorata', '依明細比例'], ['standard', '只算標準業績'], ['custom', '只算客製'], ['renewal', '只算續約'], ['none', '不計獎金']];
+let _df = { items: [], inst: [], quotes: [], quoteNoteId: null };
+
+function numLoose(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = parseFloat(String(v).replace(/[^\d.-]/g, ''));
+  return isNaN(n) ? null : n;
+}
+function dealItems(c) {
+  if (Array.isArray(c.items) && c.items.length) return c.items;
+  return [{ name: c.name || '成交', amount: c.amount || 0, bonus_type: bonusBucket(c.deal_category) }];
+}
+function dealInstallments(c) {
+  if (Array.isArray(c.installments) && c.installments.length) return c.installments;
+  return [{ label: '全額', amount: c.amount || 0, due_date: dealDate(c), alloc: 'prorata', paid_date: null }];
+}
+function instPaidAmt(p) { return p.paid_date ? (p.paid_amount != null ? Number(p.paid_amount) || 0 : Number(p.amount) || 0) : 0; }
+function bonusTypeBadge(t) {
+  const cls = { standard: 'badge-green', custom: 'badge-purple', renewal: 'badge-yellow' }[t] || 'badge-gray';
+  return '<span class="badge ' + cls + '">' + (BONUS_TYPES[t] || '未選') + '</span>';
+}
+// 報價單的費用列 → 成交明細（折後未稅金額；贈送＝0＝不計）
+function itemsFromQuote(rec, isRenewal) {
+  const S = (rec && rec.snapshot) || {};
+  const items = [];
+  (S.prices || []).forEach(function (p) {
+    const a = numLoose(p.amount), s = numLoose(p.sale);
+    const qn = numLoose(p.qty); const q = Math.max(0, qn == null ? 1 : qn);
+    const hasDisc = a != null && s != null && s < a;
+    const unit = a != null ? a : s; const fin = hasDisc ? s : unit;
+    if (fin == null) return;
+    const total = Math.round(fin * q);
+    let bt = '';
+    if (total === 0) bt = 'none';
+    else if (p.preset === 'sub') bt = isRenewal ? 'renewal' : 'standard';
+    else if (p.preset === 'setup') bt = 'standard';
+    items.push({ name: p.item || '項目', amount: total, bonus_type: bt, src: p.preset || '' });
+  });
+  return items;
+}
+
 function buildDealFormHtml(ct, def) {
   ct = ct || {}; def = def || {};
   const cat = ct.deal_category || def.deal_category || '主約';
   const selPlanId = def.plan_id || (dealTypesData.find(d => d.name === ct.name) || {}).id || '';
   const isCustomName = ct.name && !dealTypesData.some(d => d.name === ct.name);
   const salesId = ct.sales_user_id || def.sales_user_id || '';
-  const amt = ct.amount != null ? ct.amount : (def.amount != null ? def.amount : '');
   let catOpts = '';
   DEAL_CATEGORIES.forEach(function (c) { catOpts += '<option value="' + c + '"' + (c === cat ? ' selected' : '') + '>' + c + '</option>'; });
   let planOpts = '<option value="">— 選擇方案 —</option>';
@@ -1520,31 +1593,154 @@ function buildDealFormHtml(ct, def) {
   let salesOpts = '<option value="">— 選擇業務 —</option>';
   usersData.forEach(function (u) { const n = u.full_name || u.email || ''; salesOpts += '<option value="' + u.id + '"' + (u.id === salesId ? ' selected' : '') + '>' + esc(n) + '</option>'; });
   if (salesId && !usersData.some(u => u.id === salesId)) salesOpts += '<option value="' + salesId + '" selected>' + esc(ct.sales_user_name || '（原業務）') + '</option>';
-  return ''
+  let quoteSel = '';
+  if (_df.quotes.length) {
+    let qo = '<option value="">— 不使用報價，手動填寫 —</option>';
+    _df.quotes.forEach(function (r) {
+      const sm = r.summary || {};
+      qo += '<option value="' + r.noteId + '"' + (r.noteId === _df.quoteNoteId ? ' selected' : '') + '>' + esc((sm.quoteNo || '報價單') + '｜' + (sm.date || '') + '｜' + (sm.planName || '') + '｜$' + fmtNum(sm.subtotal || 0) + ' 未稅') + (r.wonContractId && r.wonContractId !== ct.id ? '（已成交）' : '') + '</option>';
+    });
+    quoteSel = '<div class="form-group" style="background:var(--accent-glow);padding:8px 10px;border-radius:8px"><label class="form-label">📄 從報價帶入（明細、方案、日期）</label><select class="form-select" id="dfQuote" onchange="applyQuoteToDeal(this.value)">' + qo + '</select></div>';
+  }
+  return quoteSel
     + '<div class="form-row">'
-    +   '<div class="form-group"><label class="form-label">成交類型 *</label><select class="form-select" id="dfCat">' + catOpts + '</select></div>'
+    +   '<div class="form-group"><label class="form-label">成交類型 *</label><select class="form-select" id="dfCat" onchange="onDealCatChange()">' + catOpts + '</select></div>'
     +   '<div class="form-group"><label class="form-label">方案</label><select class="form-select" id="dfPlan" onchange="applyDealTemplate(false)">' + planOpts + '</select></div>'
     + '</div>'
-    + '<div style="font-size:11.5px;color:var(--text3);margin:-4px 0 10px;line-height:1.5">💡 獎金計算：主約／加購專案＝標準業績（級距 10/12/15%）；客製案件＝5%；續約＝僅首次續約 10%（金額只填軟體續約費）；其他＝不計獎金。同一案有標準＋客製請拆兩筆。</div>'
-    + '<div class="form-group"><input class="form-input" id="dfName" placeholder="或自行輸入名稱（例：加購 LINE 串接）" value="' + esc(isCustomName ? ct.name : '') + '"></div>'
-    + '<div class="form-group">'
-    +   '<div style="display:flex;align-items:center;justify-content:space-between"><label class="form-label">方案內容 / 開通功能</label>'
-    +   '<button type="button" class="btn btn-ghost btn-sm" style="font-size:11px" onclick="applyDealTemplate(true)">📋 套用方案模板</button></div>'
-    +   '<textarea class="form-textarea" id="dfContent" style="min-height:130px" placeholder="例：&#10;方案：標準版&#10;開通：多倉庫、LINE 通知、ERP 匯出">' + esc(ct.plan_content || '') + '</textarea>'
-    + '</div>'
     + '<div class="form-row">'
-    +   '<div class="form-group"><label class="form-label">成交金額（未稅）*</label><input class="form-input" id="dfAmt" type="number" min="0" placeholder="0" value="' + esc(String(amt)) + '"></div>'
+    +   '<div class="form-group"><label class="form-label">成交名稱（選填）</label><input class="form-input" id="dfName" placeholder="預設用方案名稱" value="' + esc(isCustomName ? ct.name : '') + '"></div>'
     +   '<div class="form-group"><label class="form-label">業績歸屬 *</label><select class="form-select" id="dfSales">' + salesOpts + '</select></div>'
     + '</div>'
     + '<div class="form-row">'
     +   '<div class="form-group"><label class="form-label">簽約日 *</label><input class="form-input" id="dfSigned" type="date" value="' + esc(ct.signed_date || def.signed_date || nowDateStr()) + '"></div>'
-    +   '<div class="form-group"><label class="form-label">系統啟用日</label><input class="form-input" id="dfLive" type="date" value="' + esc(ct.start_date || '') + '" onchange="autoFillRenewal()"></div>'
+    +   '<div class="form-group"><label class="form-label">系統啟用日</label><input class="form-input" id="dfLive" type="date" value="' + esc(ct.start_date || def.start_date || '') + '" onchange="autoFillRenewal()"></div>'
     + '</div>'
     + '<div class="form-row">'
-    +   '<div class="form-group"><label class="form-label">續約日 <span style="font-weight:400;color:var(--text3)">（填啟用日會自動帶 +1 年）</span></label><input class="form-input" id="dfRenew" type="date" value="' + esc(ct.end_date || '') + '"></div>'
+    +   '<div class="form-group"><label class="form-label">續約日 <span style="font-weight:400;color:var(--text3)">（填啟用日自動 +1 年）</span></label><input class="form-input" id="dfRenew" type="date" value="' + esc(ct.end_date || def.end_date || '') + '"></div>'
     +   '<div class="form-group"><label class="form-label">續約前幾天提醒</label><input class="form-input" id="dfRemind" type="number" min="0" value="' + esc(String(ct.remind_days != null ? ct.remind_days : 30)) + '"></div>'
     + '</div>'
+    + '<div class="form-group" style="margin-top:6px"><div style="display:flex;align-items:center;justify-content:space-between"><label class="form-label">🧾 成交明細（未稅、折後實收；贈送填 0）</label>'
+    +   '<button type="button" class="btn btn-ghost btn-sm" onclick="dfAddItem()">＋ 新增明細</button></div>'
+    +   '<div id="dfItems"></div></div>'
+    + '<div class="form-group"><div style="display:flex;align-items:center;justify-content:space-between"><label class="form-label">💵 付款排程（獎金依實際收款月份計算）</label>'
+    +   '<button type="button" class="btn btn-ghost btn-sm" onclick="dfAddInst()">＋ 新增一期</button></div>'
+    +   '<div id="dfInst"></div></div>'
+    + '<div id="dfSum" style="font-size:12.5px;margin:-4px 0 12px;padding:8px 10px;background:var(--bg3);border-radius:6px"></div>'
+    + '<div class="form-group">'
+    +   '<div style="display:flex;align-items:center;justify-content:space-between"><label class="form-label">方案內容 / 開通功能</label>'
+    +   '<button type="button" class="btn btn-ghost btn-sm" style="font-size:11px" onclick="applyDealTemplate(true)">📋 套用方案模板</button></div>'
+    +   '<textarea class="form-textarea" id="dfContent" style="min-height:130px">' + esc(ct.plan_content || '') + '</textarea>'
+    + '</div>'
     + '<div class="form-group"><label class="form-label">備註</label><textarea class="form-textarea" id="dfNote" style="min-height:60px">' + esc(ct.note || '') + '</textarea></div>';
+}
+
+function renderDfItems() {
+  const el = document.getElementById('dfItems'); if (!el) return;
+  if (!_df.items.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text3);padding:6px 0">尚無明細，按「＋ 新增明細」或從報價帶入</div>'; renderDfSum(); return; }
+  el.innerHTML = _df.items.map(function (it, i) {
+    let bo = '<option value="">— 獎金類別 —</option>';
+    Object.keys(BONUS_TYPES).forEach(function (k) { bo += '<option value="' + k + '"' + (it.bonus_type === k ? ' selected' : '') + '>' + BONUS_TYPES[k] + '</option>'; });
+    return '<div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">'
+      + '<input class="form-input" style="flex:2 1 180px" placeholder="項目名稱" value="' + esc(it.name || '') + '" oninput="_df.items[' + i + '].name=this.value">'
+      + '<input class="form-input" style="flex:1 1 90px;font-family:var(--mono)" type="number" min="0" placeholder="金額" value="' + esc(it.amount == null ? '' : String(it.amount)) + '" oninput="_df.items[' + i + '].amount=this.value;renderDfSum()">'
+      + '<select class="form-select" style="flex:1 1 120px' + (it.bonus_type ? '' : ';border-color:var(--red)') + '" onchange="_df.items[' + i + '].bonus_type=this.value;this.style.borderColor=\'\';renderDfSum()">' + bo + '</select>'
+      + '<button type="button" class="btn btn-ghost btn-sm" onclick="_df.items.splice(' + i + ',1);renderDfItems()">🗑</button>'
+      + '</div>';
+  }).join('');
+  renderDfSum();
+}
+function renderDfInst() {
+  const el = document.getElementById('dfInst'); if (!el) return;
+  el.innerHTML = _df.inst.map(function (p, i) {
+    const locked = !!p.paid_date;
+    const dis = locked ? ' disabled' : '';
+    let ao = '';
+    ALLOC_OPTS.forEach(function (o) { ao += '<option value="' + o[0] + '"' + ((p.alloc || 'prorata') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; });
+    return '<div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;align-items:center">'
+      + '<input class="form-input" style="flex:1 1 100px" placeholder="期別（例：簽約款）" value="' + esc(p.label || '') + '" oninput="_df.inst[' + i + '].label=this.value"' + dis + '>'
+      + '<input class="form-input" style="flex:1 1 90px;font-family:var(--mono)" type="number" min="0" placeholder="金額" value="' + esc(p.amount == null ? '' : String(p.amount)) + '" oninput="_df.inst[' + i + '].amount=this.value;renderDfSum()"' + dis + '>'
+      + '<input class="form-input" style="flex:1 1 120px" type="date" title="預計收款日" value="' + esc(p.due_date || '') + '" onchange="_df.inst[' + i + '].due_date=this.value"' + dis + '>'
+      + '<select class="form-select" style="flex:1 1 110px" onchange="_df.inst[' + i + '].alloc=this.value"' + dis + '>' + ao + '</select>'
+      + (locked ? '<span class="badge badge-green">已收 ' + esc(p.paid_date) + '</span>'
+                : '<button type="button" class="btn btn-ghost btn-sm" onclick="_df.inst.splice(' + i + ',1);renderDfInst()">🗑</button>')
+      + '</div>';
+  }).join('') || '<div style="font-size:12px;color:var(--text3);padding:6px 0">尚無付款期</div>';
+  renderDfSum();
+}
+function dfTotals() {
+  const bt = { standard: 0, custom: 0, renewal: 0, none: 0 }; let items = 0, inst = 0;
+  _df.items.forEach(function (it) { const a = Number(it.amount) || 0; items += a; if (bt[it.bonus_type] != null) bt[it.bonus_type] += a; });
+  _df.inst.forEach(function (p) { inst += Number(p.amount) || 0; });
+  return { bt: bt, items: items, inst: inst };
+}
+function renderDfSum() {
+  const el = document.getElementById('dfSum'); if (!el) return;
+  const t = dfTotals();
+  const diff = t.items - t.inst;
+  let parts = [];
+  Object.keys(BONUS_TYPES).forEach(function (k) { if (t.bt[k]) parts.push(BONUS_TYPES[k] + ' ' + fmtNum(t.bt[k])); });
+  el.innerHTML = '明細合計 <b style="font-family:var(--mono)">$' + fmtNum(t.items) + '</b>' + (parts.length ? '（' + parts.join('、') + '）' : '')
+    + '　｜　付款合計 <b style="font-family:var(--mono)">$' + fmtNum(t.inst) + '</b>'
+    + (Math.abs(diff) > 0.5 ? '　<span style="color:var(--red)">⚠️ 差 $' + fmtNum(diff) + '</span> <button type="button" class="btn btn-ghost btn-sm" style="font-size:11px" onclick="dfFixInst()">補到最後一期</button>' : '　<span style="color:var(--green)">✓</span>');
+}
+function dfAddItem() { _df.items.push({ name: '', amount: '', bonus_type: '' }); renderDfItems(); }
+function dfAddInst() {
+  const t = dfTotals();
+  _df.inst.push({ label: '第 ' + (_df.inst.length + 1) + ' 期', amount: Math.max(0, t.items - t.inst) || '', due_date: '', alloc: 'prorata', paid_date: null });
+  renderDfInst();
+}
+function dfFixInst() {
+  const t = dfTotals();
+  const open = _df.inst.filter(function (p) { return !p.paid_date; });
+  if (!open.length) { dfAddInst(); return; }
+  const last = open[open.length - 1];
+  last.amount = Math.max(0, (Number(last.amount) || 0) + (t.items - t.inst));
+  renderDfInst();
+}
+function onDealCatChange() {
+  const isRen = document.getElementById('dfCat').value === '續約';
+  _df.items.forEach(function (it) { if (it.src === 'sub' && (it.bonus_type === 'standard' || it.bonus_type === 'renewal')) it.bonus_type = isRen ? 'renewal' : 'standard'; });
+  renderDfItems();
+}
+function applyQuoteToDeal(noteId) {
+  _df.quoteNoteId = noteId || null;
+  if (!noteId) return;
+  const rec = _df.quotes.find(function (r) { return r.noteId === noteId; });
+  if (!rec) return;
+  const S = rec.snapshot || {}, sm = rec.summary || {};
+  _df.items = itemsFromQuote(rec, document.getElementById('dfCat').value === '續約');
+  const total = _df.items.reduce(function (s, it) { return s + (Number(it.amount) || 0); }, 0);
+  if (!_df.inst.some(function (p) { return p.paid_date; })) {
+    _df.inst = [{ label: '全額', amount: total, due_date: document.getElementById('dfSigned').value || nowDateStr(), alloc: 'prorata', paid_date: null }];
+  } else { toast('已有收款紀錄，付款排程未變動，請手動調整', 'error'); }
+  const plan = dealTypesData.find(function (d) { return d.name === (sm.planName || (S.plan && S.plan.name)); });
+  if (plan) { document.getElementById('dfPlan').value = plan.id; applyDealTemplate(false); }
+  if (S.plan && S.plan.start && !document.getElementById('dfLive').value) document.getElementById('dfLive').value = S.plan.start;
+  if (S.plan && S.plan.end && !document.getElementById('dfRenew').value) document.getElementById('dfRenew').value = S.plan.end;
+  renderDfItems(); renderDfInst();
+  const unset = _df.items.filter(function (it) { return !it.bonus_type; }).length;
+  if (unset) toast('有 ' + unset + ' 項明細需要選擇獎金類別（標準／客製）', 'error');
+}
+function initDealForm(ct, quotes, preNoteId) {
+  _df = {
+    items: ct ? JSON.parse(JSON.stringify(dealItems(ct))) : [],
+    inst: ct ? JSON.parse(JSON.stringify(dealInstallments(ct))) : [],
+    quotes: quotes || [],
+    quoteNoteId: (ct && ct.quote_note_id) || preNoteId || null
+  };
+}
+function afterDealFormOpen(preNoteId) {
+  renderDfItems(); renderDfInst();
+  if (preNoteId) applyQuoteToDeal(preNoteId);
+  if (!document.getElementById('dfContent').value.trim()) applyDealTemplate(false);
+  if (!_df.items.length && !preNoteId) {
+    _df.items = [{ name: '', amount: '', bonus_type: 'standard' }];
+    renderDfItems();
+  }
+  if (!_df.inst.length) {
+    _df.inst = [{ label: '全額', amount: '', due_date: document.getElementById('dfSigned').value, alloc: 'prorata', paid_date: null }];
+    renderDfInst();
+  }
 }
 
 function applyDealTemplate(force) {
@@ -1571,23 +1767,49 @@ function readDealForm() {
   const cat = document.getElementById('dfCat').value || '主約';
   const planId = document.getElementById('dfPlan').value;
   const plan = dealTypesData.find(d => d.id === planId);
-  const name = document.getElementById('dfName').value.trim() || (plan ? plan.name : '') || cat;
-  const amtRaw = document.getElementById('dfAmt').value.trim();
   const salesId = document.getElementById('dfSales').value;
   const signed = document.getElementById('dfSigned').value;
-  if (amtRaw === '' || isNaN(parseFloat(amtRaw))) { toast('請填寫成交金額（業績計算用）', 'error'); return null; }
   if (!salesId) { toast('請選擇業績歸屬業務', 'error'); return null; }
   if (!signed) { toast('請填寫簽約日', 'error'); return null; }
+  const items = [];
+  for (let i = 0; i < _df.items.length; i++) {
+    const it = _df.items[i];
+    const nm = String(it.name || '').trim(), amt = numLoose(it.amount);
+    if (!nm && amt == null) continue;
+    if (!nm) { toast('第 ' + (i + 1) + ' 項明細缺少名稱', 'error'); return null; }
+    if (amt == null || amt < 0) { toast('「' + nm + '」請填金額（贈送填 0）', 'error'); return null; }
+    if (!it.bonus_type) { toast('「' + nm + '」請選擇獎金類別', 'error'); return null; }
+    const o = { name: nm, amount: amt, bonus_type: it.bonus_type }; if (it.src) o.src = it.src;
+    items.push(o);
+  }
+  if (!items.length) { toast('請至少填一項成交明細', 'error'); return null; }
+  const total = items.reduce(function (s, it) { return s + it.amount; }, 0);
+  const inst = [];
+  for (let i = 0; i < _df.inst.length; i++) {
+    const p = Object.assign({}, _df.inst[i]);
+    const amt = numLoose(p.amount);
+    if (amt == null && !p.paid_date) continue;
+    p.amount = amt || 0;
+    p.label = String(p.label || '').trim() || ('第 ' + (inst.length + 1) + ' 期');
+    p.due_date = p.due_date || signed;
+    p.alloc = p.alloc || 'prorata';
+    inst.push(p);
+  }
+  if (!inst.length) inst.push({ label: '全額', amount: total, due_date: signed, alloc: 'prorata', paid_date: null });
+  const instTotal = inst.reduce(function (s, p) { return s + (Number(p.amount) || 0); }, 0);
+  if (Math.abs(instTotal - total) > 0.5) { toast('付款合計 $' + fmtNum(instTotal) + ' ≠ 明細合計 $' + fmtNum(total) + '，請調整（可按「補到最後一期」）', 'error'); return null; }
   const salesSel = document.getElementById('dfSales');
-  const salesName = salesSel.options[salesSel.selectedIndex]?.text || '';
   const remindRaw = document.getElementById('dfRemind').value;
   return {
-    name: name,
+    name: document.getElementById('dfName').value.trim() || (plan ? plan.name : '') || items[0].name || cat,
     deal_category: cat,
     plan_content: document.getElementById('dfContent').value.trim() || null,
-    amount: parseFloat(amtRaw),
+    amount: total,
+    items: items,
+    installments: inst,
+    quote_note_id: _df.quoteNoteId || null,
     sales_user_id: salesId,
-    sales_user_name: salesName,
+    sales_user_name: salesSel.options[salesSel.selectedIndex]?.text || '',
     signed_date: signed,
     start_date: document.getElementById('dfLive').value || null,
     end_date: document.getElementById('dfRenew').value || null,
@@ -1597,28 +1819,29 @@ function readDealForm() {
 }
 
 // 線索 → 成交客戶
-async function openConvertModal(leadId) {
+async function openConvertModal(leadId, preNoteId) {
   const { data: lead } = await db.from('leads').select('*').eq('id', leadId).maybeSingle();
   if (!lead) { toast('找不到此 Lead', 'error'); return; }
   const { data: existing } = await db.from('accounts').select('id').eq('lead_id', leadId).maybeSingle();
-  if (existing) { toast('此 Lead 已是成交客戶，直接開啟客戶頁', 'success'); goToAccount(existing.id); return; }
+  if (existing) {
+    if (preNoteId) { openDealModal(existing.id, null, { leadId: leadId, quoteNoteId: preNoteId }); return; }
+    toast('此 Lead 已是成交客戶，直接開啟客戶頁', 'success'); goToAccount(existing.id); return;
+  }
   if (!dealTypesData.length || !usersData.length) await loadGlobalData();
   _lastDealTpl = '';
-  const def = {
-    plan_id: lead.deal_type_id || '',
-    amount: lead.amount != null ? lead.amount : '',
-    sales_user_id: lead.user_id || currentUser.id,
-    deal_category: '主約'
-  };
+  const quotes = await loadQuoteNotesForLead(leadId);
+  initDealForm(null, quotes, preNoteId);
+  const def = { plan_id: lead.deal_type_id || '', sales_user_id: lead.user_id || currentUser.id, deal_category: '主約' };
   openModal('🤝 轉為成交客戶：' + (lead.name || ''), ''
     + '<div style="font-size:12.5px;color:var(--text2);background:var(--bg3);padding:8px 10px;border-radius:6px;margin-bottom:12px;line-height:1.6">'
-    + '線索與所有開發紀錄都會保留，客戶頁可直接看到簽約前的活動與備註。<br>下面是第一筆成交紀錄，之後的加購可在客戶頁再新增。</div>'
+    + '線索與所有開發紀錄都會保留。主約＋客製同時簽，直接在同一張成交單列兩項明細即可。</div>'
     + buildDealFormHtml(null, def), [
     { label: '取消', cls: 'btn-secondary', action: closeModal },
     { label: '只轉客戶，成交稍後補', cls: 'btn-secondary', action: function () { doConvertLead(lead, false); } },
     { label: '✅ 轉為成交客戶', cls: 'btn-primary', action: function () { doConvertLead(lead, true); } }
   ]);
-  if (!document.getElementById('dfContent').value.trim()) applyDealTemplate(false);
+  document.getElementById('modalBox').style.maxWidth = '820px';
+  afterDealFormOpen(preNoteId);
 }
 
 async function doConvertLead(lead, withDeal) {
@@ -2535,7 +2758,7 @@ function parseQuoteNote(note) {
   if (!isQuoteNote(note)) return null;
   try {
     const data = JSON.parse(note.content.slice(QUOTE_NOTE_PREFIX.length));
-    return { ...data, noteId: note.id, savedAt: note.created_at };
+    return { ...data, noteId: note.id, savedAt: note.created_at, quoteStatus: note.quote_status || '' };
   } catch(e) { return null; }
 }
 function quoteMoney(n, currency='TWD') {
@@ -2675,29 +2898,67 @@ async function quoteSelectLead(leadId, opts={}) {
 async function loadQuoteNotesForLead(leadId) {
   if (!leadId) return [];
   const { data } = await db.from('notes').select('*').eq('lead_id', leadId).order('created_at', {ascending:false});
-  return (data || []).map(parseQuoteNote).filter(Boolean);
+  const recs = (data || []).map(parseQuoteNote).filter(Boolean);
+  if (recs.length) {
+    try {
+      const { data: cts } = await db.from('contracts').select('id,quote_note_id').in('quote_note_id', recs.map(r => String(r.noteId)));
+      const won = {}; (cts || []).forEach(c => { won[c.quote_note_id] = c.id; });
+      recs.forEach(r => { r.wonContractId = won[String(r.noteId)] || null; });
+    } catch (e) {}
+  }
+  return recs;
+}
+const QUOTE_STATUS = { '': '草稿', sent: '已送出', void: '作廢' };
+function quoteStatusBadge(r) {
+  if (r.wonContractId) return '<span class="badge badge-green">✅ 已成交</span>';
+  if (r.quoteStatus === 'sent') return '<span class="badge badge-blue">已送出</span>';
+  if (r.quoteStatus === 'void') return '<span class="badge badge-gray">作廢</span>';
+  return '<span class="badge badge-gray">草稿</span>';
 }
 function quoteHistoryCards(records, leadId, compact=false) {
   if (!records.length) return compact
     ? '<div class="empty-state" style="padding:18px"><div class="empty-text">尚無報價紀錄</div></div>'
     : '<div style="font-size:12px;color:var(--text3)">尚無已儲存報價。</div>';
   if (!compact) {
-    return records.map(r=>`<div class="quote-history-card" onclick="loadSavedQuoteByNote('${leadId}','${r.noteId}')">
-      <div class="quote-history-title">${esc(r.summary?.quoteNo || '報價單')}</div>
-      <div class="quote-history-meta">${esc(r.summary?.date || fmtDate(r.savedAt))} · ${esc(r.summary?.planName || '—')} · ${r.summary?.months || '—'} 個月</div>
-      <div class="quote-history-amount">${quoteMoney(r.summary?.grand, r.summary?.currency || 'TWD')}</div>
-    </div>`).join('');
+    return records.map(function (r) {
+      const sm = r.summary || {};
+      return '<div class="quote-history-card" onclick="loadSavedQuoteByNote(\'' + leadId + '\',\'' + r.noteId + '\')"' + (r.quoteStatus === 'void' ? ' style="opacity:0.55"' : '') + '>'
+        + '<div class="quote-history-title">' + esc(sm.quoteNo || '報價單') + ' ' + quoteStatusBadge(r) + '</div>'
+        + '<div class="quote-history-meta">' + esc(sm.date || fmtDate(r.savedAt)) + ' · ' + esc(sm.planName || '—') + ' · ' + (sm.months || '—') + ' 個月</div>'
+        + '<div class="quote-history-amount">' + quoteMoney(sm.grand, sm.currency || 'TWD') + '</div>'
+        + '</div>';
+    }).join('');
   }
-  return records.map(r=>`<div class="quote-drawer-card">
-    <div style="display:flex;align-items:flex-start;gap:8px">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12.5px;font-weight:600">${esc(r.summary?.quoteNo || '報價單')}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px">${esc(r.summary?.date || fmtDate(r.savedAt))} · ${esc(r.summary?.planName || '—')}</div>
-        <div style="font-family:var(--mono);font-size:11.5px;color:var(--green);margin-top:3px">${quoteMoney(r.summary?.grand, r.summary?.currency || 'TWD')}</div>
-      </div>
-      <button class="btn btn-secondary btn-sm" onclick="openQuoteForLead('${leadId}','${r.noteId}');closeModal()">開啟</button>
-    </div>
-  </div>`).join('');
+  return records.map(function (r) {
+    const sm = r.summary || {};
+    let so = '';
+    Object.keys(QUOTE_STATUS).forEach(function (k) { so += '<option value="' + k + '"' + ((r.quoteStatus || '') === k ? ' selected' : '') + '>' + QUOTE_STATUS[k] + '</option>'; });
+    return '<div class="quote-drawer-card"' + (r.quoteStatus === 'void' && !r.wonContractId ? ' style="opacity:0.55"' : '') + '>'
+      + '<div style="display:flex;align-items:flex-start;gap:8px">'
+      +   '<div style="flex:1;min-width:0">'
+      +     '<div style="font-size:12.5px;font-weight:600;display:flex;gap:6px;align-items:center;flex-wrap:wrap">' + esc(sm.quoteNo || '報價單') + quoteStatusBadge(r) + '</div>'
+      +     '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + esc(sm.date || fmtDate(r.savedAt)) + ' · ' + esc(sm.planName || '—') + '</div>'
+      +     '<div style="font-family:var(--mono);font-size:11.5px;color:var(--green);margin-top:3px">' + quoteMoney(sm.grand, sm.currency || 'TWD') + '</div>'
+      +   '</div>'
+      +   '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">'
+      +     '<div style="display:flex;gap:4px">'
+      +       '<button class="btn btn-secondary btn-sm" onclick="openQuoteForLead(\'' + leadId + '\',\'' + r.noteId + '\');closeModal()">開啟</button>'
+      +       (r.wonContractId ? '' : '<button class="btn btn-primary btn-sm" onclick="closeModal();dealFromQuote(\'' + leadId + '\',\'' + r.noteId + '\')">✅ 成交</button>')
+      +     '</div>'
+      +     (r.wonContractId ? '' : '<select class="form-select" style="height:24px;padding:0 4px;font-size:11px;width:auto" onchange="setQuoteStatus(\'' + r.noteId + '\',this.value,\'' + leadId + '\')">' + so + '</select>')
+      +   '</div>'
+      + '</div></div>';
+  }).join('');
+}
+async function setQuoteStatus(noteId, status, leadId) {
+  const { error } = await db.from('notes').update({ quote_status: status || null }).eq('id', noteId);
+  if (error) { toast('更新失敗：' + error.message, 'error'); return; }
+  toast('報價狀態：' + (QUOTE_STATUS[status || ''] || '草稿'), 'success');
+  if (document.getElementById('drawerPanel-quotes')) renderDrawerQuotes(leadId);
+}
+async function dealFromQuote(leadId, noteId) {
+  if (!leadId) { toast('這份報價沒有綁定線索', 'error'); return; }
+  await openConvertModal(leadId, noteId);
 }
 async function refreshQuoteHistoryCount(leadId=quoteSelectedLeadId) {
   const btn = document.getElementById('quoteHistoryBtn');
@@ -3169,19 +3430,40 @@ function renderContractList(contracts, accId) {
   if (!contracts.length) return '<div class="empty-state" style="padding:16px"><div class="empty-text">尚無成交紀錄</div></div>';
   return contracts.map(function (c) {
     const sales = dealSalesName(c);
-    let meta = '';
-    if (c.amount != null) meta += '<span class="badge badge-green" style="font-family:var(--mono)">$ ' + fmtNum(c.amount) + '</span>';
+    const items = dealItems(c), inst = dealInstallments(c);
+    const paid = inst.reduce(function (s, p) { return s + instPaidAmt(p); }, 0);
+    const total = c.amount || items.reduce(function (s, it) { return s + (Number(it.amount) || 0); }, 0);
+    let meta = '<span class="badge badge-green" style="font-family:var(--mono)">$ ' + fmtNum(total) + '</span>';
+    meta += '<span style="font-size:11px;color:' + (paid >= total && total > 0 ? 'var(--green)' : 'var(--yellow)') + '">已收 $' + fmtNum(paid) + '</span>';
     if (sales) meta += '<span style="font-size:11px;color:var(--text3)">👤 ' + esc(sales) + '</span>';
     let dates = '';
     const sd = dealDate(c);
     if (sd) dates += '<span>簽約 ' + sd + '</span>';
     if (c.start_date) dates += '<span>啟用 ' + c.start_date + '</span>';
     if (c.end_date) dates += '<span>續約 ' + renewalBadgeHtml(c) + '</span>';
+    let itemsHtml = '<div class="form-label">成交明細</div><table class="data-table" style="margin-bottom:10px"><tbody>';
+    items.forEach(function (it) {
+      itemsHtml += '<tr><td style="font-size:12.5px">' + esc(it.name || '') + '</td><td>' + bonusTypeBadge(it.bonus_type) + '</td><td style="text-align:right;font-family:var(--mono);font-size:12.5px">' + (Number(it.amount) === 0 ? '贈送' : fmtNum(it.amount)) + '</td></tr>';
+    });
+    itemsHtml += '</tbody></table>';
+    let instHtml = '<div class="form-label">付款排程</div><table class="data-table" style="margin-bottom:10px"><tbody>';
+    inst.forEach(function (p, i) {
+      const d = p.paid_date ? null : daysUntil(p.due_date);
+      const due = p.paid_date ? '<span class="badge badge-green">已收 ' + esc(p.paid_date) + '</span>'
+        : '<span style="font-size:11.5px;color:' + (d != null && d < 0 ? 'var(--red)' : 'var(--text3)') + '">預計 ' + esc(p.due_date || '—') + (d != null && d < 0 ? '（逾期）' : '') + '</span>';
+      const alloc = (p.alloc && p.alloc !== 'prorata') ? ' <span style="font-size:10.5px;color:var(--text3)">' + (ALLOC_OPTS.find(o => o[0] === p.alloc) || ['', ''])[1] + '</span>' : '';
+      let act = '';
+      if (window.isAdmin) act = p.paid_date
+        ? '<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="undoPayment(\'' + c.id + '\',' + i + ',\'' + accId + '\')">取消收款</button>'
+        : '<button class="btn btn-primary btn-sm" style="font-size:11px" onclick="confirmPayment(\'' + c.id + '\',' + i + ',\'' + accId + '\')">確認收款</button>';
+      instHtml += '<tr><td style="font-size:12.5px">' + esc(p.label || '') + alloc + '</td><td style="text-align:right;font-family:var(--mono);font-size:12.5px">' + fmtNum(p.paid_date ? instPaidAmt(p) : p.amount) + '</td><td>' + due + '</td><td style="text-align:right">' + act + '</td></tr>';
+    });
+    instHtml += '</tbody></table>';
     return ''
       + '<div class="contract-card">'
       +   '<div class="contract-card-header" onclick="toggleContractCard(\'' + c.id + '\')">'
       +     '<div style="flex:1;min-width:0">'
-      +       '<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;flex-wrap:wrap">' + dealCatBadge(c.deal_category) + '<span style="font-weight:500;font-size:13px">' + esc(c.name || '成交') + '</span></div>'
+      +       '<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;flex-wrap:wrap">' + dealCatBadge(c.deal_category) + '<span style="font-weight:500;font-size:13px">' + esc(c.name || '成交') + '</span>' + (c.quote_note_id ? '<span style="font-size:10.5px;color:var(--text3)">📄 來自報價</span>' : '') + '</div>'
       +       '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:3px">' + meta + '</div>'
       +       (dates ? '<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--text3)">' + dates + '</div>' : '')
       +     '</div>'
@@ -3191,6 +3473,7 @@ function renderContractList(contracts, accId) {
       +     '</div>'
       +   '</div>'
       +   '<div class="contract-card-body" id="ct-body-' + c.id + '" style="display:none">'
+      +     itemsHtml + instHtml
       +     (c.plan_content ? '<div class="form-label">方案內容 / 開通功能</div><div style="font-size:12.5px;white-space:pre-wrap;margin-bottom:10px;padding:8px 10px;background:var(--bg3);border-radius:6px;line-height:1.6">' + esc(c.plan_content) + '</div>' : '')
       +     (c.note ? '<div style="font-size:12px;color:var(--text3);margin-bottom:10px;padding:6px 8px;background:var(--bg3);border-radius:5px;white-space:pre-wrap">' + esc(c.note) + '</div>' : '')
       +     '<div id="ct-notes-' + c.id + '"><div style="font-size:12px;color:var(--text3)">載入中...</div></div>'
@@ -3201,6 +3484,47 @@ function renderContractList(contracts, accId) {
       +   '</div>'
       + '</div>';
   }).join('');
+}
+
+// 收款（僅管理員）
+async function confirmPayment(ctId, idx, accId) {
+  if (!window.isAdmin) { toast('只有管理員可以確認收款', 'error'); return; }
+  const { data: ct } = await db.from('contracts').select('*').eq('id', ctId).maybeSingle();
+  if (!ct) { toast('找不到成交單', 'error'); return; }
+  const inst = JSON.parse(JSON.stringify(dealInstallments(ct)));
+  const p = inst[idx]; if (!p) return;
+  openModal('💵 確認收款：' + (p.label || ''), ''
+    + '<div style="font-size:12.5px;color:var(--text2);margin-bottom:10px">' + esc(ct.name || '') + '｜排定金額 $' + fmtNum(p.amount) + '（未稅）</div>'
+    + '<div class="form-row">'
+    +   '<div class="form-group"><label class="form-label">實收日期 *</label><input class="form-input" id="pyDate" type="date" value="' + nowDateStr() + '"></div>'
+    +   '<div class="form-group"><label class="form-label">實收金額（未稅）*</label><input class="form-input" id="pyAmt" type="number" min="0" value="' + esc(String(p.amount)) + '"></div>'
+    + '</div><div style="font-size:11.5px;color:var(--text3)">獎金會算在實收日期的月份。</div>', [
+    { label: '取消', cls: 'btn-secondary', action: closeModal },
+    { label: '確認收款', cls: 'btn-primary', action: async function () {
+      const d = document.getElementById('pyDate').value, a = numLoose(document.getElementById('pyAmt').value);
+      if (!d || a == null || a < 0) { toast('請填實收日期與金額', 'error'); return; }
+      p.paid_date = d; p.paid_amount = a;
+      p.paid_by = currentUser.user_metadata?.full_name || currentUser.email || ''; p.paid_at = new Date().toISOString();
+      const { error } = await db.from('contracts').update({ installments: inst, items: dealItems(ct) }).eq('id', ctId);
+      if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
+      closeModal(); toast('已確認收款', 'success');
+      if (accId && accId !== 'null') openAccountDetail(accId); else if (currentPage === 'dashboard') renderDashboard();
+    }}
+  ]);
+}
+async function undoPayment(ctId, idx, accId) {
+  if (!window.isAdmin) return;
+  openConfirm('取消收款', '確定把這期改回「未收」？該月獎金會跟著重新計算。', async function () {
+    const { data: ct } = await db.from('contracts').select('*').eq('id', ctId).maybeSingle();
+    if (!ct) { closeModal(); return; }
+    const inst = JSON.parse(JSON.stringify(dealInstallments(ct)));
+    if (inst[idx]) { inst[idx].paid_date = null; delete inst[idx].paid_amount; delete inst[idx].paid_by; delete inst[idx].paid_at; }
+    const { error } = await db.from('contracts').update({ installments: inst }).eq('id', ctId);
+    closeModal();
+    if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
+    toast('已改回未收', 'success');
+    if (accId) openAccountDetail(accId);
+  }, closeModal, '確定', '取消');
 }
 
 // 客戶頁：原始線索的開發紀錄（活動 + 備註），唯讀時間軸
@@ -3295,12 +3619,17 @@ async function openEditContract(ctId, accId) {
   openDealModal(accId, ct);
 }
 
-async function openDealModal(accId, ct) {
+async function openDealModal(accId, ct, opts) {
   if (!dealTypesData.length || !usersData.length) await loadGlobalData();
   _lastDealTpl = '';
-  const acc = accountsData.find(a => a.id === accId);
-  const def = { sales_user_id: (acc && acc.user_id) || currentUser.id };
-  openModal(ct ? '✏️ 編輯成交紀錄' : '＋ 新增成交紀錄', buildDealFormHtml(ct, def), [
+  opts = opts || {};
+  let acc = accountsData.find(a => a.id === accId);
+  if (!acc) { const r = await db.from('accounts').select('*').eq('id', accId).maybeSingle(); acc = r.data; }
+  const leadId = opts.leadId || (acc && acc.lead_id) || null;
+  const quotes = leadId ? await loadQuoteNotesForLead(leadId) : [];
+  initDealForm(ct, quotes, opts.quoteNoteId);
+  const def = { sales_user_id: (acc && acc.user_id) || currentUser.id, deal_category: ct ? null : '加購專案' };
+  openModal(ct ? '✏️ 編輯成交單' : '＋ 新增成交單' + (acc ? '：' + acc.name : ''), buildDealFormHtml(ct, def), [
     { label: '取消', cls: 'btn-secondary', action: closeModal },
     { label: ct ? '儲存' : '建立', cls: 'btn-primary', action: async function () {
       if (_dealBusy) return;
@@ -3310,6 +3639,14 @@ async function openDealModal(accId, ct) {
       try {
         let error;
         if (ct) {
+          // 編輯期間若管理員剛好確認了收款，保留最新的收款狀態
+          const fresh = (await db.from('contracts').select('installments').eq('id', ct.id).maybeSingle()).data;
+          if (fresh && Array.isArray(fresh.installments)) {
+            fresh.installments.forEach(function (fp, i) {
+              const mp = payload.installments[i];
+              if (fp && fp.paid_date && mp && !mp.paid_date) { ['paid_date','paid_amount','paid_by','paid_at'].forEach(function (k) { if (fp[k] != null) mp[k] = fp[k]; }); }
+            });
+          }
           ({ error } = await db.from('contracts').update(payload).eq('id', ct.id));
         } else {
           payload.account_id = accId;
@@ -3319,11 +3656,13 @@ async function openDealModal(accId, ct) {
         }
         if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
         closeModal();
-        toast(ct ? '成交紀錄已更新' : '成交紀錄已建立', 'success');
-        openAccountDetail(accId);
+        toast(ct ? '成交單已更新' : '成交單已建立', 'success');
+        goToAccount(accId);
       } finally { _dealBusy = false; }
     }}
   ]);
+  document.getElementById('modalBox').style.maxWidth = '820px';
+  afterDealFormOpen(ct ? null : opts.quoteNoteId);
 }
 
 async function deleteContract(ctId, accId) {
@@ -3472,25 +3811,47 @@ function buildBonusEntries(contracts, accounts) {
     const list = byAcc[aid].slice().sort(sortFn);
     const firstMain = list.find(function (c) { return (c.deal_category || '主約') === '主約'; });
     devOf[aid] = (firstMain && (firstMain.sales_user_id || firstMain.user_id)) || (accMap[aid] && accMap[aid].user_id) || null;
-    const fr = list.find(function (c) { return c.deal_category === '續約'; });
+    const fr = list.find(function (c) { return dealItems(c).some(function (it) { return it.bonus_type === 'renewal' && Number(it.amount) > 0; }); });
     if (fr) firstRenewal.add(fr.id);
   });
-  return contracts.map(function (c) {
-    const bucket = bonusBucket(c.deal_category);
-    let uid = c.sales_user_id || c.user_id, eligible = bucket !== 'none', reason = bucket === 'none' ? '「其他」類型不計獎金' : '';
-    if (bucket === 'renewal') {
-      if (!firstRenewal.has(c.id)) { eligible = false; reason = '非首次續約，不發放'; }
-      else if (devOf[c.account_id]) { uid = devOf[c.account_id]; if (uid !== (c.sales_user_id || c.user_id)) reason = '歸屬原開發業務'; }
-    }
-    return { c: c, bucket: bucket, uid: uid, uname: userNameById(uid, c.sales_user_name), eligible: eligible, reason: reason,
-             ym: dealDate(c).slice(0, 7), acc: (accMap[c.account_id] || {}).name || '', amt: c.amount || 0 };
+  const out = [];
+  contracts.forEach(function (c) {
+    const tot = {}; let all = 0;
+    dealItems(c).forEach(function (it) { const a = Number(it.amount) || 0; if (a <= 0) return; const t = it.bonus_type || 'none'; tot[t] = (tot[t] || 0) + a; all += a; });
+    const salesUid = c.sales_user_id || c.user_id;
+    // 「依比例」的期數，只分攤「扣掉指定類別期數之後」剩下的部分
+    const spec = {};
+    dealInstallments(c).forEach(function (p) { if (p.alloc && p.alloc !== 'prorata') spec[p.alloc] = (spec[p.alloc] || 0) + (Number(p.amount) || 0); });
+    const rem = {}; let remAll = 0;
+    Object.keys(tot).forEach(function (t) { rem[t] = Math.max(0, tot[t] - (spec[t] || 0)); remAll += rem[t]; });
+    const base = remAll > 0 ? rem : tot, baseAll = remAll > 0 ? remAll : all;
+    dealInstallments(c).forEach(function (p, idx) {
+      const paid = !!p.paid_date;
+      const amt = paid ? instPaidAmt(p) : (Number(p.amount) || 0);
+      if (!amt) return;
+      const ym = String(paid ? p.paid_date : (p.due_date || dealDate(c))).slice(0, 7);
+      const parts = {};
+      if (p.alloc && p.alloc !== 'prorata') parts[p.alloc] = amt;
+      else if (baseAll > 0) Object.keys(base).forEach(function (t) { if (base[t]) parts[t] = amt * base[t] / baseAll; });
+      else parts.none = amt;
+      Object.keys(parts).forEach(function (t) {
+        let type = t, uid = salesUid, reason = '';
+        if (t === 'renewal') {
+          if (!firstRenewal.has(c.id)) { type = 'none'; reason = '非首次續約，不發放'; }
+          else if (devOf[c.account_id]) { uid = devOf[c.account_id]; if (uid !== salesUid) reason = '歸屬原開發業務'; }
+        }
+        if (type === 'none' && !reason) reason = '不計獎金';
+        out.push({ c: c, p: p, idx: idx, paid: paid, ym: ym, type: type, uid: uid, uname: userNameById(uid, c.sales_user_name),
+                   amt: Math.round(parts[t]), reason: reason, acc: (accMap[c.account_id] || {}).name || '' });
+      });
+    });
   });
+  return out;
 }
 function sumBonus(entries) {
   let std = 0, cus = 0, ren = 0;
   entries.forEach(function (e) {
-    if (!e.eligible) return;
-    if (e.bucket === 'standard') std += e.amt; else if (e.bucket === 'custom') cus += e.amt; else if (e.bucket === 'renewal') ren += e.amt;
+    if (e.type === 'standard') std += e.amt; else if (e.type === 'custom') cus += e.amt; else if (e.type === 'renewal') ren += e.amt;
   });
   const tier = calcTiered(std);
   const cusB = Math.round(cus * BONUS_RULES.customRate), renB = Math.round(ren * BONUS_RULES.renewalRate);
@@ -3527,7 +3888,7 @@ async function openBonusCalc() {
   openModal('💰 業績獎金', ''
     + '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">'
     +   '<button class="btn btn-ghost btn-sm" onclick="shiftBonusMonth(-1)">‹</button>'
-    +   '<div class="form-group" style="margin:0"><label class="form-label">月份（依簽約日）</label><input class="form-input" id="bcMonth" type="month" value="' + ym + '" onchange="runBonusCalc()"></div>'
+    +   '<div class="form-group" style="margin:0"><label class="form-label">月份（依實收日）</label><input class="form-input" id="bcMonth" type="month" value="' + ym + '" onchange="runBonusCalc()"></div>'
     +   '<button class="btn btn-ghost btn-sm" onclick="shiftBonusMonth(1)">›</button>'
     +   '<div class="form-group" style="margin:0"><label class="form-label">業務</label><select class="form-select" id="bcUser" onchange="runBonusCalc()"' + (window.isAdmin ? '' : ' disabled') + '>' + opts + '</select></div>'
     + '</div>'
@@ -3567,48 +3928,57 @@ async function runBonusCalc() {
   }
   const ym = document.getElementById('bcMonth').value;
   const uid = document.getElementById('bcUser').value;
-  const monthEntries = window._bcData.filter(function (e) { return e.ym === ym; });
+  const monthE = window._bcData.filter(function (e) { return e.ym === ym; });
 
   if (uid === 'all') {
     const groups = {};
-    monthEntries.forEach(function (e) { (groups[e.uid || '_'] = groups[e.uid || '_'] || []).push(e); });
+    monthE.forEach(function (e) { (groups[e.uid || '_'] = groups[e.uid || '_'] || []).push(e); });
     const keys = Object.keys(groups);
-    if (!keys.length) { el.innerHTML = '<div class="empty-state" style="padding:24px"><div class="empty-text">' + ym + ' 沒有成交紀錄</div></div>'; return; }
-    const rs = keys.map(function (k) { return { uid: k, name: groups[k][0].uname, r: sumBonus(groups[k]) }; }).sort(function (a, b) { return b.r.total - a.r.total; });
-    let h = '<div style="overflow-x:auto"><table class="data-table"><thead><tr><th>業務</th><th style="text-align:right">標準業績</th><th style="text-align:right">標準抽成</th><th style="text-align:right">客製獎金</th><th style="text-align:right">續約獎金</th><th style="text-align:right">業績獎金</th></tr></thead><tbody>';
-    let grand = 0;
+    if (!keys.length) { el.innerHTML = '<div class="empty-state" style="padding:24px"><div class="empty-text">' + ym + ' 沒有收款或預計收款</div></div>'; return; }
+    const rs = keys.map(function (k) {
+      const g = groups[k];
+      const paidR = sumBonus(g.filter(function (e) { return e.paid; }));
+      const allR = sumBonus(g);
+      return { uid: k, name: g[0].uname, r: paidR, pend: allR.total - paidR.total };
+    }).sort(function (a, b) { return b.r.total - a.r.total; });
+    const R = 'style="text-align:right;font-family:var(--mono)"';
+    let h = '<div style="overflow-x:auto"><table class="data-table"><thead><tr><th>業務</th><th style="text-align:right">入帳標準業績</th><th style="text-align:right">標準抽成</th><th style="text-align:right">客製</th><th style="text-align:right">續約</th><th style="text-align:right">已入帳獎金</th><th style="text-align:right">待收預估</th></tr></thead><tbody>';
+    let grand = 0, gp = 0;
     rs.forEach(function (x) {
-      grand += x.r.total;
+      grand += x.r.total; gp += x.pend;
       h += '<tr style="cursor:pointer" onclick="document.getElementById(\'bcUser\').value=\'' + x.uid + '\';runBonusCalc()"><td style="font-weight:500">' + esc(x.name) + '</td>'
-        + '<td style="text-align:right;font-family:var(--mono)">' + fmtNum(x.r.std) + '</td>'
-        + '<td style="text-align:right;font-family:var(--mono)">' + fmtNum(x.r.tier.total) + '</td>'
-        + '<td style="text-align:right;font-family:var(--mono)">' + fmtNum(x.r.cusB) + '</td>'
-        + '<td style="text-align:right;font-family:var(--mono)">' + fmtNum(x.r.renB) + '</td>'
-        + '<td style="text-align:right;font-family:var(--mono);font-weight:700">' + fmtNum(x.r.total) + '</td></tr>';
+        + '<td ' + R + '>' + fmtNum(x.r.std) + '</td><td ' + R + '>' + fmtNum(x.r.tier.total) + '</td><td ' + R + '>' + fmtNum(x.r.cusB) + '</td><td ' + R + '>' + fmtNum(x.r.renB) + '</td>'
+        + '<td style="text-align:right;font-family:var(--mono);font-weight:700">' + fmtNum(x.r.total) + '</td>'
+        + '<td style="text-align:right;font-family:var(--mono);color:var(--text3)">' + (x.pend ? '+' + fmtNum(x.pend) : '—') + '</td></tr>';
     });
-    h += '<tr style="border-top:2px solid var(--border)"><td style="font-weight:600">合計</td><td colspan="4"></td><td style="text-align:right;font-family:var(--mono);font-weight:700">' + fmtNum(grand) + '</td></tr></tbody></table></div>'
-      + '<div style="font-size:12px;color:var(--text3);margin-top:6px">點一位業務可看明細</div>';
+    h += '<tr style="border-top:2px solid var(--border)"><td style="font-weight:600">合計</td><td colspan="4"></td><td style="text-align:right;font-family:var(--mono);font-weight:700">' + fmtNum(grand) + '</td><td style="text-align:right;font-family:var(--mono);color:var(--text3)">' + (gp ? '+' + fmtNum(gp) : '—') + '</td></tr></tbody></table></div>'
+      + '<div style="font-size:12px;color:var(--text3);margin-top:6px">「待收預估」＝本月預計收款但還沒收到的部分，全部收到後會增加的獎金。點一位業務可看明細。</div>';
     el.innerHTML = h;
     return;
   }
 
-  const mine = monthEntries.filter(function (e) { return e.uid === uid; });
-  const r = sumBonus(mine);
+  const mine = monthE.filter(function (e) { return e.uid === uid; });
+  const paidE = mine.filter(function (e) { return e.paid; });
+  const r = sumBonus(paidE);
+  const allR = sumBonus(mine);
+  const pendAmt = mine.filter(function (e) { return !e.paid && e.type !== 'none'; }).reduce(function (s, e) { return s + e.amt; }, 0);
+  let head = '<div style="font-size:12.5px;color:var(--text2);margin-bottom:6px">✅ 已入帳獎金（' + ym + ' 實際收到的款項）</div>' + bonusBreakdownHtml(r);
+  if (pendAmt) head += '<div style="font-size:12.5px;padding:8px 10px;background:var(--bg3);border-radius:6px;margin-bottom:12px">⏳ 本月還有 <b style="font-family:var(--mono)">$' + fmtNum(pendAmt) + '</b> 預計收款尚未入帳；全部收到後本月獎金約 <b style="font-family:var(--mono)">' + fmtNum(allR.total) + '</b> 元（+' + fmtNum(allR.total - r.total) + '）</div>';
   let det = '';
   if (mine.length) {
-    det = '<div class="form-label" style="margin:4px 0 6px">本月成交明細</div><div style="overflow-x:auto"><table class="data-table"><thead><tr><th>簽約日</th><th>客戶</th><th>類型</th><th>方案</th><th style="text-align:right">金額</th><th>備註</th></tr></thead><tbody>';
-    mine.sort(function (a, b) { return dealDate(a.c).localeCompare(dealDate(b.c)); }).forEach(function (e) {
-      det += '<tr style="cursor:pointer;' + (e.eligible ? '' : 'opacity:0.55') + '" onclick="closeModal();goToAccount(\'' + e.c.account_id + '\')">'
-        + '<td style="font-size:12px">' + dealDate(e.c) + '</td><td>' + esc(e.acc) + '</td><td>' + dealCatBadge(e.c.deal_category) + '</td>'
-        + '<td style="font-size:12px">' + esc(e.c.name || '') + '</td><td style="text-align:right;font-family:var(--mono)">' + fmtNum(e.amt) + '</td>'
-        + '<td style="font-size:11.5px;color:var(--text3)">' + esc(e.reason || '') + '</td></tr>';
+    det = '<div class="form-label" style="margin:4px 0 6px">本月明細</div><div style="overflow-x:auto"><table class="data-table"><thead><tr><th>日期</th><th>客戶</th><th>期別</th><th>類別</th><th style="text-align:right">金額</th><th>狀態</th></tr></thead><tbody>';
+    mine.sort(function (a, b) { return String(a.paid ? a.p.paid_date : a.p.due_date).localeCompare(String(b.paid ? b.p.paid_date : b.p.due_date)); }).forEach(function (e) {
+      det += '<tr style="cursor:pointer;' + (e.type === 'none' ? 'opacity:0.55' : '') + '" onclick="closeModal();goToAccount(\'' + e.c.account_id + '\')">'
+        + '<td style="font-size:12px">' + esc(e.paid ? e.p.paid_date : (e.p.due_date || '')) + '</td><td>' + esc(e.acc) + '</td>'
+        + '<td style="font-size:12px">' + esc(e.p.label || '') + '</td><td>' + bonusTypeBadge(e.type) + '</td>'
+        + '<td style="text-align:right;font-family:var(--mono)">' + fmtNum(e.amt) + '</td>'
+        + '<td style="font-size:11.5px">' + (e.paid ? '<span style="color:var(--green)">已收</span>' : '<span style="color:var(--yellow)">未收</span>') + (e.reason ? ' <span style="color:var(--text3)">' + esc(e.reason) + '</span>' : '') + '</td></tr>';
     });
     det += '</tbody></table></div>';
   } else {
-    det = '<div class="empty-state" style="padding:16px"><div class="empty-text">' + ym + ' 沒有成交紀錄</div></div>';
+    det = '<div class="empty-state" style="padding:16px"><div class="empty-text">' + ym + ' 沒有收款或預計收款</div></div>';
   }
-  el.innerHTML = bonusBreakdownHtml(r) + det;
-  // 試算預填本月實績，方便推算「再簽多少會變多少」
+  el.innerHTML = head + det;
   const t1 = document.getElementById('bcT1'), t2 = document.getElementById('bcT2'), t3 = document.getElementById('bcT3');
   if (t1) { t1.value = r.std || ''; t2.value = r.cus || ''; t3.value = r.ren || ''; renderBonusTrial(); }
 }
@@ -4702,5 +5072,4 @@ db.auth.onAuthStateChange(async (event, session) => {
 <button id="fab" onclick="onFabClick()">＋</button>
 </body>
 </html>
-
 
