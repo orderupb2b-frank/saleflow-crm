@@ -124,6 +124,38 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .modal-body { padding: 18px 20px; }
 .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; align-items: center; }
 .df-sec { margin: 4px 0 14px; }
+.nav-search { margin: 4px 10px 8px; padding: 8px 10px; border:1px solid var(--border); border-radius:8px; font-size:12.5px; color:var(--text3); cursor:pointer; display:flex; align-items:center; gap:6px; background:var(--bg3); }
+.nav-search:hover { border-color:var(--accent); color:var(--text2); }
+.nav-search kbd { margin-left:auto; font-size:10.5px; font-family:var(--mono); background:var(--bg4); border-radius:4px; padding:1px 5px; }
+.td-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+.td-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:14px; align-items:start; }
+.td-card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:14px; }
+.td-card-h { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-weight:600; font-size:13.5px; }
+.td-count { font-size:11px; font-weight:600; background:var(--accent-glow); color:var(--accent); border-radius:10px; padding:1px 8px; }
+.td-count.red { background:var(--red-bg); color:var(--red); }
+.td-row { display:flex; align-items:center; gap:8px; padding:8px 0; border-top:1px solid var(--border); }
+.td-row:first-of-type { border-top:none; }
+.td-main { flex:1; min-width:0; cursor:pointer; }
+.td-title { font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.td-meta { font-size:11.5px; color:var(--text3); margin-top:2px; }
+.td-acts { display:flex; gap:4px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; }
+.td-empty { font-size:12.5px; color:var(--text3); padding:6px 0; }
+.cp-grid { display:grid; grid-template-columns:minmax(0,1.55fr) minmax(0,1fr); gap:14px; align-items:start; }
+.cp-card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:14px; }
+.cp-card-h { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+.cp-card-t { font-weight:600; font-size:13.5px; }
+.cp-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
+.tl-item { display:flex; gap:10px; padding:10px 0; border-top:1px solid var(--border); }
+.tl-item:first-child { border-top:none; }
+.tl-ico { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:14px; }
+.tl-body { flex:1; min-width:0; }
+.tl-title { font-size:12.5px; font-weight:600; }
+.tl-text { font-size:13px; white-space:pre-wrap; margin-top:3px; line-height:1.55; }
+.tl-meta { font-size:11px; color:var(--text3); margin-top:3px; }
+.gs-group { font-size:11px; font-weight:600; color:var(--text3); margin:10px 0 4px; letter-spacing:.04em; }
+.gs-item { padding:8px 10px; border-radius:8px; cursor:pointer; display:flex; gap:8px; align-items:center; }
+.gs-item:hover, .gs-item.on { background:var(--accent-glow); }
+@media (max-width: 900px) { .cp-grid { grid-template-columns: 1fr; } .td-grid { grid-template-columns: 1fr; } }
 .df-sec-h { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
 .df-sec-n { width:20px; height:20px; border-radius:50%; background:var(--accent); color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .df-sec-t { font-size:13px; font-weight:600; flex:1; }
@@ -475,20 +507,27 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
       <div class="logo-icon">⚡</div>
       <div class="logo-text">SaleFlow CRM</div>
     </div>
+    <div class="nav-search" onclick="openGlobalSearch()">🔍 搜尋公司、聯絡人、電話…<kbd>⌘K</kbd></div>
     <nav class="sidebar-nav">
       <div class="nav-section">
-        <div class="nav-label">主要</div>
-        <div class="nav-item active" onclick="navigate('dashboard')" id="nav-dashboard">
-          <span class="nav-icon">📊</span><span class="nav-text">Dashboard</span>
+        <div class="nav-label">工作</div>
+        <div class="nav-item active" onclick="navigate('today')" id="nav-today">
+          <span class="nav-icon">☀️</span><span class="nav-text">今天</span>
         </div>
         <div class="nav-item" onclick="navigate('leads')" id="nav-leads">
-          <span class="nav-icon">🎯</span><span class="nav-text">Leads 看板</span>
+          <span class="nav-icon">🏢</span><span class="nav-text">公司</span>
         </div>
         <div class="nav-item" onclick="navigate('quotes')" id="nav-quotes">
-          <span class="nav-icon">🧾</span><span class="nav-text">報價單</span>
+          <span class="nav-icon">🧾</span><span class="nav-text">報價</span>
         </div>
-        <div class="nav-item" onclick="navigate('accounts')" id="nav-accounts">
-          <span class="nav-icon">🏢</span><span class="nav-text">客戶 Accounts</span>
+        <div class="nav-item" onclick="navigate('performance')" id="nav-performance">
+          <span class="nav-icon">💰</span><span class="nav-text">業績</span>
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">其他</div>
+        <div class="nav-item" onclick="navigate('dashboard')" id="nav-dashboard">
+          <span class="nav-icon">📊</span><span class="nav-text">Dashboard</span>
         </div>
         <div class="nav-item" onclick="navigate('contacts')" id="nav-contacts">
           <span class="nav-icon">👥</span><span class="nav-text">聯絡人</span>
@@ -518,7 +557,8 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
   <!-- Main -->
   <div id="main">
     <div id="topbar">
-      <div class="topbar-title" id="topbarTitle">Dashboard</div>
+      <div class="topbar-title" id="topbarTitle">今天</div>
+      <button class="btn btn-ghost btn-sm" onclick="openGlobalSearch()" title="搜尋（⌘K）" style="margin-left:auto">🔍</button>
       <div id="topbarActions"></div>
     </div>
     <div id="content"></div>
@@ -540,11 +580,11 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
     <div class="drawer-tab" onclick="switchDrawerTab('quotes',this)">報價</div>
   </div>
   <div class="drawer-body">
-    <div class="drawer-panel active" id="drawerPanel-info"></div>
-    <div class="drawer-panel" id="drawerPanel-contacts"></div>
-    <div class="drawer-panel" id="drawerPanel-activities"></div>
-    <div class="drawer-panel" id="drawerPanel-notes"></div>
-    <div class="drawer-panel" id="drawerPanel-quotes"></div>
+    <div class="drawer-panel active" id="legacyPanel-info"></div>
+    <div class="drawer-panel" id="legacyPanel-contacts"></div>
+    <div class="drawer-panel" id="legacyPanel-activities"></div>
+    <div class="drawer-panel" id="legacyPanel-notes"></div>
+    <div class="drawer-panel" id="legacyPanel-quotes"></div>
   </div>
 </div>
 
@@ -712,10 +752,9 @@ async function bootApp() {
   // 若網址帶有 #lead=xxx，登入後直接開啟該 Lead
   const hashLead = location.hash.match(/^#lead=([0-9a-fA-F\-]+)/);
   if (hashLead) {
-    navigate('leads');
-    setTimeout(() => openLeadDrawer(hashLead[1]), 400);
+    openCompany(hashLead[1]);
   } else {
-    navigate('dashboard');
+    navigate('today');
   }
 }
 
@@ -766,20 +805,28 @@ function navigate(page) {
   currentPage = page;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.bnav-item').forEach(n => n.classList.remove('active'));
-  const nav = document.getElementById('nav-' + page);
+  const key = ({ accounts: 'leads', company: 'leads' })[page] || page;
+  const nav = document.getElementById('nav-' + key);
   if (nav) nav.classList.add('active');
-  const bnav = document.getElementById('bnav-' + page);
+  const bkey = ['today', 'leads', 'quotes', 'performance'].includes(key) ? key : 'more';
+  const bnav = document.getElementById('bnav-' + bkey);
   if (bnav) bnav.classList.add('active');
   document.getElementById('topbarTitle').textContent = {
-    dashboard: 'Dashboard', leads: 'Leads', quotes: '報價單', accounts: '客戶', contacts: '聯絡人', settings: '設定', feed: '動態總覽'
+    today: '今天', dashboard: 'Dashboard', leads: '公司', quotes: '報價單', accounts: '公司', performance: '業績',
+    contacts: '聯絡人', settings: '設定', feed: '動態總覽'
   }[page] || page;
   document.getElementById('topbarActions').innerHTML = '';
   closeDrawer();
   renderPage(page);
 }
+function openMoreMenu() {
+  const b = function (pg, ico, label) { return '<button class="btn btn-secondary" style="justify-content:flex-start;width:100%;margin-bottom:8px" onclick="closeModal();navigate(\'' + pg + '\')">' + ico + '　' + label + '</button>'; };
+  openModal('更多', b('dashboard', '📊', 'Dashboard') + b('accounts', '🏢', '成交客戶列表') + b('contacts', '👥', '聯絡人') + b('feed', '📰', '動態總覽') + b('settings', '⚙️', '設定'), [{ label: '關閉', cls: 'btn-secondary', action: closeModal }]);
+}
 
 function onFabClick() {
-  if (currentPage === 'leads') openNewLeadModal();
+  if (currentPage === 'company' && currentLeadId) openAddActivity(currentLeadId);
+  else if (currentPage === 'leads' || currentPage === 'today') openNewLeadModal();
   else if (currentPage === 'accounts') openNewAccountModal();
   else if (currentPage === 'quotes') saveCurrentQuote();
   else navigate('leads');
@@ -790,6 +837,8 @@ async function renderPage(page) {
   content.classList.toggle('quote-mode', page === 'quotes');
   content.innerHTML = '<div class="loading"><span class="dot-pulse">載入中</span></div>';
   switch(page) {
+    case 'today': await renderToday(); break;
+    case 'performance': await renderPerformance(); break;
     case 'dashboard': await renderDashboard(); break;
     case 'leads': await renderLeads(); break;
     case 'quotes': await renderQuotes(); break;
@@ -800,6 +849,278 @@ async function renderPage(page) {
   }
 }
 
+// ── 今天 ──
+let todayUser = null;
+function daysSince(iso) { if (!iso) return 9999; return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000); }
+async function snoozeLead(leadId, days) {
+  const d = addDaysStr(nowDateStr(), days);
+  await db.from('leads').update({ next_contact_date: d, updated_at: new Date().toISOString() }).eq('id', leadId);
+  const l = leadsData.find(x => x.id === leadId); if (l) l.next_contact_date = d;
+  toast('已延後到 ' + d, 'success');
+  refreshCurrentView(leadId);
+}
+function tdSection(icon, title, rows, emptyText, red) {
+  return '<div class="td-card"><div class="td-card-h">' + icon + ' ' + title + (rows.length ? ' <span class="td-count' + (red ? ' red' : '') + '">' + rows.length + '</span>' : '') + '</div>'
+    + (rows.length ? rows.slice(0, 12).join('') + (rows.length > 12 ? '<div class="td-empty">還有 ' + (rows.length - 12) + ' 筆…</div>' : '') : '<div class="td-empty">✓ ' + emptyText + '</div>') + '</div>';
+}
+function tdRow(onclick, title, meta, acts) {
+  return '<div class="td-row"><div class="td-main" onclick="' + onclick + '"><div class="td-title">' + title + '</div><div class="td-meta">' + meta + '</div></div><div class="td-acts">' + acts + '</div></div>';
+}
+async function renderToday() {
+  const content = document.getElementById('content');
+  if (!usersData.length || !stagesData.length) await loadGlobalData();
+  if (todayUser === null) todayUser = window.isAdmin ? 'all' : currentUser.id;
+  const [ldR, accR, ctR, actR, qR] = await Promise.all([
+    db.from('leads').select('id,name,company,stage_id,user_id,user_name,next_contact_date,created_at,updated_at'),
+    db.from('accounts').select('id,name,lead_id,user_id,status'),
+    db.from('contracts').select('*'),
+    db.from('activities').select('lead_id,created_at'),
+    db.from('notes').select('id,lead_id,created_at,content,quote_status').eq('quote_status', 'sent')
+  ]);
+  if (currentPage !== 'today') return;
+  const leads = ldR.data || [], accs = accR.data || [], cts = ctR.data || [], acts = actR.data || [], qs = qR.data || [];
+  const leadMap = {}; leads.forEach(function (l) { leadMap[l.id] = l; });
+  const accMap = {}; accs.forEach(function (a) { accMap[a.id] = a; });
+  accountsData = accs.concat(accountsData.filter(function (a) { return !accMap[a.id]; }));
+  convertedLeadIds = new Set(accs.filter(a => a.lead_id).map(a => a.lead_id));
+  const mine = function (uid) { return todayUser === 'all' || uid === todayUser; };
+  const today = nowDateStr();
+  const Q = function (s) { return String(s).replace(/'/g, ''); };
+  const go = function (id) { return "openCompany('" + Q(id) + "')"; };
+  const logBtn = function (id) { return '<button class="btn btn-primary btn-sm" onclick="openAddActivity(\'' + Q(id) + '\')">📝 記錄</button>'; };
+
+  // ① 要聯絡
+  const contact = leads.filter(function (l) { return l.next_contact_date && String(l.next_contact_date).slice(0, 10) <= today && mine(l.user_id); })
+    .sort(function (a, b) { return String(a.next_contact_date).localeCompare(String(b.next_contact_date)); });
+  const rowsA = contact.map(function (l) {
+    const d = -daysUntil(String(l.next_contact_date).slice(0, 10));
+    return tdRow(go(l.id), esc(l.name) + (convertedLeadIds.has(l.id) ? ' <span class="badge badge-green" style="font-size:10px">客戶</span>' : ''),
+      (d > 0 ? '<span style="color:var(--red)">逾期 ' + d + ' 天</span>' : '今天') + '・' + esc(getStageName(l.stage_id) || '') + (todayUser === 'all' ? '・' + esc(l.user_name || '未指派') : ''),
+      logBtn(l.id) + '<button class="btn btn-ghost btn-sm" onclick="snoozeLead(\'' + l.id + '\',1)" title="延到明天">+1天</button><button class="btn btn-ghost btn-sm" onclick="snoozeLead(\'' + l.id + '\',7)" title="延一週">+1週</button>');
+  });
+  // ② 待收款（逾期與 7 天內）
+  const pay = [];
+  cts.forEach(function (c) {
+    if (!mine(c.sales_user_id || c.user_id)) return;
+    dealInstallments(c).forEach(function (p, i) {
+      if (p.paid_date) return;
+      const d = daysUntil(p.due_date || dealDate(c));
+      if (d != null && d <= 7) pay.push({ c: c, p: p, i: i, d: d });
+    });
+  });
+  pay.sort(function (a, b) { return a.d - b.d; });
+  const rowsB = pay.map(function (r) {
+    const a = accMap[r.c.account_id] || {};
+    return tdRow("goToAccount('" + r.c.account_id + "')", esc(a.name || '') + '・' + esc(r.p.label || ''),
+      '<span style="font-family:var(--mono)">$' + fmtNum(r.p.amount) + '</span>・' + (r.d < 0 ? '<span style="color:var(--red)">逾期 ' + (-r.d) + ' 天</span>' : r.d === 0 ? '今天到期' : r.d + ' 天後到期'),
+      window.isAdmin ? '<button class="btn btn-primary btn-sm" onclick="confirmPayment(\'' + r.c.id + '\',' + r.i + ',null)">確認收款</button>' : '');
+  });
+  // ③ 即將續約（每個客戶取最近一筆）
+  const renBy = {};
+  cts.forEach(function (c) {
+    if (!c.end_date || !mine(c.sales_user_id || c.user_id)) return;
+    const a = accMap[c.account_id]; if (a && a.status === 'terminated') return;
+    const d = daysUntil(c.end_date);
+    if (d < 0 || d > (c.remind_days != null ? c.remind_days : 30)) return;
+    if (!renBy[c.account_id] || renBy[c.account_id].d > d) renBy[c.account_id] = { c: c, d: d };
+  });
+  const rowsC = Object.values(renBy).sort(function (a, b) { return a.d - b.d; }).map(function (r) {
+    const a = accMap[r.c.account_id] || {};
+    return tdRow("goToAccount('" + r.c.account_id + "')", esc(a.name || ''), '續約日 ' + r.c.end_date + '・<span style="color:' + (r.d <= 7 ? 'var(--red)' : 'var(--yellow)') + '">剩 ' + r.d + ' 天</span>',
+      a.lead_id ? '<button class="btn btn-secondary btn-sm" onclick="openQuoteForLead(\'' + a.lead_id + '\')">🧾 續約報價</button>' : '');
+  });
+  // ④ 報價送出後沒回音（≥7 天、未成交）
+  const won = new Set(cts.map(function (c) { return String(c.quote_note_id || ''); }));
+  const rowsD = qs.filter(function (n) { return !won.has(String(n.id)) && leadMap[n.lead_id] && mine(leadMap[n.lead_id].user_id) && daysSince(n.created_at) >= 7; })
+    .sort(function (a, b) { return new Date(a.created_at) - new Date(b.created_at); })
+    .map(function (n) {
+      const l = leadMap[n.lead_id], rec = parseQuoteNote(n) || {}, sm = rec.summary || {};
+      return tdRow(go(l.id), esc(l.name), esc(sm.quoteNo || '報價') + '・$' + fmtNum(sm.subtotal || 0) + '・已 ' + daysSince(n.created_at) + ' 天',
+        logBtn(l.id) + '<button class="btn btn-ghost btn-sm" onclick="setQuoteStatus(\'' + n.id + '\',\'void\',\'' + l.id + '\')" title="標為作廢">作廢</button>');
+    });
+  // ⑤ 冷線索（開發中、沒排下次聯絡、30 天沒活動）
+  const last = {};
+  acts.forEach(function (a) { if (!last[a.lead_id] || a.created_at > last[a.lead_id]) last[a.lead_id] = a.created_at; });
+  const cold = leads.filter(function (l) {
+    return !convertedLeadIds.has(l.id) && mine(l.user_id) && !l.next_contact_date && ['暫停', '結案', '簽約進件'].indexOf(getStageName(l.stage_id)) < 0;
+  }).map(function (l) { return { l: l, last: last[l.id] || l.created_at }; })
+    .filter(function (x) { return daysSince(x.last) >= 30; })
+    .sort(function (a, b) { return new Date(a.last) - new Date(b.last); });
+  const rowsE = cold.map(function (x) {
+    return tdRow(go(x.l.id), esc(x.l.name), esc(getStageName(x.l.stage_id) || '') + '・' + (last[x.l.id] ? daysSince(x.last) + ' 天沒動靜' : '建立後沒有任何紀錄') + (todayUser === 'all' ? '・' + esc(x.l.user_name || '未指派') : ''),
+      logBtn(x.l.id) + '<button class="btn btn-ghost btn-sm" onclick="openSetNextContact(\'' + x.l.id + '\',\'\')">📅 排聯絡</button>');
+  });
+
+  const me = userNameById(currentUser.id, currentUser.user_metadata?.full_name || '');
+  const h = new Date().getHours();
+  const hi = h < 11 ? '早安' : h < 18 ? '午安' : '晚安';
+  const total = rowsA.length + rowsB.length + rowsC.length + rowsD.length;
+  let userSel = '';
+  if (window.isAdmin) {
+    userSel = '<select class="form-select" style="width:auto;height:32px;font-size:13px" onchange="todayUser=this.value;renderToday()"><option value="all"' + (todayUser === 'all' ? ' selected' : '') + '>全部業務</option>'
+      + usersData.map(function (u) { return '<option value="' + u.id + '"' + (u.id === todayUser ? ' selected' : '') + '>' + esc(u.full_name || u.email || '') + '</option>'; }).join('') + '</select>';
+  }
+  document.getElementById('topbarActions').innerHTML = '<div class="action-bar">' + userSel + '<button class="btn btn-primary btn-sm" onclick="openNewLeadModal()">＋ 新線索</button></div>';
+  content.innerHTML = '<div class="td-head"><div><div style="font-size:18px;font-weight:700">' + hi + (me ? '，' + esc(me) : '') + '</div>'
+    + '<div style="font-size:13px;color:var(--text3);margin-top:2px">' + (total ? '今天有 <b style="color:var(--text)">' + total + '</b> 件事要處理' : '今天的待辦都清空了 🎉') + (rowsE.length ? '，另有 ' + rowsE.length + ' 個冷掉的線索' : '') + '</div></div></div>'
+    + '<div class="td-grid">'
+    +   tdSection('📞', '要聯絡', rowsA, '今天沒有待聯絡的公司', rowsA.some(function (r) { return r.indexOf('逾期') >= 0; }))
+    +   tdSection('💵', '待收款', rowsB, '沒有逾期或 7 天內到期的款項', pay.some(function (r) { return r.d < 0; }))
+    +   tdSection('🔄', '即將續約', rowsC, '近期沒有要續約的客戶')
+    +   tdSection('🧾', '報價沒回音（7 天以上）', rowsD, '送出的報價都有進展')
+    +   tdSection('🧊', '冷線索（30 天沒動靜）', rowsE, '沒有冷掉的線索')
+    + '</div>';
+}
+
+// ── 全域搜尋 ──
+let _gsTimer = null, _gsResults = [], _gsSel = 0;
+function openGlobalSearch() {
+  openModal('🔍 搜尋', '<input class="form-input" id="gsInput" placeholder="公司、聯絡人、電話、Email、統編…" autocomplete="off" oninput="gsQueue()" onkeydown="gsKey(event)">'
+    + '<div id="gsResults" style="margin-top:8px;max-height:60vh;overflow:auto"><div class="td-empty">輸入至少 1 個字開始搜尋。快捷鍵：⌘K / Ctrl+K</div></div>', []);
+  document.getElementById('modalFooter').style.display = 'none';
+  setTimeout(function () { const i = document.getElementById('gsInput'); if (i) i.focus(); }, 30);
+}
+function gsQueue() { clearTimeout(_gsTimer); _gsTimer = setTimeout(runGlobalSearch, 220); }
+function gsKey(e) {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (!_gsResults.length) return;
+    _gsSel = (_gsSel + (e.key === 'ArrowDown' ? 1 : -1) + _gsResults.length) % _gsResults.length;
+    document.querySelectorAll('.gs-item').forEach(function (el, i) { el.classList.toggle('on', i === _gsSel); });
+  } else if (e.key === 'Enter') { e.preventDefault(); if (_gsResults[_gsSel]) gsOpen(_gsSel); }
+}
+function gsOpen(i) {
+  const r = _gsResults[i]; if (!r) return;
+  closeModal();
+  if (r.leadId) openCompany(r.leadId); else if (r.accId) openAccountDetail(r.accId);
+}
+async function runGlobalSearch() {
+  const el = document.getElementById('gsResults'); if (!el) return;
+  const q = (document.getElementById('gsInput')?.value || '').trim().replace(/[,()*'"\\%]/g, ' ').trim();
+  if (!q) { el.innerHTML = '<div class="td-empty">輸入至少 1 個字開始搜尋。</div>'; _gsResults = []; return; }
+  const p = '*' + q + '*';
+  const [lR, cR, aR] = await Promise.all([
+    db.from('leads').select('id,name,company,tax_id,user_name,stage_id').or('name.ilike.' + p + ',company.ilike.' + p + ',tax_id.ilike.' + p).limit(10),
+    db.from('contacts').select('id,name,role,phone,email,line_id,lead_id').or('name.ilike.' + p + ',phone.ilike.' + p + ',email.ilike.' + p + ',line_id.ilike.' + p).limit(10),
+    db.from('accounts').select('id,name,company,lead_id').is('lead_id', null).or('name.ilike.' + p + ',company.ilike.' + p).limit(5)
+  ]);
+  if ((document.getElementById('gsInput')?.value || '').trim().replace(/[,()*'"\\%]/g, ' ').trim() !== q) return;
+  const leads = lR.data || [], contacts = cR.data || [], accs = aR.data || [];
+  const needIds = contacts.map(c => c.lead_id).filter(id => id && !leads.some(l => l.id === id));
+  let extra = [];
+  if (needIds.length) extra = (await db.from('leads').select('id,name').in('id', needIds)).data || [];
+  const nameOf = function (id) { const l = leads.concat(extra).find(x => x.id === id); return l ? l.name : ''; };
+  _gsResults = []; _gsSel = 0;
+  let h = '';
+  const item = function (ico, title, sub) {
+    const i = _gsResults.length - 1;
+    return '<div class="gs-item' + (i === 0 ? ' on' : '') + '" onclick="gsOpen(' + i + ')"><div style="font-size:16px">' + ico + '</div><div style="min-width:0"><div style="font-size:13px;font-weight:500">' + title + '</div><div style="font-size:11.5px;color:var(--text3)">' + sub + '</div></div></div>';
+  };
+  if (leads.length) {
+    h += '<div class="gs-group">公司</div>';
+    leads.forEach(function (l) {
+      _gsResults.push({ leadId: l.id });
+      h += item('🏢', esc(l.name) + (convertedLeadIds.has(l.id) ? ' <span class="badge badge-green" style="font-size:10px">客戶</span>' : ''), [esc(getStageName(l.stage_id) || ''), l.tax_id ? esc(l.tax_id) : '', esc(l.user_name || '')].filter(Boolean).join('・'));
+    });
+  }
+  if (contacts.length) {
+    h += '<div class="gs-group">聯絡人</div>';
+    contacts.forEach(function (c) {
+      _gsResults.push({ leadId: c.lead_id });
+      h += item('👤', esc(c.name) + (c.role ? ' <span style="color:var(--text3);font-weight:400">' + esc(c.role) + '</span>' : ''), [esc(nameOf(c.lead_id)), esc(c.phone || ''), esc(c.email || '')].filter(Boolean).join('・'));
+    });
+  }
+  if (accs.length) {
+    h += '<div class="gs-group">客戶（無線索）</div>';
+    accs.forEach(function (a) { _gsResults.push({ accId: a.id }); h += item('🏢', esc(a.name), esc(a.company || '')); });
+  }
+  el.innerHTML = h || '<div class="td-empty">找不到「' + esc(q) + '」</div>';
+}
+document.addEventListener('keydown', function (e) {
+  if (!currentUser) return;
+  if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); openGlobalSearch(); }
+});
+
+// ── 業績頁 ──
+let perfTab = 'bonus';
+async function renderPerformance() {
+  if (!usersData.length) await loadGlobalData();
+  const tab = function (k, label) { return '<button class="view-toggle-btn' + (perfTab === k ? ' active' : '') + '" onclick="perfTab=\'' + k + '\';renderPerformance()">' + label + '</button>'; };
+  document.getElementById('topbarActions').innerHTML = '<div class="action-bar"><div class="view-toggle">' + tab('bonus', '💰 業績獎金') + tab('deals', '📊 成交統計') + tab('lost', '📉 流失分析') + '</div></div>';
+  const content = document.getElementById('content');
+  const t = new Date();
+  const ym = t.getFullYear() + '-' + _pad2(t.getMonth() + 1);
+  const wrap = function (h) { return '<div class="cp-card" style="max-width:980px">' + h + '</div>'; };
+  if (perfTab === 'bonus') {
+    let opts = '';
+    if (window.isAdmin) {
+      opts += '<option value="all">全部業務（總覽）</option>';
+      usersData.forEach(function (u) { opts += '<option value="' + u.id + '">' + esc(u.full_name || u.email || '') + '</option>'; });
+    } else {
+      opts = '<option value="' + currentUser.id + '">' + esc(userNameById(currentUser.id, currentUser.user_metadata?.full_name || currentUser.email)) + '</option>';
+    }
+    content.innerHTML = wrap(''
+      + '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">'
+      +   '<button class="btn btn-ghost btn-sm" onclick="shiftBonusMonth(-1)">‹</button>'
+      +   '<div class="form-group" style="margin:0"><label class="form-label">月份（依實收日）</label><input class="form-input" id="bcMonth" type="month" value="' + ym + '" onchange="runBonusCalc()"></div>'
+      +   '<button class="btn btn-ghost btn-sm" onclick="shiftBonusMonth(1)">›</button>'
+      +   '<div class="form-group" style="margin:0"><label class="form-label">業務</label><select class="form-select" id="bcUser" onchange="runBonusCalc()"' + (window.isAdmin ? '' : ' disabled') + '>' + opts + '</select></div>'
+      + '</div>'
+      + '<div id="bcResult"><div class="loading"><span class="dot-pulse">載入中</span></div></div>'
+      + '<details style="margin-top:14px;border-top:1px solid var(--border);padding-top:10px"><summary style="cursor:pointer;font-size:13px;font-weight:600">🧮 試算：自己輸入金額看獎金</summary>'
+      +   '<div class="form-row" style="margin-top:10px">'
+      +     '<div class="form-group"><label class="form-label">標準業績</label><input class="form-input" id="bcT1" type="number" min="0" placeholder="0" oninput="renderBonusTrial()"></div>'
+      +     '<div class="form-group"><label class="form-label">客製案件</label><input class="form-input" id="bcT2" type="number" min="0" placeholder="0" oninput="renderBonusTrial()"></div>'
+      +     '<div class="form-group"><label class="form-label">首次續約（軟體）</label><input class="form-input" id="bcT3" type="number" min="0" placeholder="0" oninput="renderBonusTrial()"></div>'
+      +   '</div><div id="bcTrial"></div></details>'
+      + '<div style="font-size:11px;color:var(--text3);margin-top:12px;line-height:1.6">僅計算業績獎金，不含底薪與 KPI 績效獎金。實際發放以公司核定為準。</div>');
+    window._bcData = null;
+    renderBonusTrial();
+    runBonusCalc();
+  } else if (perfTab === 'deals') {
+    content.innerHTML = wrap(''
+      + '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">'
+      +   '<div class="form-group" style="margin:0"><label class="form-label">起（依簽約日）</label><input class="form-input" id="srFrom" type="month" value="' + ym + '"></div>'
+      +   '<div class="form-group" style="margin:0"><label class="form-label">迄</label><input class="form-input" id="srTo" type="month" value="' + ym + '"></div>'
+      +   '<button class="btn btn-primary btn-sm" onclick="runSalesReport()">查詢</button>'
+      +   '<button class="btn btn-ghost btn-sm" onclick="setSalesReportRange(\'lastmonth\')">上月</button>'
+      +   '<button class="btn btn-ghost btn-sm" onclick="setSalesReportRange(\'quarter\')">本季</button>'
+      +   '<button class="btn btn-ghost btn-sm" onclick="setSalesReportRange(\'year\')">今年</button>'
+      +   '<button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="exportSalesReport()">📤 匯出 Excel</button>'
+      + '</div><div id="srResult"><div class="loading"><span class="dot-pulse">載入中</span></div></div>');
+    runSalesReport();
+  } else {
+    content.innerHTML = wrap(''
+      + '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">'
+      +   '<div class="form-group" style="margin:0"><label class="form-label">期間（依結案時間）</label><select class="form-select" id="lostRange" onchange="runLostReport()"><option value="90">近 90 天</option><option value="year">今年</option><option value="all">全部</option></select></div>'
+      + '</div><div id="lostResult"><div class="loading"><span class="dot-pulse">載入中</span></div></div>');
+    runLostReport();
+  }
+}
+async function runLostReport() {
+  const el = document.getElementById('lostResult'); if (!el) return;
+  const rg = document.getElementById('lostRange').value;
+  let qy = db.from('leads').select('id,name,user_id,user_name,lost_reason,lost_at').not('lost_reason', 'is', null);
+  if (rg === '90') qy = qy.gte('lost_at', new Date(Date.now() - 90 * 86400000).toISOString());
+  else if (rg === 'year') qy = qy.gte('lost_at', new Date(new Date().getFullYear(), 0, 1).toISOString());
+  const { data, error } = await qy.order('lost_at', { ascending: false });
+  if (error) { el.innerHTML = '<div style="color:var(--red);font-size:13px">讀取失敗：' + esc(error.message) + '（需要先執行 v4 SQL）</div>'; return; }
+  let rows = data || [];
+  if (!window.isAdmin) rows = rows.filter(function (r) { return r.user_id === currentUser.id; });
+  if (!rows.length) { el.innerHTML = '<div class="empty-state" style="padding:24px"><div class="empty-text">這段期間沒有記錄結案原因的線索</div></div>'; return; }
+  const cnt = {};
+  rows.forEach(function (r) { const k = String(r.lost_reason).split('：')[0]; cnt[k] = (cnt[k] || 0) + 1; });
+  const max = Math.max.apply(null, Object.values(cnt));
+  let h = '<div style="margin-bottom:16px">';
+  Object.keys(cnt).sort(function (a, b) { return cnt[b] - cnt[a]; }).forEach(function (k) {
+    h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><div style="width:84px;font-size:12.5px">' + esc(k) + '</div>'
+      + '<div style="flex:1;height:16px;background:var(--bg4);border-radius:4px;overflow:hidden"><div style="height:100%;width:' + Math.round(cnt[k] / max * 100) + '%;background:var(--red);opacity:.7"></div></div>'
+      + '<div style="width:70px;text-align:right;font-size:12.5px;font-family:var(--mono)">' + cnt[k] + '（' + Math.round(cnt[k] / rows.length * 100) + '%）</div></div>';
+  });
+  h += '</div><div class="form-label" style="margin-bottom:6px">明細（' + rows.length + ' 筆）</div><div style="overflow-x:auto"><table class="data-table"><thead><tr><th>公司</th><th>原因</th><th>業務</th><th>結案日</th></tr></thead><tbody>';
+  rows.forEach(function (r) { h += '<tr style="cursor:pointer" onclick="openCompany(\'' + r.id + '\')"><td>' + esc(r.name) + '</td><td style="font-size:12.5px">' + esc(r.lost_reason) + '</td><td style="font-size:12px">' + esc(r.user_name || '') + '</td><td style="font-size:12px">' + fmtDate(r.lost_at) + '</td></tr>'; });
+  el.innerHTML = h + '</tbody></table></div>';
+}
 // ── DASHBOARD ──
 async function renderDashboard() {
   const [leadsRes, accsRes, contractsRes, activitiesRes] = await Promise.all([
@@ -1060,8 +1381,13 @@ async function renderLeads() {
     seenIds.add(l.user_id);
   });
 
+  if (currentPage !== 'leads') return;
   document.getElementById('topbarActions').innerHTML = `
     <div class="action-bar">
+      <div class="view-toggle">
+        <button class="view-toggle-btn active">開發中</button>
+        <button class="view-toggle-btn" onclick="navigate('accounts')">成交客戶</button>
+      </div>
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
         <input class="form-input search-input" id="leadSearch" placeholder="搜尋..." style="width:150px" oninput="filterLeads()">
@@ -1086,6 +1412,7 @@ async function renderLeads() {
 }
 
 function renderKanban(searchStr = '') {
+  if (currentPage !== 'leads') return;
   const content = document.getElementById('content');
   content.style.padding = '16px';
   content.style.overflowX = 'auto';
@@ -1259,6 +1586,7 @@ function createKanbanCard(lead) {
         lead.stage_id = tgtStage;
         await db.from('leads').update({ stage_id: tgtStage, updated_at: new Date().toISOString() }).eq('id', dragSrcId);
         toast('已移至「' + (stagesData.find(s=>s.id===tgtStage)?.name||'') + '」', 'success');
+        afterStageChanged(lead.id, tgtStage);
         dragSrcId = null; dragSrcEl = null;
         renderKanban(document.getElementById('leadSearch')?.value || '');
         return;
@@ -1312,6 +1640,7 @@ function buildSelectHtml(opts, currentVal, onchangeFn) {
 }
 
 function renderLeadsList(searchStr) {
+  if (currentPage !== 'leads') return;
   if (searchStr === undefined) searchStr = '';
   const content = document.getElementById('content');
   content.style.padding = '16px';
@@ -1437,6 +1766,7 @@ async function inlineUpdateLead(leadId, field, value) {
   await db.from('leads').update(update).eq('id', leadId);
   const lead = leadsData.find(l => l.id === leadId);
   if (lead) lead[field] = value || null;
+  if (field === 'stage_id' && value) afterStageChanged(leadId, value);
 }
 async function batchUpdateField(field, selectId) {
   const val = document.getElementById(selectId)?.value;
@@ -1483,6 +1813,7 @@ async function updateLeadStage(lead, stageId) {
   await db.from('leads').update({ stage_id: stageId, updated_at: new Date().toISOString() }).eq('id', lead.id);
   lead.stage_id = stageId;
   toast(`已移至「${stagesData.find(s=>s.id===stageId)?.name}」`, 'success');
+  if (getStageName(stageId) === '結案') setTimeout(function () { askLostReason(lead.id); }, 300);
 }
 
 async function convertToAccount(lead) {
@@ -1930,7 +2261,10 @@ async function doConvertLead(lead, withDeal) {
   } finally { _dealBusy = false; }
 }
 
-function goToAccount(accId) {
+async function goToAccount(accId) {
+  let acc = accountsData.find(a => a.id === accId);
+  if (!acc) { const r = await db.from('accounts').select('id,lead_id').eq('id', accId).maybeSingle(); acc = r.data; }
+  if (acc && acc.lead_id) { openCompany(acc.lead_id); return; }
   _pendingAccountId = accId;
   navigate('accounts');
 }
@@ -1940,13 +2274,52 @@ async function openAccountByLead(leadId) {
   goToAccount(acc.id);
 }
 
+const LOST_REASONS = ['價格太高', '選擇競品', '需求不符', '沒有預算', '時機未到', '聯絡不上', '其他'];
+function askLostReason(leadId) {
+  let chips = '';
+  LOST_REASONS.forEach(function (r) { chips += '<button type="button" class="df-chip" onclick="document.getElementById(\'lrVal\').value=\'' + r + '\';this.parentElement.querySelectorAll(\'.df-chip\').forEach(function(b){b.classList.remove(\'on\')});this.classList.add(\'on\')">' + r + '</button>'; });
+  openModal('📉 為什麼結案？', ''
+    + '<div style="font-size:12.5px;color:var(--text3);margin-bottom:10px">記下原因，累積起來就能知道常輸在哪裡（業績頁 → 流失分析）。</div>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' + chips + '</div><input type="hidden" id="lrVal">'
+    + '<textarea class="form-textarea" id="lrNote" placeholder="補充說明（選填，例如：選了哪家競品、報價差多少）" style="min-height:70px"></textarea>', [
+    { label: '略過', cls: 'btn-secondary', action: closeModal },
+    { label: '儲存', cls: 'btn-primary', action: async function () {
+      const r = document.getElementById('lrVal').value;
+      if (!r) { toast('請選一個原因', 'error'); return; }
+      const note = document.getElementById('lrNote').value.trim();
+      const full = r + (note ? '：' + note : '');
+      const { error } = await db.from('leads').update({ lost_reason: full, lost_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', leadId);
+      if (error) { toast('儲存失敗：' + error.message + '（是否已執行 v4 SQL？）', 'error'); return; }
+      await db.from('activities').insert({ type: 'note', content: '【結案】' + full, lead_id: leadId, user_id: currentUser.id, created_at: new Date().toISOString() });
+      closeModal(); toast('已記錄結案原因', 'success');
+      refreshCurrentView(leadId);
+    }}
+  ]);
+}
+
+// 新增線索時，公司名稱相似就提醒
+let _dupTimer = null;
+function normCoName(s) { return String(s || '').replace(/股份有限公司|有限公司|企業社|工作室|商行|實業|公司|\(股\)|（股）|\s/g, '').toLowerCase(); }
+function checkNameDuplicate() {
+  clearTimeout(_dupTimer);
+  _dupTimer = setTimeout(async function () {
+    const el = document.getElementById('lNameHint'); if (!el) return;
+    const core = normCoName(document.getElementById('lName')?.value || '');
+    if (core.length < 2) { el.innerHTML = ''; return; }
+    const { data } = await db.from('leads').select('id,name,user_name').ilike('name', '%' + core.slice(0, 10) + '%').limit(5);
+    const hits = (data || []).filter(function (l) { const n = normCoName(l.name); return n.indexOf(core) >= 0 || core.indexOf(n) >= 0; });
+    el.innerHTML = hits.length
+      ? '<span style="color:var(--yellow)">⚠️ 可能重複：' + hits.map(function (l) { return esc(l.name) + (l.user_name ? '（' + esc(l.user_name) + '）' : ''); }).join('、') + '</span>'
+      : '';
+  }, 350);
+}
 // ── LEAD MODAL ──
 function openNewLeadModal(stageId = null) {
   const defaultStage = stageId || stagesData[0]?.id || '';
   const myName = window.userProfile?.full_name || currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '';
   openModal('新增 Lead', `
     <div class="form-row">
-      <div class="form-group"><label class="form-label">公司名稱 *</label><input class="form-input" id="lName" placeholder="公司名稱"></div>
+      <div class="form-group"><label class="form-label">公司名稱 *</label><input class="form-input" id="lName" placeholder="公司名稱" oninput="checkNameDuplicate()"><div id="lNameHint" style="font-size:11px;margin-top:3px;min-height:14px"></div></div>
       <div class="form-group"><label class="form-label">統一編號</label><input class="form-input" id="lTaxId" placeholder="8碼數字（選填）" maxlength="8" oninput="this.value=this.value.replace(/[^0-9]/g,'')"><div id="lTaxIdHint" style="font-size:11px;margin-top:3px;min-height:14px"></div></div>
     </div>
     <div class="form-row">
@@ -2112,25 +2485,253 @@ async function saveLead() {
 
 
 // ── LEAD DRAWER ──
-async function openLeadDrawer(leadId) {
+async function openLeadDrawer(leadId) { return openCompany(leadId); }
+
+let _cpBack = 'leads';
+let _cpFilter = 'all';
+async function openCompany(leadId) {
+  if (!leadId) return;
+  if (currentPage !== 'company') _cpBack = currentPage && currentPage !== 'company' ? currentPage : 'leads';
+  currentPage = 'company';
   currentLeadId = leadId;
-  const { data: lead } = await db.from('leads').select('*').eq('id', leadId).single();
-  if (!lead) { currentLeadId = null; setLeadHash(null); toast('找不到此 Lead，可能已被刪除', 'error'); return; }
+  _cpFilter = 'all';
   setLeadHash(leadId);
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.bnav-item').forEach(n => n.classList.remove('active'));
+  const nv = document.getElementById('nav-leads'); if (nv) nv.classList.add('active');
+  const bn = document.getElementById('bnav-leads'); if (bn) bn.classList.add('active');
+  document.getElementById('topbarTitle').textContent = '公司';
+  document.getElementById('topbarActions').innerHTML = '<div class="action-bar"><button class="btn btn-ghost btn-sm" onclick="navigate(_cpBack)">← 返回</button></div>';
+  const content = document.getElementById('content');
+  content.classList.remove('quote-mode');
+  content.innerHTML = '<div class="loading"><span class="dot-pulse">載入中</span></div>';
+  window.scrollTo(0, 0);
+  await refreshCompany();
+}
 
-  document.getElementById('drawerTitle').textContent = lead.name;
-  document.getElementById('drawerOverlay').style.display = 'block';
-  setTimeout(() => document.getElementById('leadDrawer').classList.add('open'), 10);
-
-  // Switch to first tab
-  document.querySelectorAll('.drawer-tab').forEach((t,i) => t.classList.toggle('active', i===0));
-  document.querySelectorAll('.drawer-panel').forEach((p,i) => p.classList.toggle('active', i===0));
-
-  renderDrawerInfo(lead);
+async function refreshCompany() {
+  const leadId = currentLeadId;
+  if (!leadId || currentPage !== 'company') return;
+  if (!usersData.length || !stagesData.length) await loadGlobalData();
+  const [ldR, accR] = await Promise.all([
+    db.from('leads').select('*').eq('id', leadId).maybeSingle(),
+    db.from('accounts').select('*').eq('lead_id', leadId).maybeSingle()
+  ]);
+  if (currentPage !== 'company' || currentLeadId !== leadId) return;
+  const lead = ldR.data;
+  if (!lead) { toast('找不到此公司，可能已被刪除', 'error'); navigate('leads'); return; }
+  const acc = accR.data || null;
+  let contracts = [];
+  if (acc) {
+    convertedLeadIds.add(leadId);
+    const i = accountsData.findIndex(a => a.id === acc.id);
+    if (i >= 0) accountsData[i] = acc; else accountsData.push(acc);
+    const r = await db.from('contracts').select('*').eq('account_id', acc.id);
+    contracts = (r.data || []).sort(function (a, b) { return dealDate(b).localeCompare(dealDate(a)); });
+  }
+  const li = leadsData.findIndex(l => l.id === leadId);
+  if (li >= 0) leadsData[li] = Object.assign(leadsData[li], lead);
+  window._cp = { lead: lead, acc: acc, contracts: contracts };
+  if (currentPage !== 'company' || currentLeadId !== leadId) return;
+  document.getElementById('content').innerHTML = companyHeaderHtml(lead, acc)
+    + '<div class="cp-grid">'
+    +   '<div>' + companyTimelineCardHtml(lead) + '</div>'
+    +   '<div>'
+    +     (acc ? companyDealsCardHtml(acc, contracts) : '')
+    +     '<div class="cp-card"><div class="cp-card-h"><div class="cp-card-t">👥 聯絡人</div></div><div id="drawerPanel-contacts"></div></div>'
+    +     '<div class="cp-card"><div class="cp-card-h"><div class="cp-card-t">🧾 報價</div></div><div id="drawerPanel-quotes"></div></div>'
+    +     companyInfoCardHtml(lead, acc)
+    +   '</div>'
+    + '</div>';
+  renderCompanyTimeline(leadId);
   renderDrawerContacts(leadId);
-  renderDrawerActivities(leadId);
-  renderDrawerNotes(leadId);
   renderDrawerQuotes(leadId);
+}
+
+function companyHeaderHtml(lead, acc) {
+  const stage = stagesData.find(s => s.id === lead.stage_id);
+  const src = sourcesData.find(s => s.id === lead.source_id);
+  let status;
+  if (acc) status = acc.status === 'terminated' ? '<span class="badge badge-red">終止合作</span>' : '<span class="badge badge-green">✅ 成交客戶</span>';
+  else status = '<span class="badge badge-blue">開發中・' + esc(stage?.name || '—') + '</span>';
+  const nd = lead.next_contact_date ? String(lead.next_contact_date).slice(0, 10) : '';
+  const ndd = nd ? daysUntil(nd) : null;
+  const nextHtml = nd
+    ? '<span style="color:' + (ndd < 0 ? 'var(--red)' : ndd === 0 ? 'var(--yellow)' : 'var(--text2)') + '">📅 下次聯絡 ' + nd + (ndd < 0 ? '（逾期 ' + (-ndd) + ' 天）' : ndd === 0 ? '（今天）' : '') + '</span>'
+    : '<span style="color:var(--text3)">📅 尚未設定下次聯絡</span>';
+  const id = lead.id;
+  let stageBar = '';
+  if (!acc) {
+    stageBar = '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:12px">' + stagesData.map(function (s) {
+      const on = s.id === lead.stage_id;
+      return '<button class="btn btn-sm ' + (on ? 'btn-primary' : 'btn-secondary') + '" style="' + (on ? '' : 'opacity:.75') + '" onclick="companyStage(\'' + id + '\',\'' + s.id + '\')">' + esc(s.name) + '</button>';
+    }).join('') + '</div>';
+  }
+  const mainBtn = acc
+    ? '<button class="btn btn-primary btn-sm" onclick="openDealModal(\'' + acc.id + '\',null,{leadId:\'' + id + '\'})">＋ 新增成交</button>'
+    : '<button class="btn btn-primary btn-sm" onclick="quickConvert(\'' + id + '\')">🤝 轉為成交</button>';
+  return '<div class="cp-card">'
+    + '<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">'
+    +   '<div style="flex:1;min-width:220px">'
+    +     '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><div style="font-size:19px;font-weight:700">' + esc(lead.name) + '</div>' + status + '</div>'
+    +     '<div style="font-size:12.5px;color:var(--text3);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap">'
+    +       (lead.company ? '<span>👤 ' + esc(lead.company) + '</span>' : '')
+    +       (lead.tax_id ? '<span style="font-family:var(--mono)">🏷 ' + esc(lead.tax_id) + '</span>' : '')
+    +       (src ? '<span>來源：' + esc(src.name) + '</span>' : '')
+    +       '<span>負責：' + esc(lead.user_name || '未指派') + '</span>'
+    +     '</div>'
+    +     '<div style="font-size:12.5px;margin-top:6px">' + nextHtml + '</div>'
+    +     (lead.lost_reason && !acc ? '<div style="font-size:12px;color:var(--red);margin-top:4px">📉 結案原因：' + esc(lead.lost_reason) + '</div>' : '')
+    +   '</div>'
+    + '</div>'
+    + '<div class="cp-actions">'
+    +   '<button class="btn btn-primary btn-sm" onclick="openAddActivity(\'' + id + '\')">📝 記錄活動</button>'
+    +   '<button class="btn btn-secondary btn-sm" onclick="openSetNextContact(\'' + id + '\',\'' + (lead.next_contact_date || '') + '\')">📅 下次聯絡</button>'
+    +   '<button class="btn btn-secondary btn-sm" onclick="openQuoteForLead(\'' + id + '\')">🧾 建立報價</button>'
+    +   mainBtn
+    +   '<span style="flex:1"></span>'
+    +   '<button class="btn btn-ghost btn-sm" onclick="openEditLeadModal(\'' + id + '\')">✏️ 編輯</button>'
+    +   '<button class="btn btn-ghost btn-sm" onclick="copyLeadLink(\'' + id + '\')">🔗 連結</button>'
+    +   (acc ? '<button class="btn btn-ghost btn-sm" onclick="toggleAccountStatus(\'' + acc.id + '\',\'' + (acc.status === 'terminated' ? 'active' : 'terminated') + '\')">' + (acc.status === 'terminated' ? '✅ 恢復合作' : '🚫 終止合作') + '</button>' : '')
+    +   (window.isAdmin ? '<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteLead(\'' + id + '\')">🗑</button>' : '')
+    + '</div>'
+    + stageBar
+    + '</div>';
+}
+
+function companyDealsCardHtml(acc, contracts) {
+  const total = contracts.reduce(function (s, c) { return s + (c.amount || 0); }, 0);
+  const paid = contracts.reduce(function (s, c) { return s + dealInstallments(c).reduce(function (x, p) { return x + instPaidAmt(p); }, 0); }, 0);
+  const nr = pickNextRenewal(contracts);
+  return '<div class="cp-card">'
+    + '<div class="cp-card-h"><div class="cp-card-t">💰 成交與收款</div><button class="btn btn-primary btn-sm" onclick="openDealModal(\'' + acc.id + '\',null,{leadId:\'' + acc.lead_id + '\'})">＋ 新增</button></div>'
+    + '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;margin-bottom:10px">'
+    +   '<div><div class="form-label">累計成交</div><b style="font-family:var(--mono)">$' + fmtNum(total) + '</b></div>'
+    +   '<div><div class="form-label">已收</div><b style="font-family:var(--mono);color:' + (paid >= total && total > 0 ? 'var(--green)' : 'var(--text)') + '">$' + fmtNum(paid) + '</b></div>'
+    +   '<div><div class="form-label">下次續約</div>' + renewalBadgeHtml(nr) + '</div>'
+    + '</div>'
+    + '<div id="contractList">' + renderContractList(contracts, acc.id) + '</div>'
+    + '</div>';
+}
+
+function companyInfoCardHtml(lead, acc) {
+  const row = function (label, val) { return val ? '<div><div class="form-label">' + label + '</div><div style="font-size:13px">' + val + '</div></div>' : ''; };
+  const needs = (lead.need_types || []).map(function (id) { const t = needTypesData.find(n => n.id === id); return t ? '<span class="need-tag selected" style="cursor:default">' + esc(t.name) + '</span>' : ''; }).join('');
+  const plan = lead.deal_type_id ? (dealTypesData.find(d => d.id === lead.deal_type_id) || {}).name : '';
+  return '<div class="cp-card">'
+    + '<div class="cp-card-h"><div class="cp-card-t">📋 基本資料</div><div>'
+    +   '<button class="btn btn-ghost btn-sm" onclick="openEditLeadModal(\'' + lead.id + '\')">✏️</button>'
+    +   (acc ? '<button class="btn btn-ghost btn-sm" onclick="openEditAccount(\'' + acc.id + '\')" title="編輯客戶資訊">🏢</button>' : '')
+    + '</div></div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'
+    +   row('客戶產品類型', esc(lead.product_type || ''))
+    +   row('預計成交方案', esc(plan || ''))
+    +   row('預估金額', lead.amount ? '$' + fmtNum(lead.amount) : '')
+    +   row('建立時間', fmtDate(lead.created_at))
+    +   (acc ? row('成為客戶', fmtDate(acc.created_at)) + row('產業', esc(acc.industry || '')) : '')
+    + '</div>'
+    + (needs ? '<div style="margin-top:10px"><div class="form-label">需求類型</div><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">' + needs + '</div></div>' : '')
+    + (acc && acc.website ? '<div style="margin-top:10px"><div class="form-label">網站</div><a href="' + esc(acc.website) + '" target="_blank" style="color:var(--accent);font-size:13px">' + esc(acc.website) + '</a></div>' : '')
+    + (acc && acc.address ? '<div style="margin-top:10px"><div class="form-label">地址</div><div style="font-size:13px">' + esc(acc.address) + '</div></div>' : '')
+    + (acc && acc.note ? '<div style="margin-top:10px"><div class="form-label">客戶備註</div><div style="font-size:13px;color:var(--text2);white-space:pre-wrap">' + esc(acc.note) + '</div></div>' : '')
+    + '</div>';
+}
+
+function companyTimelineCardHtml(lead) {
+  const f = function (k, label) { return '<button class="df-chip' + (_cpFilter === k ? ' on' : '') + '" style="padding:3px 10px" onclick="setCpFilter(\'' + k + '\')">' + label + '</button>'; };
+  return '<div class="cp-card">'
+    + '<div class="cp-card-h"><div class="cp-card-t">🕘 時間軸</div><div style="display:flex;gap:4px;flex-wrap:wrap" id="cpFilters">' + f('all', '全部') + f('act', '活動') + f('quote', '報價') + f('deal', '成交收款') + '</div></div>'
+    + '<div style="display:flex;gap:6px;margin-bottom:6px">'
+    +   '<textarea class="form-textarea" id="newNoteText" placeholder="快速備註…（按「加備註」存入時間軸）" style="min-height:44px;flex:1"></textarea>'
+    + '</div>'
+    + '<div style="display:flex;gap:6px;margin-bottom:10px">'
+    +   '<button class="btn btn-secondary btn-sm" onclick="addNote(\'' + lead.id + '\',\'lead\')">💬 加備註</button>'
+    +   '<button class="btn btn-primary btn-sm" onclick="openAddActivity(\'' + lead.id + '\')">📝 記錄活動</button>'
+    + '</div>'
+    + '<div id="drawerPanel-activities"><div class="loading" style="height:80px"><span class="dot-pulse">載入中</span></div></div>'
+    + '</div>';
+}
+function setCpFilter(k) {
+  _cpFilter = k;
+  const box = document.getElementById('cpFilters');
+  if (box) box.querySelectorAll('.df-chip').forEach(function (b) { b.classList.toggle('on', b.getAttribute('onclick').indexOf("'" + k + "'") >= 0); });
+  renderCompanyTimeline(currentLeadId);
+}
+
+async function renderCompanyTimeline(leadId) {
+  const cp = window._cp || {};
+  const acc = cp.acc, cts = cp.contracts || [];
+  const [aR, nR, cR, anR] = await Promise.all([
+    db.from('activities').select('*').eq('lead_id', leadId).order('created_at', { ascending: false }),
+    db.from('notes').select('*').eq('lead_id', leadId),
+    db.from('contacts').select('id,name').eq('lead_id', leadId),
+    acc ? db.from('notes').select('*').eq('account_id', acc.id) : Promise.resolve({ data: [] })
+  ]);
+  if (currentPage !== 'company' || currentLeadId !== leadId) return;
+  const el = document.getElementById('drawerPanel-activities'); if (!el) return;
+  const contacts = cR.data || [];
+  const who = function (uid) { const u = usersData.find(x => x.id === uid); return u ? (u.full_name || u.email || '') : ''; };
+  const at = function (d) { return d && String(d).length <= 10 ? d + 'T12:00:00' : d; };
+  const items = [];
+  (aR.data || []).forEach(function (a) {
+    const t = ACTIVITY_TYPES[a.type] || ACTIVITY_TYPES['note'];
+    const ct = contacts.find(c => c.id === a.contact_id);
+    items.push({ k: 'act', at: a.created_at, ico: t.icon, color: t.color, title: t.label + (ct ? ' · ' + esc(ct.name) : ''), text: a.content || '', who: who(a.user_id),
+      acts: '<button class="btn btn-ghost btn-sm btn-icon" onclick="openEditActivity(\'' + a.id + '\',\'' + leadId + '\')">✏️</button><button class="btn btn-ghost btn-sm btn-icon" onclick="deleteActivity(\'' + a.id + '\',\'' + leadId + '\')">🗑</button>' });
+  });
+  const seen = {};
+  (nR.data || []).concat(anR.data || []).forEach(function (n) {
+    if (seen[n.id]) return; seen[n.id] = 1;
+    const q = parseQuoteNote(n);
+    if (q) {
+      const sm = q.summary || {};
+      const won = cts.some(c => String(c.quote_note_id) === String(n.id));
+      items.push({ k: 'quote', at: n.created_at, ico: '🧾', color: '#6366f1', title: '儲存報價 ' + esc(sm.quoteNo || '') + (won ? ' <span class="badge badge-green">已成交</span>' : n.quote_status === 'sent' ? ' <span class="badge badge-blue">已送出</span>' : n.quote_status === 'void' ? ' <span class="badge badge-gray">作廢</span>' : ''),
+        text: (sm.planName || '') + (sm.months ? '・' + sm.months + ' 個月' : '') + '・' + quoteMoney(sm.grand, sm.currency || 'TWD'), who: who(n.user_id),
+        acts: '<button class="btn btn-ghost btn-sm" onclick="openQuoteForLead(\'' + leadId + '\',\'' + n.id + '\')">開啟</button>' });
+    } else {
+      items.push({ k: 'act', at: n.created_at, ico: '💬', color: '#94a3b8', title: '備註', text: n.content || '', who: who(n.user_id),
+        acts: '<button class="btn btn-ghost btn-sm btn-icon" onclick="deleteNote(\'' + n.id + '\',\'' + leadId + '\',\'lead\')">🗑</button>' });
+    }
+  });
+  if (acc) items.push({ k: 'deal', at: acc.created_at, ico: '🤝', color: '#10b981', title: '轉為成交客戶', text: '', who: '' });
+  cts.forEach(function (c) {
+    items.push({ k: 'deal', at: at(dealDate(c)), ico: '💰', color: '#10b981', title: '成交：' + esc(c.name || '') + '　<span style="font-family:var(--mono)">$' + fmtNum(c.amount || 0) + '</span>', text: dealItems(c).map(function (it) { return it.name + ' $' + fmtNum(it.amount); }).join('、'), who: dealSalesName(c) });
+    dealInstallments(c).forEach(function (p) {
+      if (p.paid_date) items.push({ k: 'deal', at: at(p.paid_date), ico: '💵', color: '#10b981', title: '收款：' + esc(p.label || '') + '　<span style="font-family:var(--mono)">$' + fmtNum(instPaidAmt(p)) + '</span>', text: '', who: p.paid_by || '' });
+    });
+  });
+  const shown = items.filter(function (i) { return _cpFilter === 'all' || i.k === _cpFilter; }).sort(function (a, b) { return new Date(b.at) - new Date(a.at); });
+  if (!shown.length) { el.innerHTML = '<div class="empty-state" style="padding:18px"><div class="empty-text">還沒有紀錄。打完電話、拜訪完，記一筆吧！</div></div>'; return; }
+  el.innerHTML = shown.map(function (i, idx) {
+    return '<div class="tl-item"' + (idx >= 20 ? ' data-more="1" style="display:none"' : '') + '>'
+      + '<div class="tl-ico" style="background:' + i.color + '22;color:' + i.color + '">' + i.ico + '</div>'
+      + '<div class="tl-body"><div class="tl-title">' + i.title + '</div>'
+      + (i.text ? '<div class="tl-text">' + esc(i.text) + '</div>' : '')
+      + '<div class="tl-meta">' + fmtDate(i.at) + (i.who ? '・' + esc(i.who) : '') + '</div></div>'
+      + (i.acts ? '<div style="display:flex;gap:2px;align-items:flex-start">' + i.acts + '</div>' : '')
+      + '</div>';
+  }).join('') + (shown.length > 20 ? '<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px" onclick="this.parentElement.querySelectorAll(\'[data-more]\').forEach(function(e){e.style.display=\'\'});this.remove()">顯示全部 ' + shown.length + ' 筆</button>' : '');
+}
+
+async function companyStage(leadId, stageId) {
+  await db.from('leads').update({ stage_id: stageId, updated_at: new Date().toISOString() }).eq('id', leadId);
+  const l = leadsData.find(x => x.id === leadId); if (l) l.stage_id = stageId;
+  const nm = getStageName(stageId);
+  toast('階段：' + nm, 'success');
+  await refreshCompany();
+  afterStageChanged(leadId, stageId);
+}
+// 階段變更後的共用後續動作
+function afterStageChanged(leadId, stageId) {
+  const nm = getStageName(stageId);
+  if (nm === '結案') askLostReason(leadId);
+  else if (nm === '簽約進件' && !convertedLeadIds.has(leadId)) openConvertModal(leadId);
+}
+// 目前畫面若和這個線索有關就重畫
+function refreshCurrentView(leadId) {
+  if (currentPage === 'company') { if (!leadId || leadId === currentLeadId) refreshCompany(); }
+  else if (currentPage === 'today') renderToday();
 }
 
 function closeDrawer() {
@@ -2172,10 +2773,9 @@ window.addEventListener('hashchange', () => {
   if (m) {
     if (!currentUser) return;
     if (currentLeadId === m[1]) return;
-    if (currentPage !== 'leads') { navigate('leads'); setTimeout(() => openLeadDrawer(m[1]), 400); }
-    else openLeadDrawer(m[1]);
-  } else if (currentLeadId) {
-    closeDrawer();
+    openCompany(m[1]);
+  } else if (currentPage === 'company') {
+    navigate(_cpBack || 'leads');
   }
 });
 
@@ -2206,60 +2806,7 @@ function switchDrawerTab(tab, el) {
 }
 
 function renderDrawerInfo(lead) {
-  const stage = stagesData.find(s => s.id === lead.stage_id);
-  const src = sourcesData.find(s => s.id === lead.source_id);
-  const panel = document.getElementById('drawerPanel-info');
-  panel.innerHTML = `
-    ${drawerConvertedBanner(lead)}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div><div class="form-label">聯絡人</div><div style="font-size:13px">${esc(lead.company)||'—'}</div></div>
-      <div><div class="form-label">階段</div><div><span class="badge badge-blue">${esc(stage?.name||'—')}</span></div></div>
-      <div><div class="form-label">來源</div><div style="font-size:13px">${esc(src?.name||'—')}</div></div>
-      <div><div class="form-label">建立時間</div><div style="font-size:12px;color:var(--text3)">${fmtDate(lead.created_at)}</div></div>
-      <div><div class="form-label">負責業務</div><div style="font-size:13px">${esc(lead.user_name||"—")}</div></div>
-      <div>
-        <div class="form-label">統一編號</div>
-        <div style="font-size:13px;font-family:var(--mono)">
-          ${lead.tax_id 
-            ? `<span style="background:var(--bg4);padding:2px 8px;border-radius:4px;border:1px solid var(--border)">${esc(lead.tax_id)}</span>`
-            : '<span style="color:var(--text3);font-size:12px">未填寫</span>'}
-        </div>
-      </div>
-      ${lead.next_contact_date ? `<div style="grid-column:1/-1;padding:8px 10px;background:${new Date(lead.next_contact_date)<new Date()?'var(--red-bg,rgba(239,68,68,0.1))':'var(--accent-glow)'};border-radius:6px;border:1px solid ${new Date(lead.next_contact_date)<new Date()?'rgba(239,68,68,0.3)':'var(--accent)'}"><div class="form-label">📅 下次聯絡日期</div><div style="font-size:13px;font-weight:500">${new Date(lead.next_contact_date).toLocaleDateString('zh-TW')} ${new Date(lead.next_contact_date)<new Date()?'⚠️ 已過期':''}</div></div>` : ''}
-      ${lead.product_type ? `<div style="grid-column:1/-1"><div class="form-label">客戶產品類型</div><div style="font-size:13px">${esc(lead.product_type)}</div></div>` : ''}
-    </div>
-    ${(lead.need_types||[]).length ? `<div style="margin-bottom:14px">
-      <div class="form-label">需求類型</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
-        ${(lead.need_types||[]).map(id=>{const t=needTypesData.find(n=>n.id===id);return t?`<span class="need-tag selected" style="cursor:default">${esc(t.name)}</span>`:''}).join('')}
-      </div>
-    </div>` : ''}
-    ${lead.deal_type_id ? `<div style="margin-bottom:14px">
-      <div class="form-label">預計成交方案</div>
-      <div style="margin-top:4px"><span class="badge badge-purple">${esc(dealTypesData.find(d=>d.id===lead.deal_type_id)?.name||'—')}</span></div>
-    </div>` : ''}
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-secondary btn-sm" onclick="openEditLeadModal('${lead.id}')">✏️ 編輯</button>
-      <button class="btn btn-secondary btn-sm" onclick="copyLeadLink('${lead.id}')">🔗 複製連結</button>
-      <button class="btn btn-secondary btn-sm" onclick="openSetNextContact('${lead.id}','${lead.next_contact_date||''}')">📅 ${lead.next_contact_date ? new Date(lead.next_contact_date).toLocaleDateString('zh-TW') : '設定聯絡日'}</button>
-      ${drawerConvertHtml(lead)}
-      ${window.isAdmin ? `<button class="btn btn-danger btn-sm" onclick="deleteLead('${lead.id}')">🗑 刪除</button>` : ''}
-    </div>
-    <div style="margin-top:14px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div class="form-label" style="margin:0">快速變更階段</div>
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px">
-        ${stagesData.map(s => `
-          <button class="btn btn-sm ${s.id===lead.stage_id?'btn-primary':'btn-secondary'}" 
-            style="${s.id===lead.stage_id?'':'opacity:0.7'}"
-            onclick="quickStageChange('${lead.id}','${s.id}')">
-            ${esc(s.name)}
-          </button>
-        `).join('')}
-      </div>
-    </div>
-  `;
+  if (lead && lead.id) refreshCurrentView(lead.id);
 }
 
 async function quickConvert(leadId) {
@@ -2270,11 +2817,7 @@ function drawerConvertHtml(lead) {
   if (convertedLeadIds.has(lead.id)) return '';
   return '<button class="btn btn-primary btn-sm" onclick="quickConvert(\'' + lead.id + '\')">🤝 轉為成交客戶</button>';
 }
-function drawerConvertedBanner(lead) {
-  if (!convertedLeadIds.has(lead.id)) return '';
-  setTimeout(function () { fillDrawerDealSummary(lead.id); }, 0);
-  return '<div id="drawerDealSummary" style="margin-bottom:12px;padding:10px 12px;background:var(--green-bg);border-radius:8px;font-size:12.5px;color:var(--green)">✅ 已成交客戶，開發紀錄保留於此。</div>';
-}
+function drawerConvertedBanner(lead) { return ''; }
 async function fillDrawerDealSummary(leadId) {
   const el = document.getElementById('drawerDealSummary'); if (!el) return;
   const { data: acc } = await db.from('accounts').select('id,name').eq('lead_id', leadId).maybeSingle();
@@ -2299,6 +2842,7 @@ async function fillDrawerDealSummary(leadId) {
 async function renderDrawerContacts(leadId) {
   const { data: contacts } = await db.from('contacts').select('*').eq('lead_id', leadId);
   const panel = document.getElementById('drawerPanel-contacts');
+  if (!panel) return;
   const list = (contacts || []).map(c => `
     <div class="contact-item">
       <div class="contact-avatar">${(c.name||'?')[0].toUpperCase()}</div>
@@ -2453,44 +2997,23 @@ async function deleteContact(cId, leadId) {
 }
 
 async function renderDrawerActivities(leadId) {
-  const [actsRes, contactsRes] = await Promise.all([
-    db.from('activities').select('*').eq('lead_id', leadId).order('created_at', {ascending:false}),
-    db.from('contacts').select('id,name').eq('lead_id', leadId)
-  ]);
-  const acts = actsRes.data || [];
-  const contacts = contactsRes.data || [];
-  const panel = document.getElementById('drawerPanel-activities');
-  const list = acts.map(a => {
-    const t = ACTIVITY_TYPES[a.type] || ACTIVITY_TYPES['note'];
-    const contact = contacts.find(c => c.id === a.contact_id);
-    return `
-      <div class="activity-item">
-        <div class="activity-icon" style="background:${t.color}20;color:${t.color}">${t.icon}</div>
-        <div class="activity-content">
-          <div class="activity-type">${t.label}${contact?` · <span style="color:var(--accent);font-size:11px">${esc(contact.name)}</span>`:''}</div>
-          <div class="activity-note" style="white-space:pre-wrap">${esc(a.content||'')}</div>
-          <div class="activity-meta">${fmtDate(a.created_at)}</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
-          <button class="btn btn-ghost btn-sm btn-icon" onclick="openEditActivity('${a.id}','${leadId}')">✏️</button>
-          <button class="btn btn-ghost btn-sm btn-icon" onclick="deleteActivity('${a.id}','${leadId}')">🗑</button>
-        </div>
-      </div>
-    `;
-  }).join('');
-  panel.innerHTML = `
-    <div style="margin-bottom:12px">
-      <button class="btn btn-primary btn-sm" onclick="openAddActivity('${leadId}')">＋ 記錄活動</button>
-    </div>
-    <div class="activity-list">
-      ${list || '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">尚無活動記錄</div></div>'}
-    </div>
-  `;
+  if (currentPage === 'company' && leadId === currentLeadId) return renderCompanyTimeline(leadId);
+  if (currentPage === 'today') return renderToday();
 }
 
+function setActNext(days, btn) {
+  const inp = document.getElementById('actNext'); if (!inp) return;
+  inp.value = days === null ? '' : addDaysStr(nowDateStr(), days);
+  document.querySelectorAll('#actNextChips .df-chip').forEach(function (b) { b.classList.toggle('on', b === btn); });
+}
 async function openAddActivity(leadId) {
   // Load contacts for this lead
-  const { data: contacts } = await db.from('contacts').select('id, name, role').eq('lead_id', leadId);
+  const [{ data: contacts }, { data: leadRow }] = await Promise.all([
+    db.from('contacts').select('id, name, role').eq('lead_id', leadId),
+    db.from('leads').select('name,next_contact_date').eq('id', leadId).maybeSingle()
+  ]);
+  const curNext = leadRow && leadRow.next_contact_date ? String(leadRow.next_contact_date).slice(0, 10) : '';
+  const keepNext = curNext && curNext > nowDateStr() ? curNext : '';
   const contactOpts = (contacts||[]).map(c => `<option value="${c.id}">${esc(c.name)}${c.role?' · '+esc(c.role):''}</option>`).join('');
   const tplChips = activityTemplates.length ? `
     <div class="form-group">
@@ -2501,7 +3024,7 @@ async function openAddActivity(leadId) {
       </select>
     </div>` : '';
 
-  openModal('記錄活動', `
+  openModal('記錄活動' + (leadRow && leadRow.name ? '：' + leadRow.name : ''), `
     <div class="form-group"><label class="form-label">類型</label>
       <select class="form-select" id="actType">
         ${Object.entries(ACTIVITY_TYPES).map(([k,v])=>`<option value="${k}">${v.icon} ${v.label}</option>`).join('')}
@@ -2527,6 +3050,18 @@ async function openAddActivity(leadId) {
         <input class="form-input" id="actTime" type="time" value="${nowTimeStr()}" style="flex:1">
       </div>
     </div>
+    <div class="form-group" style="background:var(--accent-glow);padding:10px;border-radius:8px">
+      <label class="form-label">📅 下次什麼時候聯絡？</label>
+      <div id="actNextChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+        <button type="button" class="df-chip" onclick="setActNext(1,this)">明天</button>
+        <button type="button" class="df-chip" onclick="setActNext(3,this)">3 天後</button>
+        <button type="button" class="df-chip" onclick="setActNext(7,this)">1 週後</button>
+        <button type="button" class="df-chip" onclick="setActNext(14,this)">2 週後</button>
+        <button type="button" class="df-chip" onclick="setActNext(30,this)">1 個月後</button>
+        <button type="button" class="df-chip" onclick="setActNext(null,this)">不用</button>
+      </div>
+      <input class="form-input" id="actNext" type="date" value="${keepNext}">
+    </div>
   `, [
     { label: '取消', cls: 'btn-secondary', action: closeModal },
     { label: '記錄', cls: 'btn-primary', action: async () => {
@@ -2540,9 +3075,17 @@ async function openAddActivity(leadId) {
         user_id: currentUser.id,
         created_at: localToISO(document.getElementById('actDate').value, document.getElementById('actTime').value)
       });
+      // 下次聯絡：有選就更新；沒選且原本已到期／逾期，代表這次已聯絡過 → 清掉
+      const nx = document.getElementById('actNext')?.value || '';
+      if (nx !== curNext && (nx || (curNext && curNext <= nowDateStr()))) {
+        await db.from('leads').update({ next_contact_date: nx || null, updated_at: new Date().toISOString() }).eq('id', leadId);
+        const ld = leadsData.find(l => l.id === leadId); if (ld) ld.next_contact_date = nx || null;
+      } else {
+        await db.from('leads').update({ updated_at: new Date().toISOString() }).eq('id', leadId);
+      }
       closeModal();
-      toast('活動記錄成功', 'success');
-      renderDrawerActivities(leadId);
+      toast('活動記錄成功' + (nx ? '，下次聯絡 ' + nx : ''), 'success');
+      if (currentPage === 'company') refreshCompany(); else renderDrawerActivities(leadId);
     }}
   ]);
 }
@@ -2667,25 +3210,8 @@ function startVoiceInput(targetId, btnEl) {
 }
 
 async function renderDrawerNotes(leadId) {
-  const { data: notes } = await db.from('notes').select('*').eq('lead_id', leadId).order('created_at', {ascending:false});
-  const regularNotes = (notes || []).filter(n => !isQuoteNote(n));
-  const panel = document.getElementById('drawerPanel-notes');
-  panel.innerHTML = `
-    <div style="margin-bottom:12px">
-      <textarea class="form-textarea" id="newNoteText" placeholder="新增備註..."></textarea>
-      <button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="addNote('${leadId}','lead')">＋ 新增備註</button>
-    </div>
-    ${regularNotes.map(n => `
-      <div class="note-item">
-        <div class="note-text">${esc(n.content)}</div>
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div class="note-meta">${fmtDate(n.created_at)}</div>
-          <button class="btn btn-ghost btn-sm" onclick="deleteNote('${n.id}','${leadId}','lead')">🗑</button>
-        </div>
-      </div>
-    `).join('')}
-    ${!regularNotes.length ? '<div class="empty-state" style="padding:20px"><div class="empty-text">尚無備註</div></div>' : ''}
-  `;
+  const t = document.getElementById('newNoteText'); if (t) t.value = '';
+  return renderDrawerActivities(leadId);
 }
 
 async function addNote(entityId, entityType = 'lead') {
@@ -3043,7 +3569,8 @@ async function setQuoteStatus(noteId, status, leadId) {
   const { error } = await db.from('notes').update({ quote_status: status || null }).eq('id', noteId);
   if (error) { toast('更新失敗：' + error.message, 'error'); return; }
   toast('報價狀態：' + (QUOTE_STATUS[status || ''] || '草稿'), 'success');
-  if (document.getElementById('drawerPanel-quotes')) renderDrawerQuotes(leadId);
+  if (currentPage === 'company') { renderDrawerQuotes(leadId); renderCompanyTimeline(leadId); }
+  else if (currentPage === 'today') renderToday();
 }
 async function dealFromQuote(leadId, noteId) {
   if (!leadId) { toast('這份報價沒有綁定線索', 'error'); return; }
@@ -3205,12 +3732,14 @@ async function renderAccounts() {
 
   document.getElementById('topbarActions').innerHTML = `
     <div class="action-bar">
+      <div class="view-toggle">
+        <button class="view-toggle-btn" onclick="navigate('leads')">開發中</button>
+        <button class="view-toggle-btn active">成交客戶</button>
+      </div>
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
         <input class="form-input" id="accSearch" placeholder="搜尋客戶..." style="width:180px" oninput="filterAccounts()">
       </div>
-      <button class="btn btn-secondary btn-sm" onclick="openBonusCalc()">💰 業績獎金</button>
-      <button class="btn btn-secondary btn-sm" onclick="openSalesReport()">📊 業績統計</button>
       <button class="btn btn-primary btn-sm" onclick="openNewAccountModal()">＋ 新增客戶</button>
     </div>
   `;
@@ -3294,6 +3823,8 @@ function openNewAccountModal() {
 }
 
 async function openAccountDetail(accId) {
+  const lk = (await db.from('accounts').select('lead_id').eq('id', accId).maybeSingle()).data;
+  if (lk && lk.lead_id) { openCompany(lk.lead_id); return; }
   const [accRes, contractsRes, notesRes, contactsRes] = await Promise.all([
     db.from('accounts').select('*').eq('id', accId).single(),
     db.from('contracts').select('*').eq('account_id', accId).order('created_at', {ascending:false}),
@@ -3477,10 +4008,7 @@ async function toggleAccountStatus(accId, newStatus) {
   openAccountDetail(accId);
 }
 
-function openLeadDrawerFromAccount(leadId) {
-  navigate('leads');
-  setTimeout(() => openLeadDrawer(leadId), 400);
-}
+function openLeadDrawerFromAccount(leadId) { openCompany(leadId); }
 
 async function deleteAccount(accId, accName) {
   openConfirm(
@@ -3602,7 +4130,7 @@ async function confirmPayment(ctId, idx, accId) {
       const { error } = await db.from('contracts').update({ installments: inst, items: dealItems(ct) }).eq('id', ctId);
       if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
       closeModal(); toast('已確認收款', 'success');
-      if (accId && accId !== 'null') openAccountDetail(accId); else if (currentPage === 'dashboard') renderDashboard();
+      if (currentPage === 'today') renderToday(); else if (currentPage === 'dashboard') renderDashboard(); else if (accId && accId !== 'null') openAccountDetail(accId);
     }}
   ]);
 }
@@ -3772,25 +4300,7 @@ async function deleteContract(ctId, accId) {
 }
 
 // ── 業績統計 ──
-function openSalesReport() {
-  const t = new Date();
-  const ym = t.getFullYear() + '-' + _pad2(t.getMonth() + 1);
-  openModal('📊 業績統計（依簽約日）', ''
-    + '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">'
-    +   '<div class="form-group" style="margin:0"><label class="form-label">起</label><input class="form-input" id="srFrom" type="month" value="' + ym + '"></div>'
-    +   '<div class="form-group" style="margin:0"><label class="form-label">迄</label><input class="form-input" id="srTo" type="month" value="' + ym + '"></div>'
-    +   '<button class="btn btn-primary btn-sm" onclick="runSalesReport()">查詢</button>'
-    +   '<button class="btn btn-ghost btn-sm" onclick="setSalesReportRange(\'lastmonth\')">上月</button>'
-    +   '<button class="btn btn-ghost btn-sm" onclick="setSalesReportRange(\'quarter\')">本季</button>'
-    +   '<button class="btn btn-ghost btn-sm" onclick="setSalesReportRange(\'year\')">今年</button>'
-    + '</div>'
-    + '<div id="srResult"><div class="loading"><span class="dot-pulse">載入中</span></div></div>', [
-    { label: '📤 匯出 Excel', cls: 'btn-secondary', action: exportSalesReport },
-    { label: '關閉', cls: 'btn-primary', action: closeModal }
-  ]);
-  document.getElementById('modalBox').style.maxWidth = '860px';
-  runSalesReport();
-}
+function openSalesReport() { perfTab = 'deals'; navigate('performance'); }
 
 function setSalesReportRange(kind) {
   const t = new Date(); const y = t.getFullYear(); const m = t.getMonth();
@@ -3969,39 +4479,7 @@ function bonusBreakdownHtml(r) {
     + (hint ? '<div style="font-size:12px;color:var(--text3);margin-bottom:12px">📈 ' + hint + '</div>' : '');
 }
 
-async function openBonusCalc() {
-  if (!usersData.length) await loadGlobalData();
-  const t = new Date();
-  const ym = t.getFullYear() + '-' + _pad2(t.getMonth() + 1);
-  let opts = '';
-  if (window.isAdmin) {
-    opts += '<option value="all">全部業務（總覽）</option>';
-    usersData.forEach(function (u) { opts += '<option value="' + u.id + '">' + esc(u.full_name || u.email || '') + '</option>'; });
-  } else {
-    opts = '<option value="' + currentUser.id + '">' + esc(userNameById(currentUser.id, currentUser.user_metadata?.full_name || currentUser.email)) + '</option>';
-  }
-  openModal('💰 業績獎金', ''
-    + '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">'
-    +   '<button class="btn btn-ghost btn-sm" onclick="shiftBonusMonth(-1)">‹</button>'
-    +   '<div class="form-group" style="margin:0"><label class="form-label">月份（依實收日）</label><input class="form-input" id="bcMonth" type="month" value="' + ym + '" onchange="runBonusCalc()"></div>'
-    +   '<button class="btn btn-ghost btn-sm" onclick="shiftBonusMonth(1)">›</button>'
-    +   '<div class="form-group" style="margin:0"><label class="form-label">業務</label><select class="form-select" id="bcUser" onchange="runBonusCalc()"' + (window.isAdmin ? '' : ' disabled') + '>' + opts + '</select></div>'
-    + '</div>'
-    + '<div id="bcResult"><div class="loading"><span class="dot-pulse">載入中</span></div></div>'
-    + '<details style="margin-top:14px;border-top:1px solid var(--border);padding-top:10px"><summary style="cursor:pointer;font-size:13px;font-weight:600">🧮 試算：自己輸入金額看獎金</summary>'
-    +   '<div class="form-row" style="margin-top:10px">'
-    +     '<div class="form-group"><label class="form-label">標準業績</label><input class="form-input" id="bcT1" type="number" min="0" placeholder="0" oninput="renderBonusTrial()"></div>'
-    +     '<div class="form-group"><label class="form-label">客製案件</label><input class="form-input" id="bcT2" type="number" min="0" placeholder="0" oninput="renderBonusTrial()"></div>'
-    +     '<div class="form-group"><label class="form-label">首次續約（軟體）</label><input class="form-input" id="bcT3" type="number" min="0" placeholder="0" oninput="renderBonusTrial()"></div>'
-    +   '</div><div id="bcTrial"></div></details>'
-    + '<div style="font-size:11px;color:var(--text3);margin-top:12px;line-height:1.6">僅計算業績獎金，不含底薪與 KPI 績效獎金。實際發放以公司核定為準。</div>', [
-    { label: '關閉', cls: 'btn-primary', action: closeModal }
-  ]);
-  document.getElementById('modalBox').style.maxWidth = '780px';
-  window._bcData = null;
-  renderBonusTrial();
-  runBonusCalc();
-}
+async function openBonusCalc() { perfTab = 'bonus'; navigate('performance'); }
 
 function shiftBonusMonth(n) {
   const el = document.getElementById('bcMonth');
@@ -4775,11 +5253,7 @@ function renderFeedList(items) {
   content.innerHTML = `<div class="panel">${rows}</div>`;
 }
 
-function openLeadFromFeed(leadId) {
-  if (!leadId) return;
-  navigate('leads');
-  setTimeout(() => openLeadDrawer(leadId), 400);
-}
+function openLeadFromFeed(leadId) { openCompany(leadId); }
 
 // ── Import template download ──
 function downloadImportTemplate() {
@@ -5007,11 +5481,10 @@ function openSetNextContact(leadId, currentDate) {
 
 async function clearNextContact(leadId) {
   await db.from('leads').update({ next_contact_date: null, updated_at: new Date().toISOString() }).eq('id', leadId);
-  const lead = leadsData.find(l => l.id === leadId);
-  if (lead) lead.next_contact_date = null;
+  const lead = leadsData.find(l => l.id === leadId); if (lead) lead.next_contact_date = null;
   closeModal();
-  toast('已清除', 'success');
-  openLeadDrawer(leadId);
+  toast('已清除下次聯絡日期', 'success');
+  refreshCurrentView(leadId);
 }
 
 // ── Utility Functions ──
@@ -5038,6 +5511,7 @@ function getStageName(stageId) {
 
 function openModal(title, bodyHTML, buttons) {
   document.getElementById('modalBox').style.maxWidth = '';
+  document.getElementById('modalFooter').style.display = '';
   document.getElementById('modalTitle').textContent = title;
   document.getElementById('modalBody').innerHTML = bodyHTML;
   const footer = document.getElementById('modalFooter');
@@ -5145,27 +5619,23 @@ db.auth.onAuthStateChange(async (event, session) => {
 </script>
 <!-- Bottom Nav (mobile) -->
 <div id="bottom-nav">
-  <div class="bnav-item" id="bnav-dashboard" onclick="navigate('dashboard')">
-    <div class="bnav-icon">📊</div><div class="bnav-label">Dashboard</div>
+  <div class="bnav-item" id="bnav-today" onclick="navigate('today')">
+    <div class="bnav-icon">☀️</div><div class="bnav-label">今天</div>
   </div>
   <div class="bnav-item" id="bnav-leads" onclick="navigate('leads')">
-    <div class="bnav-icon">🎯</div><div class="bnav-label">Leads</div>
+    <div class="bnav-icon">🏢</div><div class="bnav-label">公司</div>
   </div>
   <div class="bnav-item" id="bnav-quotes" onclick="navigate('quotes')">
     <div class="bnav-icon">🧾</div><div class="bnav-label">報價</div>
   </div>
-  <div class="bnav-item" id="bnav-feed" onclick="navigate('feed')">
-    <div class="bnav-icon">📰</div><div class="bnav-label">動態</div>
+  <div class="bnav-item" id="bnav-performance" onclick="navigate('performance')">
+    <div class="bnav-icon">💰</div><div class="bnav-label">業績</div>
   </div>
-  <div class="bnav-item" id="bnav-accounts" onclick="navigate('accounts')">
-    <div class="bnav-icon">🏢</div><div class="bnav-label">客戶</div>
-  </div>
-  <div class="bnav-item" id="bnav-settings" onclick="navigate('settings')">
-    <div class="bnav-icon">⚙️</div><div class="bnav-label">設定</div>
+  <div class="bnav-item" id="bnav-more" onclick="openMoreMenu()">
+    <div class="bnav-icon">☰</div><div class="bnav-label">更多</div>
   </div>
 </div>
 <button id="fab" onclick="onFabClick()">＋</button>
 </body>
 </html>
-
 
