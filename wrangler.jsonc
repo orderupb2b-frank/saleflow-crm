@@ -1,14 +1,14 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "saleflow-crm",
-  "main": "worker.js",
+  "main": "mcp.js",
   "compatibility_date": "2026-07-20",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
   "assets": {
     "directory": ".",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*", "/oauth/*", "/openapi.json", "/privacy"]
+    "run_worker_first": ["/api/*", "/oauth/*", "/openapi.json", "/privacy", "/mcp", "/.well-known/*"]
   },
   "vars": {
     "SUPABASE_URL": "https://gsguqkyznapnanuzdoac.supabase.co",
