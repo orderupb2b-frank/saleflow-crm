@@ -168,6 +168,11 @@ async function api(request, env, url) {
   if (m === 'GET' && path === '/api/followups') return json(await followups(ctx));
   if (m === 'GET' && path === '/api/report/activity') return json(await activityReport(ctx));
   if (m === 'GET' && path === '/api/report/attention') return json(await attentionReport(ctx));
+  if (m === 'GET' && path === '/api/customers') return json(await listCustomers(ctx));
+  if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/deals$/)) && m === 'GET') return json(await getDeals(ctx, mm[1]));
+  if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/deals$/)) && m === 'POST') return json(await recordDeal(ctx, mm[1], await readBody(request)));
+  if ((mm = path.match(/^\/api\/deals\/([0-9a-f-]{36})$/)) && m === 'PATCH') return json(await updateDeal(ctx, mm[1], await readBody(request)));
+  if ((mm = path.match(/^\/api\/deals\/([0-9a-f-]{36})\/payments$/)) && m === 'POST') return json(await recordPayment(ctx, mm[1], await readBody(request)));
   throw new HttpError(404, '沒有這個功能');
 }
 
@@ -402,6 +407,167 @@ async function attentionReport({ db, me, url }) {
     overdue_followups: overdue.filter(l => !INACTIVE_STAGES.includes(L.stageName(l.stage_id))).map(l => ({ ...withLink(leadSummary(l, L), url.origin), days_overdue: Math.round((new Date(today) - new Date(l.next_contact_date)) / 864e5) })),
     stale_deals: { no_update_for_days: stale, by_stage: Object.fromEntries(Object.entries(byStage).map(([s, ls]) => [s, ls.map(l => withLink(leadSummary(l, L), url.origin))])) }
   };
+}
+
+// ───────────────────────── 成交單／收款 ─────────────────────────
+const DEAL_CATS = ['主約', '加購專案', '客製案件', '續約', '其他'];
+const num = v => { if (v === null || v === undefined || v === '') return null; const n = parseFloat(String(v).replace(/[^\d.-]/g, '')); return isNaN(n) ? null : n; };
+const ctItems = c => (Array.isArray(c.items) && c.items.length) ? c.items : [{ name: c.name || '成交', amount: c.amount || 0 }];
+const ctInst = c => (Array.isArray(c.installments) && c.installments.length) ? c.installments : [{ label: '全額', amount: c.amount || 0, due_date: c.signed_date, paid_date: null }];
+const paidAmt = p => p.paid_date ? (p.paid_amount != null ? Number(p.paid_amount) || 0 : Number(p.amount) || 0) : 0;
+function ctMonthly(c) {
+  if (c.monthly_fee != null && c.monthly_fee !== '') return Number(c.monthly_fee) || 0;
+  const mt = String(c.plan_content || '').match(/月費[：:]\s*(?:NT)?\$?\s*([\d,]+)/);
+  return mt ? (parseInt(mt[1].replace(/,/g, ''), 10) || 0) : 0;
+}
+function finSummary(contracts) {
+  const today = todayTW();
+  let total = 0, paid = 0, monthly = 0, next = null, start = '', end = '';
+  for (const c of contracts) {
+    total += Number(c.amount) || ctItems(c).reduce((s, it) => s + (Number(it.amount) || 0), 0);
+    for (const p of ctInst(c)) {
+      paid += paidAmt(p);
+      if (!p.paid_date && (!next || String(p.due_date || '') < String(next.due_date || ''))) next = { amount: Number(p.amount) || 0, due_date: p.due_date || null, label: p.label || '', overdue: !!(p.due_date && p.due_date < today) };
+    }
+    if (!c.end_date || c.end_date >= today) {
+      monthly += ctMonthly(c);
+      if (c.start_date && (!start || c.start_date < start)) start = c.start_date;
+      if (c.end_date && (!end || c.end_date > end)) end = c.end_date;
+    }
+  }
+  return { deals: contracts.length, total, paid, unpaid: Math.max(0, total - paid), monthly_fee: monthly, contract_start: start || null, contract_end: end || null, next_payment: next };
+}
+function dealView(c) {
+  const inst = ctInst(c);
+  return {
+    deal_id: c.id, name: c.name, category: c.deal_category || '主約', signed_date: c.signed_date, start_date: c.start_date, end_date: c.end_date,
+    monthly_fee: ctMonthly(c) || null, amount: Number(c.amount) || 0, paid: inst.reduce((s, p) => s + paidAmt(p), 0),
+    items: ctItems(c).map(it => ({ name: it.name, amount: it.amount, bonus_type: it.bonus_type })),
+    installments: inst.map((p, i) => ({ index: i, label: p.label, amount: p.amount, due_date: p.due_date, paid_date: p.paid_date || null, paid_amount: p.paid_date ? paidAmt(p) : null })),
+    plan_content: c.plan_content ? String(c.plan_content).slice(0, 400) : null, note: c.note || null, sales: c.sales_user_name || null
+  };
+}
+// 明細：type = subscription 訂閱/月費、setup 導入建置、addon 加購、custom 客製、gift 贈送
+function normItems(list, cat) {
+  if (!Array.isArray(list) || !list.length) throw new HttpError(400, 'items 至少要一項（名稱＋未稅折後金額）');
+  return list.map((it, i) => {
+    const name = String(it.name || '').trim();
+    const amount = num(it.amount);
+    if (!name) throw new HttpError(400, `第 ${i + 1} 項缺少名稱`);
+    if (amount == null || amount < 0) throw new HttpError(400, `「${name}」金額不正確（贈送請填 0）`);
+    let bt = it.bonus_type;
+    if (!['standard', 'custom', 'renewal', 'none'].includes(bt)) {
+      const t = it.type || '';
+      bt = amount === 0 || t === 'gift' ? 'none' : t === 'custom' ? 'custom' : (t === 'subscription' && cat === '續約') ? 'renewal' : 'standard';
+    }
+    return { name, amount, bonus_type: bt };
+  });
+}
+function normInst(list, total, signed, isAdmin, notes) {
+  let inst = Array.isArray(list) && list.length ? list : [{ label: '全額', amount: total, due_date: signed }];
+  inst = inst.map((p, i) => {
+    const o = { label: String(p.label || '').trim() || (inst.length === 1 ? '全額' : `第 ${i + 1} 期`), amount: num(p.amount) ?? 0, due_date: isDate(p.due_date) ? p.due_date : signed, alloc: p.alloc || 'prorata', paid_date: null };
+    if (p.paid_date) {
+      if (!isAdmin) notes.push(`「${o.label}」的收款需要管理員在 CRM 確認，先記為未收`);
+      else if (!isDate(p.paid_date)) throw new HttpError(400, 'paid_date 要是 YYYY-MM-DD');
+      else { o.paid_date = p.paid_date; o.paid_amount = num(p.paid_amount) ?? o.amount; o.paid_by = 'ChatGPT 助理'; o.paid_at = new Date().toISOString(); }
+    }
+    return o;
+  });
+  const sum = inst.reduce((s, p) => s + p.amount, 0);
+  if (Math.abs(sum - total) > 0.5) throw new HttpError(400, `付款期數合計 ${sum} ≠ 明細合計 ${total}，請調整 installments`);
+  return inst;
+}
+async function accountForLead(db, leadId) {
+  return (await db.get(`accounts?lead_id=eq.${leadId}&select=*`))?.[0] || null;
+}
+async function getDeals({ db, url }, leadId) {
+  const lead = await loadLead({ db }, leadId);
+  const acc = await accountForLead(db, leadId);
+  if (!acc) return { lead: lead.name, is_customer: false, message: '這家還不是成交客戶，沒有成交單。可用 record_deal 建立。', crm_link: url.origin + '/#lead=' + leadId };
+  const cts = await db.get(`contracts?account_id=eq.${acc.id}&select=*&order=signed_date.desc`);
+  return { lead: lead.name, is_customer: true, status: acc.status === 'terminated' ? '終止合作' : '合作中', summary: finSummary(cts), deals: cts.map(dealView), crm_link: url.origin + '/#lead=' + leadId };
+}
+async function recordDeal({ db, me, url }, leadId, b) {
+  const lead = await loadLead({ db }, leadId);
+  const cat = DEAL_CATS.includes(b.category) ? b.category : '主約';
+  if (!isDate(b.signed_date)) throw new HttpError(400, 'signed_date（簽約日）必填，格式 YYYY-MM-DD');
+  for (const k of ['start_date', 'end_date']) if (b[k] && !isDate(b[k])) throw new HttpError(400, `${k} 格式要是 YYYY-MM-DD`);
+  const items = normItems(b.items, cat);
+  const total = items.reduce((s, it) => s + it.amount, 0);
+  const notes = [];
+  const inst = normInst(b.installments, total, b.signed_date, me.role === 'admin', notes);
+  let acc = await accountForLead(db, leadId);
+  if (acc && !b.confirm_not_duplicate) {
+    const same = (await db.get(`contracts?account_id=eq.${acc.id}&select=id,name,amount,signed_date`)).filter(c => c.signed_date === b.signed_date && Math.abs((Number(c.amount) || 0) - total) <= 1);
+    if (same.length) return { ok: false, possible_duplicate: same, message: '這家同一天已有金額相同的成交單，請跟使用者確認；確定不是重複再帶 confirm_not_duplicate=true。' };
+  }
+  if (!acc) acc = await db.insert('accounts', { name: lead.name, company: lead.company || null, lead_id: leadId, user_id: lead.user_id || me.id, user_name: lead.user_name || me.name, created_at: new Date().toISOString() });
+  const monthly = num(b.monthly_fee);
+  const ct = await db.insert('contracts', {
+    account_id: acc.id, user_id: me.id, created_at: new Date().toISOString(),
+    name: String(b.plan_name || '').trim() || items[0].name, deal_category: cat, amount: total, items, installments: inst,
+    monthly_fee: monthly, plan_content: b.plan_content || null, signed_date: b.signed_date, start_date: b.start_date || null, end_date: b.end_date || null,
+    remind_days: 30, sales_user_id: lead.user_id || me.id, sales_user_name: lead.user_name || me.name,
+    note: [b.note, '（由 ChatGPT 助理建立）'].filter(Boolean).join('\n')
+  });
+  const L = await lookups(db);
+  const won = L.stageByName('簽約進件');
+  if (won && lead.stage_id !== won.id) await db.update('leads', `id=eq.${leadId}`, { stage_id: won.id, updated_at: new Date().toISOString() });
+  return { ok: true, lead: lead.name, deal: dealView(ct), notes: notes.length ? notes : undefined, crm_link: url.origin + '/#lead=' + leadId };
+}
+async function loadDeal(db, id) {
+  const c = (await db.get(`contracts?id=eq.${id}&select=*`))?.[0];
+  if (!c) throw new HttpError(404, '找不到這張成交單（或沒有權限）');
+  return c;
+}
+async function updateDeal({ db, me }, id, b) {
+  const c = await loadDeal(db, id);
+  const upd = {};
+  for (const k of ['signed_date', 'start_date', 'end_date']) if (b[k] !== undefined) { if (b[k] && !isDate(b[k])) throw new HttpError(400, `${k} 格式要是 YYYY-MM-DD`); upd[k] = b[k] || null; }
+  if (b.plan_name !== undefined) upd.name = String(b.plan_name).trim() || c.name;
+  if (b.category !== undefined) { if (!DEAL_CATS.includes(b.category)) throw new HttpError(400, '類別要是：' + DEAL_CATS.join('、')); upd.deal_category = b.category; }
+  if (b.monthly_fee !== undefined) upd.monthly_fee = num(b.monthly_fee);
+  if (b.plan_content !== undefined) upd.plan_content = b.plan_content || null;
+  if (b.note !== undefined) upd.note = b.note || null;
+  const notes = [];
+  if (b.items !== undefined || b.installments !== undefined) {
+    const items = b.items !== undefined ? normItems(b.items, upd.deal_category || c.deal_category) : ctItems(c);
+    const total = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+    const old = ctInst(c);
+    let inst;
+    if (b.installments !== undefined) inst = normInst(b.installments, total, upd.signed_date || c.signed_date, me.role === 'admin', notes);
+    else if (old.length === 1 && !old[0].paid_date) inst = [{ ...old[0], amount: total }];
+    else throw new HttpError(400, '明細金額改了，請一起提供 installments（付款期數）');
+    // 已確認的收款一律保留
+    old.forEach((op, i) => { if (op.paid_date && inst[i] && !inst[i].paid_date) for (const k of ['paid_date', 'paid_amount', 'paid_by', 'paid_at']) if (op[k] != null) inst[i][k] = op[k]; });
+    Object.assign(upd, { items, installments: inst, amount: total });
+  }
+  if (!Object.keys(upd).length) throw new HttpError(400, '沒有要更新的欄位');
+  const r = await db.update('contracts', `id=eq.${id}`, upd);
+  return { ok: true, deal: dealView(r?.[0] || { ...c, ...upd }), notes: notes.length ? notes : undefined };
+}
+async function recordPayment({ db, me }, id, b) {
+  if (me.role !== 'admin') throw new HttpError(403, '只有管理員可以確認收款（獎金依收款月份計算）');
+  const c = await loadDeal(db, id);
+  const inst = JSON.parse(JSON.stringify(ctInst(c)));
+  let i = b.installment_index != null ? parseInt(b.installment_index, 10) : inst.findIndex(p => !p.paid_date);
+  if (b.label) i = inst.findIndex(p => p.label === b.label);
+  const p = inst[i];
+  if (!p) throw new HttpError(400, '找不到這一期，請先用 get_customer_deals 看 installments 的 index');
+  if (p.paid_date) return { ok: false, message: `「${p.label}」已在 ${p.paid_date} 收款，沒有變更` };
+  const d = b.paid_date || todayTW();
+  if (!isDate(d)) throw new HttpError(400, 'paid_date 要是 YYYY-MM-DD');
+  Object.assign(p, { paid_date: d, paid_amount: num(b.paid_amount) ?? (Number(p.amount) || 0), paid_by: me.name + '（ChatGPT）', paid_at: new Date().toISOString() });
+  await db.update('contracts', `id=eq.${id}`, { installments: inst, items: ctItems(c) });
+  return { ok: true, deal: c.name, installment: p.label, paid_date: d, paid_amount: p.paid_amount };
+}
+async function listCustomers({ db, url }) {
+  const accs = await db.get('accounts?select=id,name,lead_id,status,user_name,contracts(*)&limit=500');
+  const rows = accs.map(a => ({ name: a.name, status: a.status === 'terminated' ? '終止合作' : '合作中', owner: a.user_name || null, ...finSummary(a.contracts || []), crm_link: a.lead_id ? url.origin + '/#lead=' + a.lead_id : null, lead_id: a.lead_id }));
+  rows.sort((x, y) => (x.status === y.status ? y.monthly_fee - x.monthly_fee : x.status === '合作中' ? -1 : 1));
+  const act = rows.filter(r => r.status === '合作中');
+  return { today: todayTW(), active_customers: act.length, monthly_recurring: act.reduce((s, r) => s + r.monthly_fee, 0), total_contracted: rows.reduce((s, r) => s + r.total, 0), total_paid: rows.reduce((s, r) => s + r.paid, 0), total_unpaid: rows.reduce((s, r) => s + r.unpaid, 0), customers: rows };
 }
 
 // ───────────────────────── OpenAPI（給 GPT Actions）─────────────────────────
