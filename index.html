@@ -164,6 +164,21 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .df-chip.on { border-color:var(--accent); background:var(--accent-glow); color:var(--text); }
 .df-bar { height:5px; background:var(--bg4); border-radius:3px; overflow:hidden; width:120px; }
 .df-bar > div { height:100%; background:var(--green); }
+.fin-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-bottom:10px; }
+.fin-stat { background:var(--bg3); border-radius:8px; padding:9px 11px; min-width:0; }
+.fin-val { font-family:var(--mono); font-size:17px; font-weight:600; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fin-sub { font-size:11px; color:var(--text3); margin-top:2px; }
+.fin-bar { height:5px; background:var(--bg4); border-radius:3px; overflow:hidden; margin:4px 0 10px; max-width:220px; }
+.fin-bar > div { height:100%; background:var(--green); }
+.acc-cards { display:none; }
+.acc-card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:11px 12px; margin-bottom:8px; cursor:pointer; }
+.acc-card .fin-bar { max-width:none; margin:5px 0 6px; }
+@media (max-width: 768px) {
+  .fin-grid { grid-template-columns:1fr 1fr; gap:8px; }
+  .acc-table-wrap { display:none; }
+  .acc-cards { display:block; }
+  .bnav-item { padding:6px 2px; min-width:46px; }
+}
 
 /* ── Drawer ── */
 .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150; }
@@ -517,6 +532,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
         <div class="nav-item" onclick="navigate('leads')" id="nav-leads">
           <span class="nav-icon">🏢</span><span class="nav-text">公司</span>
         </div>
+        <div class="nav-item" onclick="navigate('accounts')" id="nav-accounts">
+          <span class="nav-icon">🤝</span><span class="nav-text">客戶</span>
+        </div>
         <div class="nav-item" onclick="navigate('quotes')" id="nav-quotes">
           <span class="nav-icon">🧾</span><span class="nav-text">報價</span>
         </div>
@@ -805,14 +823,14 @@ function navigate(page) {
   currentPage = page;
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.bnav-item').forEach(n => n.classList.remove('active'));
-  const key = ({ accounts: 'leads', company: 'leads' })[page] || page;
+  const key = ({ company: 'leads' })[page] || page;
   const nav = document.getElementById('nav-' + key);
   if (nav) nav.classList.add('active');
-  const bkey = ['today', 'leads', 'quotes', 'performance'].includes(key) ? key : 'more';
+  const bkey = ['today', 'leads', 'accounts', 'quotes', 'performance'].includes(key) ? key : 'more';
   const bnav = document.getElementById('bnav-' + bkey);
   if (bnav) bnav.classList.add('active');
   document.getElementById('topbarTitle').textContent = {
-    today: '今天', dashboard: 'Dashboard', leads: '公司', quotes: '報價單', accounts: '公司', performance: '業績',
+    today: '今天', dashboard: 'Dashboard', leads: '公司', quotes: '報價單', accounts: '成交客戶', performance: '業績',
     contacts: '聯絡人', settings: '設定', feed: '動態總覽'
   }[page] || page;
   document.getElementById('topbarActions').innerHTML = '';
@@ -821,7 +839,7 @@ function navigate(page) {
 }
 function openMoreMenu() {
   const b = function (pg, ico, label) { return '<button class="btn btn-secondary" style="justify-content:flex-start;width:100%;margin-bottom:8px" onclick="closeModal();navigate(\'' + pg + '\')">' + ico + '　' + label + '</button>'; };
-  openModal('更多', b('dashboard', '📊', 'Dashboard') + b('accounts', '🏢', '成交客戶列表') + b('contacts', '👥', '聯絡人') + b('feed', '📰', '動態總覽') + b('settings', '⚙️', '設定'), [{ label: '關閉', cls: 'btn-secondary', action: closeModal }]);
+  openModal('更多', b('dashboard', '📊', 'Dashboard') + b('contacts', '👥', '聯絡人') + b('feed', '📰', '動態總覽') + b('settings', '⚙️', '設定'), [{ label: '關閉', cls: 'btn-secondary', action: closeModal }]);
 }
 
 function onFabClick() {
@@ -1896,6 +1914,56 @@ function dealInstallments(c) {
   return [{ label: '全額', amount: c.amount || 0, due_date: dealDate(c), alloc: 'prorata', paid_date: null }];
 }
 function instPaidAmt(p) { return p.paid_date ? (p.paid_amount != null ? Number(p.paid_amount) || 0 : Number(p.amount) || 0) : 0; }
+// ── 客戶財務摘要：月費、合約期間、已收／未收 ──
+// 月費：優先用欄位，其次從開通內容「月費：$3,680」解析
+function ctMonthly(c) {
+  if (c && c.monthly_fee != null && c.monthly_fee !== '') return Number(c.monthly_fee) || 0;
+  const m = String((c && c.plan_content) || '').match(/月費[：:]\s*(?:NT)?\$?\s*([\d,]+)/);
+  return m ? (parseInt(m[1].replace(/,/g, ''), 10) || 0) : 0;
+}
+function ctActive(c) { return !c.end_date || daysUntil(c.end_date) >= 0; }
+// 合約進度：第幾個月／共幾個月
+function ctTermInfo(c) {
+  if (!c.start_date || !c.end_date) return null;
+  const mv = function (d) { const p = String(d).slice(0, 10).split('-').map(Number); return p[0] * 12 + p[1] - 1 + (p[2] - 1) / 31; };
+  const total = Math.max(1, Math.round(mv(c.end_date) - mv(c.start_date)));
+  const t = new Date(); const cur = t.getFullYear() * 12 + t.getMonth() + (t.getDate() - 1) / 31;
+  if (cur < mv(c.start_date)) return { total: total, done: 0, label: '尚未開始・共 ' + total + ' 個月' };
+  const done = Math.min(total, Math.floor(cur - mv(c.start_date)) + 1);
+  return { total: total, done: done, label: (cur > mv(c.end_date) ? '已到期' : '第 ' + done + ' / ' + total + ' 個月') };
+}
+function acctFin(contracts) {
+  const f = { total: 0, paid: 0, unpaid: 0, monthly: 0, nextPay: null, start: '', end: '', count: (contracts || []).length };
+  (contracts || []).forEach(function (c) {
+    f.total += c.amount || dealItems(c).reduce(function (s, it) { return s + (Number(it.amount) || 0); }, 0);
+    dealInstallments(c).forEach(function (p) {
+      f.paid += instPaidAmt(p);
+      if (!p.paid_date && (!f.nextPay || String(p.due_date || '') < String(f.nextPay.due_date || ''))) f.nextPay = { amount: Number(p.amount) || 0, due_date: p.due_date || '', label: p.label || '' };
+    });
+    if (ctActive(c)) {
+      f.monthly += ctMonthly(c);
+      if (c.start_date && (!f.start || c.start_date < f.start)) f.start = c.start_date;
+      if (c.end_date && (!f.end || c.end_date > f.end)) f.end = c.end_date;
+    }
+  });
+  f.unpaid = Math.max(0, f.total - f.paid);
+  return f;
+}
+function finPeriodHtml(start, end) {
+  if (!start && !end) return '—';
+  const d = end ? daysUntil(end) : null;
+  const tail = d == null ? '' : (d < 0 ? '<span style="color:var(--red)">（已到期）</span>' : d <= 30 ? '<span style="color:var(--yellow)">（剩 ' + d + ' 天）</span>' : '');
+  return esc(start || '?') + ' ~ ' + esc(end || '?') + tail;
+}
+function finNextPayHtml(np) {
+  if (!np) return '<span style="color:var(--green)">已收齊</span>';
+  const d = daysUntil(np.due_date);
+  return '<span style="color:' + (d != null && d < 0 ? 'var(--red)' : 'var(--text2)') + '">$' + fmtNum(np.amount) + '・' + esc(np.due_date || '—') + (d != null && d < 0 ? '（逾期）' : '') + '</span>';
+}
+function finBarHtml(f) {
+  const pct = f.total > 0 ? Math.min(100, Math.round(f.paid / f.total * 100)) : 0;
+  return '<div class="fin-bar" title="已收 ' + pct + '%"><div style="width:' + pct + '%"></div></div>';
+}
 function bonusTypeBadge(t) {
   const cls = { standard: 'badge-green', custom: 'badge-purple', renewal: 'badge-yellow' }[t] || 'badge-gray';
   return '<span class="badge ' + cls + '">' + (BONUS_TYPES[t] || '未選') + '</span>';
@@ -1966,7 +2034,11 @@ function buildDealFormHtml(ct, def) {
     +   '</div>'
     +   '<div class="form-row">'
     +     '<div class="form-group"><label class="form-label">系統啟用日</label><input class="form-input" id="dfLive" type="date" value="' + esc(ct.start_date || def.start_date || '') + '" onchange="autoFillRenewal()"></div>'
-    +     '<div class="form-group"><label class="form-label">續約日 <span style="font-weight:400;color:var(--text3)">（啟用日 +1 年）</span></label><input class="form-input" id="dfRenew" type="date" value="' + esc(ct.end_date || def.end_date || '') + '"></div>'
+    +     '<div class="form-group"><label class="form-label">合約到期／續約日 <span style="font-weight:400;color:var(--text3)">（啟用日 +1 年）</span></label><input class="form-input" id="dfRenew" type="date" value="' + esc(ct.end_date || def.end_date || '') + '"></div>'
+    +   '</div>'
+    +   '<div class="form-row">'
+    +     '<div class="form-group"><label class="form-label">月費（未稅）<span style="font-weight:400;color:var(--text3)">客戶頁月費加總用</span></label><input class="form-input" id="dfMonthly" type="number" min="0" placeholder="例：3680；空白則從開通內容的「月費：」帶入" value="' + esc(ct.monthly_fee != null ? String(ct.monthly_fee) : (ctMonthly(ct) ? String(ctMonthly(ct)) : '')) + '"></div>'
+    +     '<div class="form-group"></div>'
     +   '</div></div>'
     + '<div class="df-sec">' + dfSec(num(), '開通內容', '<button type="button" class="btn btn-ghost btn-sm" style="font-size:11px" onclick="applyDealTemplate(true)">📋 套用方案模板</button>')
     +   '<textarea class="form-textarea" id="dfContent" style="min-height:110px" placeholder="選方案會自動帶入模板">' + esc(ct.plan_content || '') + '</textarea></div>'
@@ -2195,6 +2267,7 @@ function readDealForm() {
     deal_category: cat,
     plan_content: document.getElementById('dfContent').value.trim() || null,
     amount: total,
+    monthly_fee: (function () { const v = numLoose(document.getElementById('dfMonthly')?.value); if (v != null) return v; return ctMonthly({ plan_content: document.getElementById('dfContent').value }) || null; })(),
     items: items,
     installments: inst,
     quote_note_id: _df.quoteNoteId || null,
@@ -2600,16 +2673,19 @@ function companyHeaderHtml(lead, acc) {
 }
 
 function companyDealsCardHtml(acc, contracts) {
-  const total = contracts.reduce(function (s, c) { return s + (c.amount || 0); }, 0);
-  const paid = contracts.reduce(function (s, c) { return s + dealInstallments(c).reduce(function (x, p) { return x + instPaidAmt(p); }, 0); }, 0);
+  const f = acctFin(contracts);
   const nr = pickNextRenewal(contracts);
+  const stat = function (label, val, sub, color) { return '<div class="fin-stat"><div class="form-label">' + label + '</div><div class="fin-val"' + (color ? ' style="color:' + color + '"' : '') + '>' + val + '</div>' + (sub ? '<div class="fin-sub">' + sub + '</div>' : '') + '</div>'; };
+  const np = f.nextPay, npd = np ? daysUntil(np.due_date) : null;
   return '<div class="cp-card">'
-    + '<div class="cp-card-h"><div class="cp-card-t">💰 成交與收款</div><button class="btn btn-primary btn-sm" onclick="openDealModal(\'' + acc.id + '\',null,{leadId:\'' + acc.lead_id + '\'})">＋ 新增</button></div>'
-    + '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;margin-bottom:10px">'
-    +   '<div><div class="form-label">累計成交</div><b style="font-family:var(--mono)">$' + fmtNum(total) + '</b></div>'
-    +   '<div><div class="form-label">已收</div><b style="font-family:var(--mono);color:' + (paid >= total && total > 0 ? 'var(--green)' : 'var(--text)') + '">$' + fmtNum(paid) + '</b></div>'
-    +   '<div><div class="form-label">下次續約</div>' + renewalBadgeHtml(nr) + '</div>'
+    + '<div class="cp-card-h"><div class="cp-card-t">💰 合約與收款</div><button class="btn btn-primary btn-sm" onclick="openDealModal(\'' + acc.id + '\',null,{leadId:\'' + acc.lead_id + '\'})">＋ 新增成交</button></div>'
+    + '<div class="fin-grid">'
+    +   stat('月費', f.monthly ? '$' + fmtNum(f.monthly) : '—', f.monthly ? '未稅／月' : '成交單未填月費')
+    +   stat('已收', '$' + fmtNum(f.paid), '合約總額 $' + fmtNum(f.total), f.total > 0 && f.paid >= f.total ? 'var(--green)' : '')
+    +   stat('未收', '$' + fmtNum(f.unpaid), np ? '下期 ' + esc(np.due_date || '—') + (npd != null && npd < 0 ? '（逾期）' : '') : '已收齊', np && npd != null && npd < 0 ? 'var(--red)' : '')
+    +   stat('合約期間', f.end ? esc(f.end) : '—', f.start ? '自 ' + esc(f.start) + (nr && nr.end_date ? '・' + (daysUntil(nr.end_date) < 0 ? '已到期' : '剩 ' + daysUntil(nr.end_date) + ' 天') : '') : '')
     + '</div>'
+    + (f.total ? finBarHtml(f) : '')
     + '<div id="contractList">' + renderContractList(contracts, acc.id) + '</div>'
     + '</div>';
 }
@@ -3727,81 +3803,86 @@ window.addEventListener('message', async (e) => {
 // ── ACCOUNTS ──
 async function renderAccounts() {
   if (!usersData.length || !dealTypesData.length) await loadGlobalData();
-  const { data: accs } = await db.from('accounts').select('*, contracts(id, amount, end_date, remind_days, deal_category, signed_date)');
+  const { data: accs } = await db.from('accounts').select('*, contracts(*)');
   accountsData = accs || [];
-
   document.getElementById('topbarActions').innerHTML = `
     <div class="action-bar">
       <div class="view-toggle">
         <button class="view-toggle-btn" onclick="navigate('leads')">開發中</button>
         <button class="view-toggle-btn active">成交客戶</button>
       </div>
-      <div class="search-wrap">
-        <span class="search-icon">🔍</span>
-        <input class="form-input" id="accSearch" placeholder="搜尋客戶..." style="width:180px" oninput="filterAccounts()">
-      </div>
       <button class="btn btn-primary btn-sm" onclick="openNewAccountModal()">＋ 新增客戶</button>
     </div>
   `;
-
   renderAccountsList(accountsData);
   if (_pendingAccountId) { const pid = _pendingAccountId; _pendingAccountId = null; openAccountDetail(pid); }
 }
 
+let _accFilter = 'active';
+function setAccFilter(k) { _accFilter = k; filterAccounts(); }
 function filterAccounts() {
   const q = document.getElementById('accSearch')?.value?.toLowerCase() || '';
-  renderAccountsList(accountsData.filter(a => a.name?.toLowerCase().includes(q) || a.company?.toLowerCase().includes(q)));
+  renderAccountsList(accountsData.filter(a => a.name?.toLowerCase().includes(q) || a.company?.toLowerCase().includes(q)), true);
 }
 
-function renderAccountsList(accs) {
+function renderAccountsList(accs, keepSearch) {
   const content = document.getElementById('content');
-  if (!accs.length) {
-    content.innerHTML = '<div class="empty-state" style="height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center"><div class="empty-icon">🏢</div><div class="empty-text">尚無客戶</div></div>';
+  const rows = accs.map(function (a) { return { a: a, f: acctFin(a.contracts || []), off: a.status === 'terminated' }; });
+  const all = accountsData.map(function (a) { return { f: acctFin(a.contracts || []), off: a.status === 'terminated' }; });
+  const act = all.filter(function (r) { return !r.off; });
+  const sum = function (list, k) { return list.reduce(function (s, r) { return s + r.f[k]; }, 0); };
+  const overdue = all.filter(function (r) { return r.f.nextPay && daysUntil(r.f.nextPay.due_date) < 0; }).length;
+  let shown = rows;
+  if (_accFilter === 'active') shown = rows.filter(function (r) { return !r.off; });
+  else if (_accFilter === 'unpaid') shown = rows.filter(function (r) { return r.f.unpaid > 0; });
+  else if (_accFilter === 'renew') shown = rows.filter(function (r) { const d = r.f.end ? daysUntil(r.f.end) : null; return !r.off && d != null && d <= 60; });
+  shown.sort(function (x, y) { return (x.off - y.off) || (y.f.monthly - x.f.monthly) || (y.f.total - x.f.total); });
+  const kpi = function (label, val, sub, color) { return '<div class="fin-stat"><div class="form-label">' + label + '</div><div class="fin-val"' + (color ? ' style="color:' + color + '"' : '') + '>' + val + '</div>' + (sub ? '<div class="fin-sub">' + sub + '</div>' : '') + '</div>'; };
+  const chip = function (k, label) { return '<button class="df-chip' + (_accFilter === k ? ' on' : '') + '" onclick="setAccFilter(\'' + k + '\')">' + label + '</button>'; };
+  const q = keepSearch ? (document.getElementById('accSearch')?.value || '') : '';
+  let html = '<div class="fin-grid">'
+    + kpi('合作中客戶', act.length + ' 家', all.length - act.length ? '終止 ' + (all.length - act.length) + ' 家' : '')
+    + kpi('每月月費合計', '$' + fmtNum(sum(act, 'monthly')), '未稅・合約中')
+    + kpi('已收', '$' + fmtNum(sum(all, 'paid')), '合約總額 $' + fmtNum(sum(all, 'total')))
+    + kpi('未收', '$' + fmtNum(sum(all, 'unpaid')), overdue ? overdue + ' 家有逾期款' : '無逾期', overdue ? 'var(--red)' : '')
+    + '</div>'
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px">'
+    +   chip('active', '合作中') + chip('unpaid', '有未收款') + chip('renew', '60 天內到期') + chip('all', '全部')
+    +   '<input class="form-input" id="accSearch" placeholder="🔍 搜尋客戶" style="width:180px;margin-left:auto;padding:6px 10px" oninput="filterAccounts()" value="' + esc(q) + '">'
+    + '</div>';
+  if (!shown.length) {
+    content.innerHTML = html + '<div class="empty-state" style="padding:40px"><div class="empty-icon">🏢</div><div class="empty-text">沒有符合的客戶</div></div>';
+    if (keepSearch) { const el = document.getElementById('accSearch'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }
     return;
   }
-  content.innerHTML = `
-    <div class="panel">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>客戶名稱</th>
-            <th>公司</th>
-            <th>負責業務</th>
-            <th>狀態</th>
-            <th>成交筆數</th>
-            <th>累計成交</th>
-            <th>下次續約</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${accs.map(a => {
-            const contracts = a.contracts || [];
-            const totalAmt = contracts.reduce((s,c) => s + (c.amount||0), 0);
-            const nearest = pickNextRenewal(contracts);
-            const statusBadge = a.status === 'terminated'
-              ? '<span class="badge badge-red">終止合作</span>'
-              : '<span class="badge badge-green">合作中</span>';
-            return `
-              <tr onclick="openAccountDetail('${a.id}')" style="${a.status==='terminated'?'opacity:0.6':''}">
-                <td><div style="font-weight:500">${esc(a.name)}</div></td>
-                <td>${esc(a.company||'—')}</td>
-                <td style="font-size:12px;color:var(--text3)">${esc(a.user_name||'—')}</td>
-                <td>${statusBadge}</td>
-                <td><span class="badge badge-gray">${contracts.length}</span></td>
-                <td style="font-family:var(--mono);font-size:12.5px">${totalAmt > 0 ? '$ '+fmtNum(totalAmt) : '—'}</td>
-                <td style="font-size:12px">${renewalBadgeHtml(nearest)}</td>
-                <td onclick="event.stopPropagation()" style="display:flex;gap:4px;align-items:center">
-                  <button class="btn btn-ghost btn-sm" onclick="openAccountDetail('${a.id}')">詳情</button>
-                  ${window.isAdmin ? `<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteAccount('${a.id}','${esc(a.name)}')">🗑</button>` : ''}
-                </td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
+  html += '<div class="panel acc-table-wrap"><table class="data-table"><thead><tr>'
+    + '<th>客戶</th><th>業務</th><th style="text-align:right">月費</th><th>合約期間</th><th>已收／合約總額</th><th style="text-align:right">未收</th><th>下次收款</th>'
+    + '</tr></thead><tbody>';
+  shown.forEach(function (r) {
+    const a = r.a, f = r.f;
+    html += '<tr onclick="openAccountDetail(\'' + a.id + '\')" style="cursor:pointer;' + (r.off ? 'opacity:0.55' : '') + '">'
+      + '<td><div style="font-weight:500">' + esc(a.name) + '</div>' + (r.off ? '<span class="badge badge-red">終止合作</span>' : '') + (f.count ? '' : '<span style="font-size:11px;color:var(--text3)">尚無成交單</span>') + '</td>'
+      + '<td style="font-size:12px;color:var(--text3)">' + esc(a.user_name || '—') + '</td>'
+      + '<td style="text-align:right;font-family:var(--mono);font-weight:600">' + (f.monthly ? '$' + fmtNum(f.monthly) : '—') + '</td>'
+      + '<td style="font-size:12px">' + finPeriodHtml(f.start, f.end) + '</td>'
+      + '<td style="font-family:var(--mono);font-size:12.5px">' + (f.total ? '$' + fmtNum(f.paid) + ' <span style="color:var(--text3)">/ $' + fmtNum(f.total) + '</span>' + finBarHtml(f) : '—') + '</td>'
+      + '<td style="text-align:right;font-family:var(--mono);font-size:12.5px;color:' + (f.unpaid ? 'var(--text)' : 'var(--text3)') + '">' + (f.unpaid ? '$' + fmtNum(f.unpaid) : '—') + '</td>'
+      + '<td style="font-size:12px">' + (f.count ? finNextPayHtml(f.nextPay) : '—') + '</td>'
+      + '</tr>';
+  });
+  html += '</tbody></table></div><div class="acc-cards">';
+  shown.forEach(function (r) {
+    const a = r.a, f = r.f;
+    html += '<div class="acc-card" onclick="openAccountDetail(\'' + a.id + '\')"' + (r.off ? ' style="opacity:0.55"' : '') + '>'
+      + '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b>' + esc(a.name) + '</b><span style="font-family:var(--mono);font-weight:600">' + (f.monthly ? '$' + fmtNum(f.monthly) + '<span style="font-size:11px;color:var(--text3);font-weight:400">/月</span>' : '') + '</span></div>'
+      + '<div style="font-size:11.5px;color:var(--text3);margin:3px 0 6px">' + (r.off ? '終止合作・' : '') + esc(a.user_name || '') + (f.start || f.end ? '・' + finPeriodHtml(f.start, f.end) : '') + '</div>'
+      + (f.total ? '<div style="display:flex;justify-content:space-between;font-size:12px;font-family:var(--mono)"><span>已收 $' + fmtNum(f.paid) + ' / $' + fmtNum(f.total) + '</span><span' + (f.unpaid ? '' : ' style="color:var(--text3)"') + '>未收 $' + fmtNum(f.unpaid) + '</span></div>' + finBarHtml(f)
+        + '<div style="font-size:11.5px">下次收款：' + finNextPayHtml(f.nextPay) + '</div>' : '<div style="font-size:11.5px;color:var(--text3)">尚無成交單</div>')
+      + '</div>';
+  });
+  html += '</div>';
+  content.innerHTML = html;
+  if (keepSearch) { const el = document.getElementById('accSearch'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }
 }
 
 function openNewAccountModal() {
@@ -4057,12 +4138,14 @@ function renderContractList(contracts, accId) {
     meta += '<span style="display:inline-flex;align-items:center;gap:6px"><span class="df-bar"><div style="width:' + pct + '%"></div></span>'
       + '<span style="font-size:11px;color:' + (pct >= 100 ? 'var(--green)' : 'var(--text3)') + '">' + (pct >= 100 ? '已收齊' : '已收 $' + fmtNum(paid)) + '</span></span>';
     if (nextP) { const dd = daysUntil(nextP.due_date); meta += '<span style="font-size:11px;color:' + (dd != null && dd < 0 ? 'var(--red)' : 'var(--text3)') + '">下期 $' + fmtNum(nextP.amount) + '・' + esc(nextP.due_date || '') + (dd != null && dd < 0 ? '（逾期）' : '') + '</span>'; }
+    const mf = ctMonthly(c);
+    if (mf) meta += '<span class="badge badge-blue" style="font-family:var(--mono)">月費 $' + fmtNum(mf) + '</span>';
     if (sales) meta += '<span style="font-size:11px;color:var(--text3)">👤 ' + esc(sales) + '</span>';
     let dates = '';
     const sd = dealDate(c);
     if (sd) dates += '<span>簽約 ' + sd + '</span>';
-    if (c.start_date) dates += '<span>啟用 ' + c.start_date + '</span>';
-    if (c.end_date) dates += '<span>續約 ' + renewalBadgeHtml(c) + '</span>';
+    const ti = ctTermInfo(c);
+    if (c.start_date || c.end_date) dates += '<span>合約 ' + esc(c.start_date || '?') + ' ~ ' + (c.end_date ? renewalBadgeHtml(c) : '?') + (ti ? '・' + ti.label : '') + '</span>';
     let itemsHtml = '<div class="form-label">成交明細</div><table class="data-table" style="margin-bottom:10px"><tbody>';
     items.forEach(function (it) {
       itemsHtml += '<tr><td style="font-size:12.5px">' + esc(it.name || '') + '</td><td>' + bonusTypeBadge(it.bonus_type) + '</td><td style="text-align:right;font-family:var(--mono);font-size:12.5px">' + (Number(it.amount) === 0 ? '贈送' : fmtNum(it.amount)) + '</td></tr>';
@@ -5624,6 +5707,9 @@ db.auth.onAuthStateChange(async (event, session) => {
   </div>
   <div class="bnav-item" id="bnav-leads" onclick="navigate('leads')">
     <div class="bnav-icon">🏢</div><div class="bnav-label">公司</div>
+  </div>
+  <div class="bnav-item" id="bnav-accounts" onclick="navigate('accounts')">
+    <div class="bnav-icon">🤝</div><div class="bnav-label">客戶</div>
   </div>
   <div class="bnav-item" id="bnav-quotes" onclick="navigate('quotes')">
     <div class="bnav-icon">🧾</div><div class="bnav-label">報價</div>
