@@ -3,12 +3,14 @@
 // 其他路徑原樣交給 worker.js。工具一律轉呼叫既有的 /api，權限與邏輯完全共用。
 import app from './worker.js';
 
-const SERVER = { name: 'saleflow-crm', version: '1.0.0' };
+const SERVER = { name: 'saleflow-crm', version: '1.1.0' };
 const INSTRUCTIONS = `你在操作奧德上（OrderUp B2B）的 SaleFlow CRM。一律繁體中文、簡潔回覆。
 - 對話開始先呼叫 get_me 取得使用者、角色與今天日期（台北時間），相對日期都用它換算成 YYYY-MM-DD。
 - 記錄活動：search_leads 找公司 → 整理內容（重點、需求、下一步，不加料）→ 先向使用者複述公司、類型、聯絡人、內容、下次聯絡日並取得確認 → add_activity。
 - 改階段 set_stage、改下次聯絡日 set_next_contact，都先確認。「結案」「簽約進件」只能在 CRM 裡操作，請提供 crm_link。
 - 主管總結：get_activity_report（owner=all）、get_attention_report；先講結論與風險，再列細節。
+- 報價單／合約截圖：逐張讀出公司、統編、方案、各項目未稅折後金額、月費、合約期間、付款方式。search_leads（可用統編）找公司，找不到先 create_lead；已成交的用 record_deal 建成交單（items 用未稅折後金額，月費填 monthly_fee，合約起訖填 start_date／end_date），寫入前先列表給使用者確認。只是報價、還沒成交的，用 add_activity（note）記報價重點。
+- 看客戶合約、已收／未收、月費：get_customer_deals；全部客戶總覽：list_customers。收款確認用 record_payment（限管理員）。
 - 只根據工具回傳資料回答，不捏造；沒有刪除功能。`;
 
 const T = (name, description, properties = {}, required = [], readOnly = true) => ({
@@ -36,6 +38,28 @@ const TOOLS = [
   }, ['lead_id', 'type', 'content'], false),
   T('set_next_contact', '設定或清除下次聯絡日', { lead_id: S('名單 id'), date: S('YYYY-MM-DD，或 none 清除') }, ['lead_id', 'date'], false),
   T('set_stage', '變更名單階段（不能改成 結案、簽約進件）', { lead_id: S('名單 id'), stage: S('階段名稱，需與 get_me 一致') }, ['lead_id', 'stage'], false),
+  T('list_customers', '成交客戶總覽：每家的月費、合約期間、合約總額、已收、未收、下次收款；以及全公司月費合計'),
+  T('get_customer_deals', '看一家公司的成交單與收款：月費、合約期間、明細、付款期數（含 index）、已收／未收', { lead_id: S('名單 id') }, ['lead_id']),
+  T('record_deal', '建立成交單（會自動把公司轉為成交客戶、階段移到簽約進件）。金額一律未稅、折後實收', {
+    lead_id: S('名單 id'), plan_name: S('方案名稱，例如 Light 輕量版'),
+    category: S('成交類型', { enum: ['主約', '加購專案', '客製案件', '續約', '其他'] }),
+    items: { type: 'array', description: '成交明細（未稅折後）。贈送填 0', items: { type: 'object', properties: { name: S('項目名稱'), amount: { type: 'number', description: '未稅折後金額' }, type: S('subscription=訂閱月費/年費, setup=導入建置, addon=加購, custom=客製, gift=贈送', { enum: ['subscription', 'setup', 'addon', 'custom', 'gift'] }) }, required: ['name', 'amount'] } },
+    installments: { type: 'array', description: '付款期數，合計要等於明細合計；省略＝一次付清。已收款可帶 paid_date（限管理員）', items: { type: 'object', properties: { label: S('期別名稱'), amount: { type: 'number' }, due_date: S('YYYY-MM-DD'), paid_date: S('實收日 YYYY-MM-DD（已收才填）'), paid_amount: { type: 'number' } }, required: ['amount'] } },
+    monthly_fee: { type: 'number', description: '月費（未稅）' },
+    signed_date: S('簽約日 YYYY-MM-DD（報價單日期或客戶確認日）'), start_date: S('合約／系統啟用日 YYYY-MM-DD'), end_date: S('合約到期／續約日 YYYY-MM-DD'),
+    plan_content: S('方案內容：訂單額度、贈送、優惠條件等'), note: S('備註，例如報價單號'),
+    confirm_not_duplicate: { type: 'boolean', description: '使用者確認不是重複才設 true' }
+  }, ['lead_id', 'items', 'signed_date'], false),
+  T('update_deal', '修改成交單：月費、合約期間、方案內容、備註；改金額時 items 與 installments 一起給', {
+    deal_id: S('成交單 id（get_customer_deals 取得）'), plan_name: S('方案名稱'), category: S('成交類型'), monthly_fee: { type: 'number' },
+    signed_date: S('YYYY-MM-DD'), start_date: S('YYYY-MM-DD'), end_date: S('YYYY-MM-DD'), plan_content: S('方案內容'), note: S('備註'),
+    items: { type: 'array', items: { type: 'object', properties: { name: S('項目'), amount: { type: 'number' }, type: S('subscription/setup/addon/custom/gift') } } },
+    installments: { type: 'array', items: { type: 'object', properties: { label: S('期別'), amount: { type: 'number' }, due_date: S('YYYY-MM-DD') } } }
+  }, ['deal_id'], false),
+  T('record_payment', '確認某一期已收款（限管理員；獎金依收款月份計算）', {
+    deal_id: S('成交單 id'), installment_index: { type: 'integer', description: '第幾期（get_customer_deals 的 index，從 0 開始）；省略＝最早未收的那期' },
+    paid_date: S('實收日 YYYY-MM-DD，預設今天'), paid_amount: { type: 'number', description: '實收未稅金額，預設排定金額' }
+  }, ['deal_id'], false),
   T('get_followups', '待聯絡清單：下次聯絡日在今天+days 以前（含逾期）', { days: { type: 'integer', description: '往後看幾天，0=今天與逾期' }, owner }),
   T('get_activity_report', '活動報表：期間內每位業務的活動與碰過的公司，用來做週報/月報', { from: S('YYYY-MM-DD，預設 7 天前'), to: S('YYYY-MM-DD，預設今天'), owner }),
   T('get_attention_report', '需要關注的案子：逾期未追、長期沒更新的進行中案子', { stale_days: { type: 'integer', description: '幾天沒動算停滯，預設 30' }, owner })
@@ -43,6 +67,7 @@ const TOOLS = [
 const qs = (a, keys) => { const p = new URLSearchParams(); for (const k of keys) if (a[k] !== undefined && a[k] !== null && a[k] !== '') p.set(k, String(a[k])); const s = p.toString(); return s ? '?' + s : ''; };
 const pick = (a, keys) => Object.fromEntries(keys.filter(k => a[k] !== undefined).map(k => [k, a[k]]));
 const id = a => { if (!/^[0-9a-f-]{36}$/.test(a.lead_id || '')) throw new Error('lead_id 格式不正確，請先用 search_leads 取得'); return a.lead_id; };
+const did = a => { if (!/^[0-9a-f-]{36}$/.test(a.deal_id || '')) throw new Error('deal_id 格式不正確，請先用 get_customer_deals 取得'); return a.deal_id; };
 const ROUTES = {
   get_me: () => ['GET', '/api/me'],
   search_leads: a => ['GET', '/api/leads' + qs(a, ['q'])],
@@ -51,6 +76,11 @@ const ROUTES = {
   add_activity: a => ['POST', `/api/leads/${id(a)}/activities`, pick(a, ['type', 'content', 'contact_name', 'occurred_at', 'next_contact_date'])],
   set_next_contact: a => ['PATCH', `/api/leads/${id(a)}/next-contact`, pick(a, ['date'])],
   set_stage: a => ['PATCH', `/api/leads/${id(a)}/stage`, pick(a, ['stage'])],
+  list_customers: () => ['GET', '/api/customers'],
+  get_customer_deals: a => ['GET', `/api/leads/${id(a)}/deals`],
+  record_deal: a => ['POST', `/api/leads/${id(a)}/deals`, pick(a, ['plan_name', 'category', 'items', 'installments', 'monthly_fee', 'signed_date', 'start_date', 'end_date', 'plan_content', 'note', 'confirm_not_duplicate'])],
+  update_deal: a => ['PATCH', `/api/deals/${did(a)}`, pick(a, ['plan_name', 'category', 'items', 'installments', 'monthly_fee', 'signed_date', 'start_date', 'end_date', 'plan_content', 'note'])],
+  record_payment: a => ['POST', `/api/deals/${did(a)}/payments`, pick(a, ['installment_index', 'paid_date', 'paid_amount'])],
   get_followups: a => ['GET', '/api/followups' + qs(a, ['days', 'owner'])],
   get_activity_report: a => ['GET', '/api/report/activity' + qs(a, ['from', 'to', 'owner'])],
   get_attention_report: a => ['GET', '/api/report/attention' + qs(a, ['stale_days', 'owner'])]
