@@ -171,6 +171,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .fin-bar { height:5px; background:var(--bg4); border-radius:3px; overflow:hidden; margin:4px 0 10px; max-width:220px; }
 .fin-bar > div { height:100%; background:var(--green); }
 .acc-cards { display:none; }
+.merge-row { display:flex; gap:8px; align-items:center; padding:9px 10px; border:1px solid var(--border); border-radius:8px; margin-bottom:6px; font-size:12.5px; }
 .acc-card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:11px 12px; margin-bottom:8px; cursor:pointer; }
 .acc-card .fin-bar { max-width:none; margin:5px 0 6px; }
 @media (max-width: 768px) {
@@ -2678,6 +2679,7 @@ function companyHeaderHtml(lead, acc) {
     +   '<button class="btn btn-ghost btn-sm" onclick="openEditLeadModal(\'' + id + '\')">✏️ 編輯</button>'
     +   '<button class="btn btn-ghost btn-sm" onclick="copyLeadLink(\'' + id + '\')">🔗 連結</button>'
     +   (acc ? '<button class="btn btn-ghost btn-sm" onclick="toggleAccountStatus(\'' + acc.id + '\',\'' + (acc.status === 'terminated' ? 'active' : 'terminated') + '\')">' + (acc.status === 'terminated' ? '✅ 恢復合作' : '🚫 終止合作') + '</button>' : '')
+    +   (window.isAdmin ? '<button class="btn btn-ghost btn-sm" onclick="openMergeLead(\'' + id + '\')">🔀 合併重複</button>' : '')
     +   (window.isAdmin ? '<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteLead(\'' + id + '\')">🗑</button>' : '')
     + '</div>'
     + stageBar
@@ -3823,6 +3825,7 @@ async function renderAccounts() {
         <button class="view-toggle-btn" onclick="navigate('leads')">開發中</button>
         <button class="view-toggle-btn active">成交客戶</button>
       </div>
+      ${window.isAdmin ? '<button class="btn btn-secondary btn-sm" onclick="openMergeAccounts()">🔀 合併重複</button>' : ''}
       <button class="btn btn-primary btn-sm" onclick="openNewAccountModal()">＋ 新增客戶</button>
     </div>
   `;
@@ -3898,6 +3901,113 @@ function renderAccountsList(accs, keepSearch) {
   html += '</div>';
   content.innerHTML = html;
   if (keepSearch) { const el = document.getElementById('accSearch'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }
+}
+
+// ── 合併重複（管理員）──
+function mergeNorm(s) { return String(s || '').replace(/(股份)?有限公司|企業社|工作室|商行|實業|國際|台灣分公司|\s|\(.*?\)|（.*?）/g, '').toLowerCase(); }
+function mergeLooksSame(a, b) {
+  const x = mergeNorm(a), y = mergeNorm(b);
+  if (x.length < 2 || y.length < 2) return false;
+  if (x === y || x.indexOf(y) === 0 || y.indexOf(x) === 0) return true;
+  const generic = ['台灣', '台北', '新北', '台中', '台南', '高雄', '中華', '桃園'];
+  return x.slice(0, 2) === y.slice(0, 2) && generic.indexOf(x.slice(0, 2)) < 0;
+}
+function mergeAccLabel(a) {
+  const n = (a.contracts || []).length;
+  return '<b>' + esc(a.name) + '</b> <span style="font-size:11px;color:var(--text3)">' + (a.lead_id ? '有公司資料' : '只有客戶卡') + '・成交單 ' + n + '・' + esc(a.user_name || '—') + '・建立 ' + fmtDate(a.created_at) + (a.status === 'terminated' ? '・已終止' : '') + '</span>';
+}
+// 預設保留：有公司資料 > 成交單多 > 建立較早
+function mergeKeeperFirst(a, b) {
+  const sc = function (x) { return (x.lead_id ? 100 : 0) + (x.contracts || []).length * 10; };
+  if (sc(b) > sc(a) || (sc(b) === sc(a) && String(b.created_at) < String(a.created_at))) return [b, a];
+  return [a, b];
+}
+function mergeRowHtml(p, i) {
+  return '<div style="flex:1;min-width:0"><div>✅ 保留：' + mergeAccLabel(p[0]) + '</div><div style="margin-top:3px">🗑 併掉：' + mergeAccLabel(p[1]) + '</div></div>'
+    + '<button class="btn btn-ghost btn-sm" onclick="swapMergeRow(' + i + ')" title="保留／併掉對調">⇅ 對調</button>'
+    + '<button class="btn btn-primary btn-sm" onclick="doMergeRow(' + i + ')">合併</button>';
+}
+let _mergeAccs = [], _mergeSug = [];
+async function openMergeAccounts() {
+  if (!window.isAdmin) { toast('只有管理員可以合併客戶', 'error'); return; }
+  const { data, error } = await db.from('accounts').select('id,name,lead_id,user_name,created_at,status,contracts(id)').order('name');
+  if (error) { toast('讀取客戶失敗：' + error.message, 'error'); return; }
+  _mergeAccs = data || [];
+  _mergeSug = [];
+  for (let i = 0; i < _mergeAccs.length; i++) for (let j = i + 1; j < _mergeAccs.length; j++) {
+    if (mergeLooksSame(_mergeAccs[i].name, _mergeAccs[j].name)) _mergeSug.push(mergeKeeperFirst(_mergeAccs[i], _mergeAccs[j]));
+  }
+  const opts = '<option value="">— 選擇客戶 —</option>' + _mergeAccs.map(function (a) { return '<option value="' + a.id + '">' + esc(a.name) + ((a.contracts || []).length ? '（成交單 ' + a.contracts.length + '）' : '') + (a.lead_id ? '' : '［只有客戶卡］') + '</option>'; }).join('');
+  let h = '<div style="font-size:12.5px;color:var(--text2);margin-bottom:12px;line-height:1.6">合併後，「併掉」那筆的成交單、收款、活動、聯絡人、報價、備註會全部搬到「保留」那筆，然後刪除重複的那筆。<b style="color:var(--red)">無法復原</b>，請確認保留的是對的那筆。</div>'
+    + '<div class="form-label">系統找到可能重複的（' + _mergeSug.length + ' 組）</div>';
+  if (!_mergeSug.length) h += '<div style="font-size:12px;color:var(--text3);margin-bottom:12px">沒有找到名稱相近的客戶，可以在下面手動選。</div>';
+  _mergeSug.forEach(function (p, i) { h += '<div class="merge-row" id="mg-' + i + '">' + mergeRowHtml(p, i) + '</div>'; });
+  h += '<div class="form-label" style="margin-top:14px">手動合併</div><div class="form-row">'
+    + '<div class="form-group"><label class="form-label">✅ 保留</label><select class="form-select" id="mgKeep">' + opts + '</select></div>'
+    + '<div class="form-group"><label class="form-label">🗑 併掉（會刪除）</label><select class="form-select" id="mgDup">' + opts + '</select></div></div>';
+  openModal('🔀 合併重複客戶', h, [
+    { label: '關閉', cls: 'btn-secondary', action: closeModal },
+    { label: '合併所選', cls: 'btn-primary', action: function () {
+      const k = document.getElementById('mgKeep').value, d = document.getElementById('mgDup').value;
+      if (!k || !d) { toast('請選擇保留和併掉的客戶', 'error'); return; }
+      if (k === d) { toast('保留和併掉不能是同一個', 'error'); return; }
+      confirmMergeAccounts(k, d);
+    }}
+  ]);
+  document.getElementById('modalBox').style.maxWidth = '760px';
+}
+function swapMergeRow(i) {
+  const p = _mergeSug[i]; _mergeSug[i] = [p[1], p[0]];
+  const el = document.getElementById('mg-' + i); if (el) el.innerHTML = mergeRowHtml(_mergeSug[i], i);
+}
+function doMergeRow(i) { const p = _mergeSug[i]; if (p) confirmMergeAccounts(p[0].id, p[1].id); }
+function confirmMergeAccounts(keepId, dupId) {
+  const k = _mergeAccs.find(function (a) { return a.id === keepId; }) || {}, d = _mergeAccs.find(function (a) { return a.id === dupId; }) || {};
+  openConfirm('確定合併？', '把「<b>' + esc(d.name) + '</b>」的所有紀錄併入「<b>' + esc(k.name) + '</b>」，然後刪除「' + esc(d.name) + '」。<br>此操作無法復原。', async function () {
+    closeModal();
+    const { error } = await db.rpc('merge_accounts', { keep_id: keepId, dup_id: dupId });
+    if (error) { toast('合併失敗：' + error.message, 'error'); return; }
+    toast('已合併：' + (d.name || '') + ' → ' + (k.name || ''), 'success');
+    if (currentPage === 'accounts') await renderAccounts();
+    openMergeAccounts();
+  }, function () { openMergeAccounts(); }, '確定合併', '取消');
+}
+// 公司頁：把另一筆重複的公司併進目前這家
+let _mergeLeads = [];
+async function openMergeLead(leadId) {
+  if (!window.isAdmin) { toast('只有管理員可以合併公司', 'error'); return; }
+  const cur = (await db.from('leads').select('id,name').eq('id', leadId).maybeSingle()).data;
+  if (!cur) return;
+  openModal('🔀 合併重複公司', '<div style="font-size:12.5px;color:var(--text2);margin-bottom:10px;line-height:1.6">搜尋跟「<b>' + esc(cur.name) + '</b>」重複的公司。選了之後，它的活動、聯絡人、報價、成交單、收款都會搬到「' + esc(cur.name) + '」，然後刪除重複那筆。<b style="color:var(--red)">無法復原</b>。</div>'
+    + '<input class="form-input" id="mgLeadQ" placeholder="公司名稱、簡稱或統編" oninput="searchMergeLead(\'' + leadId + '\')">'
+    + '<div id="mgLeadRes" style="margin-top:10px"></div>', [{ label: '關閉', cls: 'btn-secondary', action: closeModal }]);
+  const q = document.getElementById('mgLeadQ'); q.value = mergeNorm(cur.name).slice(0, 4); q.focus();
+  searchMergeLead(leadId);
+}
+async function searchMergeLead(leadId) {
+  const el = document.getElementById('mgLeadRes'); if (!el) return;
+  const q = (document.getElementById('mgLeadQ')?.value || '').replace(/[%,()*]/g, ' ').trim();
+  if (!q) { el.innerHTML = ''; return; }
+  const p = '%' + q + '%';
+  const { data } = await db.from('leads').select('id,name,tax_id,user_name,created_at').or('name.ilike.' + p + ',company.ilike.' + p + ',tax_id.ilike.' + p).neq('id', leadId).limit(10);
+  _mergeLeads = data || [];
+  el.innerHTML = _mergeLeads.length ? _mergeLeads.map(function (l, i) {
+    return '<div class="merge-row"><div style="flex:1;min-width:0"><b>' + esc(l.name) + '</b> <span style="font-size:11px;color:var(--text3)">' + esc(l.tax_id || '無統編') + '・' + esc(l.user_name || '—') + '・建立 ' + fmtDate(l.created_at) + convertedTag(l.id) + '</span></div>'
+      + '<button class="btn btn-primary btn-sm" onclick="confirmMergeLead(\'' + leadId + '\',' + i + ')">併入這家</button></div>';
+  }).join('') : '<div style="font-size:12px;color:var(--text3)">找不到符合的公司</div>';
+}
+function convertedTag(id) { return convertedLeadIds && convertedLeadIds.has(id) ? '・<span style="color:var(--green)">成交客戶</span>' : ''; }
+function confirmMergeLead(keepId, i) {
+  const d = _mergeLeads[i]; if (!d) return;
+  const keepName = (leadsData.find(function (l) { return l.id === keepId; }) || (window._cp && window._cp.lead) || {}).name || '目前這家';
+  openConfirm('確定合併？', '把「<b>' + esc(d.name) + '</b>」的所有紀錄併入「<b>' + esc(keepName) + '</b>」，然後刪除「' + esc(d.name) + '」。<br>此操作無法復原。', async function () {
+    closeModal();
+    const { error } = await db.rpc('merge_leads', { keep_id: keepId, dup_id: d.id });
+    if (error) { toast('合併失敗：' + error.message, 'error'); return; }
+    toast('已合併：' + d.name + ' → ' + keepName, 'success');
+    leadsData = leadsData.filter(function (l) { return l.id !== d.id; });
+    if (currentPage === 'company') refreshCompany(); else openCompany(keepId);
+  }, function () { openMergeLead(keepId); }, '確定合併', '取消');
 }
 
 function openNewAccountModal() {
