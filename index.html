@@ -4174,7 +4174,7 @@ function renderContractList(contracts, accId) {
       +     '</div>'
       +     '<div style="display:flex;align-items:center;gap:2px">'
       +       '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEditContract(\'' + c.id + '\',\'' + accId + '\')">✏️</button>'
-      +       '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteContract(\'' + c.id + '\',\'' + accId + '\')">🗑</button>'
+      +       (window.isAdmin ? '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteContract(\'' + c.id + '\',\'' + accId + '\')">🗑</button>' : '')
       +     '</div>'
       +   '</div>'
       +   '<div class="contract-card-body" id="ct-body-' + c.id + '" style="display:none">'
