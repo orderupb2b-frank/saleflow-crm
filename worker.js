@@ -435,7 +435,10 @@ function finSummary(contracts) {
       if (c.end_date && (!end || c.end_date > end)) end = c.end_date;
     }
   }
-  return { deals: contracts.length, total, paid, unpaid: Math.max(0, total - paid), monthly_fee: monthly, contract_start: start || null, contract_end: end || null, next_payment: next };
+  const ends = contracts.filter(c => c.end_date).sort((x, y) => x.end_date.localeCompare(y.end_date));
+  const nr = ends.find(c => c.end_date >= today) || ends[ends.length - 1];
+  const next_renewal = nr ? { date: nr.end_date, days_left: Math.round((new Date(nr.end_date) - new Date(today)) / 864e5), status: nr.end_date >= today ? '未到期' : '已過期未續約' } : null;
+  return { deals: contracts.length, total, paid, unpaid: Math.max(0, total - paid), monthly_fee: monthly, contract_start: start || null, contract_end: end || null, next_renewal, next_payment: next };
 }
 function dealView(c) {
   const inst = ctInst(c);
