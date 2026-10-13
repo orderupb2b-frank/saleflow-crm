@@ -490,6 +490,7 @@ async function getDeals({ db, url }, leadId) {
 }
 async function recordDeal({ db, me, url }, leadId, b) {
   const lead = await loadLead({ db }, leadId);
+  if (me.role !== 'admin' && lead.user_id && lead.user_id !== me.id) throw new HttpError(403, `這家的負責業務是 ${lead.user_name || '其他同事'}，只有負責業務或管理員能建立成交單`);
   const cat = DEAL_CATS.includes(b.category) ? b.category : '主約';
   if (!isDate(b.signed_date)) throw new HttpError(400, 'signed_date（簽約日）必填，格式 YYYY-MM-DD');
   for (const k of ['start_date', 'end_date']) if (b[k] && !isDate(b[k])) throw new HttpError(400, `${k} 格式要是 YYYY-MM-DD`);
