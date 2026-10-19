@@ -124,6 +124,26 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .modal-body { padding: 18px 20px; }
 .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; align-items: center; }
 .df-sec { margin: 4px 0 14px; }
+.cc-grade { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:6px;
+  font-size:12px; font-weight:800; font-family:var(--mono); flex-shrink:0; }
+.cc-grade.A { background:rgba(251,191,36,.18); color:#fbbf24; border:1px solid rgba(251,191,36,.35); }
+.cc-grade.B { background:var(--accent-glow); color:var(--accent); border:1px solid rgba(108,140,255,.3); }
+.cc-grade.C { background:var(--bg4); color:var(--text3); border:1px solid var(--border); }
+.cc-hud { display:flex; align-items:center; gap:12px; flex-wrap:wrap; background:var(--bg2); border:1px solid var(--border);
+  border-radius:12px; padding:10px 14px; margin-bottom:12px; }
+.cc-hud-n { font-size:17px; font-weight:800; font-family:var(--mono); line-height:1; }
+.cc-hud-l { font-size:10.5px; color:var(--text3); margin-top:3px; }
+.cc-hud-bar { flex:1; min-width:90px; height:7px; background:var(--bg4); border-radius:4px; overflow:hidden; }
+.cc-hud-bar > div { height:100%; background:linear-gradient(90deg,var(--accent),var(--green)); transition:width .4s; }
+.cc-note { font-size:13px; white-space:pre-wrap; padding:8px 10px; border-radius:8px; line-height:1.55; margin-top:10px; }
+.cc-note.mkt { background:var(--purple-bg); color:var(--text2); border-left:3px solid var(--purple); }
+.cc-note.sales { background:var(--bg3); color:var(--text2); border-left:3px solid var(--text3); }
+.cc-pop { position:fixed; left:50%; top:38%; transform:translate(-50%,-50%) scale(.6); z-index:9999; pointer-events:none;
+  font-size:40px; font-weight:900; font-family:var(--mono); opacity:0; transition:all .45s cubic-bezier(.2,1.4,.4,1); text-shadow:0 4px 24px rgba(0,0,0,.6); }
+.cc-pop.on { opacity:1; transform:translate(-50%,-50%) scale(1); }
+.cc-rank { display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--border); }
+.cc-rank:first-child { border-top:none; }
+.cc-medal { width:26px; text-align:center; font-size:15px; flex-shrink:0; }
 .cc-dial { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:16px; border-radius:12px;
   background:var(--accent); color:#fff; font-size:20px; font-weight:700; font-family:var(--mono); letter-spacing:.02em;
   text-decoration:none; border:none; }
@@ -909,7 +929,7 @@ async function renderToday() {
     db.from('contracts').select('*'),
     db.from('activities').select('lead_id,created_at'),
     db.from('notes').select('id,lead_id,created_at,content,quote_status').eq('quote_status', 'sent'),
-    db.from('cold_calls').select('id,company,phone,status,owner_id,owner_name,next_call_at,attempts,created_at')
+    db.from('cold_calls').select('id,company,phone,status,owner_id,owner_name,next_call_at,attempts,created_at,grade,note')
   ]);
   if (currentPage !== 'today') return;
   const leads = ldR.data || [], accs = accR.data || [], cts = ctR.data || [], acts = actR.data || [], qs = qR.data || [];
@@ -1002,7 +1022,7 @@ async function renderToday() {
   const rowsF = ccDue.slice(0, 6).map(function (c) {
     const nd = c.next_call_at ? String(c.next_call_at).slice(0, 10) : '';
     const d = nd ? daysUntil(nd) : null;
-    return tdRow("openCcDetail('" + Q(c.id) + "')", esc(c.company || '') + (c.owner_id ? '' : ' <span class="badge badge-blue" style="font-size:10px">公海</span>'),
+    return tdRow("openCcDetail('" + Q(c.id) + "')", (c.grade ? ccGradeBadge(c.grade) + ' ' : '') + esc(c.company || '') + (c.owner_id ? '' : ' <span class="badge badge-blue" style="font-size:10px">公海</span>'),
       [(CC_STATUS[c.status] || {}).label || '', nd ? (d < 0 ? '逾期 ' + (-d) + ' 天' : d === 0 ? '今天要打' : nd) : '', (c.attempts ? '已撥 ' + c.attempts + ' 次' : '')].filter(Boolean).join('・'),
       '<a class="btn btn-primary btn-sm" href="' + ccTelHref(c.phone) + '">📞 撥號</a>');
   });
@@ -1051,11 +1071,84 @@ const CC_OUTCOMES = {
   invalid:    { label: '空號／錯號', icon: '❌', status: 'invalid', connected: false, color: 'var(--text3)' }
 };
 const CC_GIVEUP_AFTER = 4; // 連續撥打達此次數仍未接通 → 建議放棄
+const CC_GRADES = { A: '高潛力', B: '一般', C: '觀望' };
+// 遊戲化：各行為得分（即時由 call_logs 算出，不另存分數）
+const CC_POINTS = { call: 1, connected: 5, interested: 20, converted: 50 };
+const CC_RANKS = [[1000, '傳說', '👑'], [600, '金牌', '🥇'], [300, '銀牌', '🥈'], [100, '銅牌', '🥉'], [0, '新手', '🌱']];
+const CC_DAILY_GOAL_DEFAULT = 30;
+function ccDailyGoal() {
+  try { const v = parseInt(localStorage.getItem('ccGoal_' + currentUser.id)); if (v > 0) return v; } catch (e) {}
+  return CC_DAILY_GOAL_DEFAULT;
+}
+function ccSetDailyGoal() {
+  openModal('🎯 設定每日撥打目標', '<div class="form-group"><label class="form-label">每天想打幾通？</label>'
+    + '<input class="form-input" id="ccGoalIn" type="number" min="1" max="200" value="' + ccDailyGoal() + '"></div>'
+    + '<div style="font-size:12px;color:var(--text3)">只影響你自己的進度條，不影響任何統計數字。</div>', [
+    { label: '取消', cls: 'btn-secondary', action: closeModal },
+    { label: '儲存', cls: 'btn-primary', action: function () {
+      const v = parseInt(document.getElementById('ccGoalIn').value);
+      if (!(v > 0)) { toast('請填大於 0 的數字', 'error'); return; }
+      try { localStorage.setItem('ccGoal_' + currentUser.id, String(v)); } catch (e) {}
+      closeModal(); toast('每日目標：' + v + ' 通', 'success');
+      if (currentPage === 'coldcall' && ccTab === 'call') renderCcCard();
+    }}
+  ]);
+}
+function ccGradeBadge(g) {
+  const k = (g || '').toUpperCase();
+  if (!CC_GRADES[k]) return '';
+  return '<span class="cc-grade ' + k + '" title="' + CC_GRADES[k] + '">' + k + '</span>';
+}
+function ccLogPoints(l) {
+  const o = CC_OUTCOMES[l.outcome] || {};
+  let p = CC_POINTS.call;
+  if (o.connected) p += CC_POINTS.connected;
+  if (l.outcome === 'interested') p += CC_POINTS.interested;
+  return p;
+}
+function ccRankOf(pts) {
+  for (const r of CC_RANKS) if (pts >= r[0]) return r;
+  return CC_RANKS[CC_RANKS.length - 1];
+}
+function ccPop(text, color) {
+  const el = document.createElement('div');
+  el.className = 'cc-pop';
+  el.style.color = color || 'var(--green)';
+  el.textContent = text;
+  document.body.appendChild(el);
+  requestAnimationFrame(function () { el.classList.add('on'); });
+  setTimeout(function () { el.style.opacity = '0'; el.style.top = '30%'; }, 600);
+  setTimeout(function () { el.remove(); }, 1200);
+}
+// 今日戰績（本人）
+async function ccTodayScore() {
+  const { data } = await db.from('call_logs').select('outcome,called_at,user_id').eq('user_id', currentUser.id);
+  const today = nowDateStr();
+  const logs = (data || []).filter(function (l) { return String(l.called_at || '').slice(0, 10) === today; });
+  let pts = 0, conn = 0, hot = 0;
+  logs.forEach(function (l) {
+    pts += ccLogPoints(l);
+    if ((CC_OUTCOMES[l.outcome] || {}).connected) conn += 1;
+    if (l.outcome === 'interested') hot += 1;
+  });
+  // 連續達標天數
+  const byDay = {};
+  (data || []).forEach(function (l) { const d = String(l.called_at || '').slice(0, 10); if (d) byDay[d] = (byDay[d] || 0) + 1; });
+  const goal = ccDailyGoal();
+  let streak = 0;
+  for (let i = 0; i < 180; i++) {
+    const d = addDaysStr(today, -i);
+    if ((byDay[d] || 0) >= goal) streak += 1;
+    else if (i > 0) break;
+    else if ((byDay[d] || 0) < goal) { /* 今天還沒達標不算斷 */ }
+  }
+  return { calls: logs.length, conn: conn, hot: hot, pts: pts, streak: streak, goal: goal };
+}
 
 let ccTab = 'call';
 let ccQueue = [];
 let ccIdx = 0;
-let ccFilter = { status: 'active', owner: 'all', batch: '', q: '' };
+let ccFilter = { status: 'active', owner: 'all', batch: '', q: '', grade: '' };
 let ccPasteRows = null;
 let ccBusy = false;
 
@@ -1105,6 +1198,9 @@ async function loadCcQueue() {
       const pa = a.status === 'callback' ? 0 : (a.owner_id ? 1 : 2);
       const pb = b.status === 'callback' ? 0 : (b.owner_id ? 1 : 2);
       if (pa !== pb) return pa - pb;
+      const ga = 'ABC'.indexOf(String(a.grade || 'B').toUpperCase());
+      const gb = 'ABC'.indexOf(String(b.grade || 'B').toUpperCase());
+      if (ga !== gb) return (ga < 0 ? 1 : ga) - (gb < 0 ? 1 : gb);
       return String(a.next_call_at || a.created_at || '').localeCompare(String(b.next_call_at || b.created_at || ''));
     });
 }
@@ -1134,7 +1230,10 @@ async function renderCcCard() {
     return;
   }
   const c = ccQueue[ccIdx];
-  const { data: logs } = await db.from('call_logs').select('*').eq('cold_call_id', c.id).order('called_at', { ascending: false });
+  const [{ data: logs }, sc] = await Promise.all([
+    db.from('call_logs').select('*').eq('cold_call_id', c.id).order('called_at', { ascending: false }),
+    ccTodayScore()
+  ]);
   if (currentPage !== 'coldcall' || ccTab !== 'call') return;
   const hist = (logs || []).slice(0, 3).map(function (l) {
     const o = CC_OUTCOMES[l.outcome] || {};
@@ -1151,14 +1250,26 @@ async function renderCcCard() {
   });
   const warn = (c.attempts || 0) >= CC_GIVEUP_AFTER
     ? '<div style="font-size:12px;color:var(--yellow);margin-top:8px">⚠️ 已撥打 ' + c.attempts + ' 次都沒接通，考慮放棄這筆</div>' : '';
+  const rank = ccRankOf(sc.pts);
+  const goalPct = Math.min(100, Math.round(sc.calls / sc.goal * 100));
   content.innerHTML = ''
     + '<div style="max-width:560px">'
+    + '<div class="cc-hud">'
+    +   '<div style="cursor:pointer" onclick="ccSetDailyGoal()" title="點我改每日目標"><div class="cc-hud-n">' + sc.calls + '<span style="font-size:12px;color:var(--text3);font-weight:500"> / ' + sc.goal + '</span></div><div class="cc-hud-l">今日撥打</div></div>'
+    +   '<div class="cc-hud-bar"><div style="width:' + goalPct + '%"></div></div>'
+    +   '<div style="text-align:center"><div class="cc-hud-n" style="color:var(--green)">' + sc.conn + '</div><div class="cc-hud-l">接通</div></div>'
+    +   '<div style="text-align:center"><div class="cc-hud-n" style="color:var(--yellow)">' + sc.hot + '</div><div class="cc-hud-l">有興趣</div></div>'
+    +   '<div style="text-align:center"><div class="cc-hud-n" style="color:var(--accent)">' + sc.pts + '</div><div class="cc-hud-l">' + rank[2] + ' ' + rank[1] + '</div></div>'
+    +   (sc.streak > 1 ? '<div style="text-align:center"><div class="cc-hud-n" style="color:#f97316">🔥' + sc.streak + '</div><div class="cc-hud-l">連續達標</div></div>' : '')
+    + '</div>'
+    + (goalPct >= 100 ? '<div style="font-size:12.5px;color:var(--green);background:var(--green-bg);padding:7px 12px;border-radius:8px;margin-bottom:10px">🎯 今日目標達成！再多打都是賺到</div>' : '')
     + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'
     +   '<div style="font-size:13px;color:var(--text3)">第 <b style="color:var(--text)">' + (ccIdx + 1) + '</b> / ' + ccQueue.length + ' 通</div>'
     +   '<div class="df-bar" style="flex:1"><div style="width:' + Math.round(ccIdx / ccQueue.length * 100) + '%"></div></div>'
     + '</div>'
     + '<div class="cp-card">'
     +   '<div style="display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:4px">'
+    +     ccGradeBadge(c.grade)
     +     '<div style="font-size:20px;font-weight:700;flex:1;min-width:0">' + esc(c.company || '') + '</div>'
     +     ccStatusBadge(c.status)
     +   '</div>'
@@ -1167,11 +1278,13 @@ async function renderCcCard() {
     +     + ((c.attempts || 0) ? (([c.contact_name, c.title, c.industry, c.city].filter(Boolean).length ? '・' : '') + '已撥 ' + c.attempts + ' 次') : '')
     +   '</div>'
     +   '<a class="cc-dial" href="' + ccTelHref(c.phone) + '">📞 ' + esc(c.phone || '（無電話）') + '</a>'
-    +   (c.note ? '<div style="font-size:13px;color:var(--text2);margin-top:12px;white-space:pre-wrap;background:var(--bg3);padding:8px 10px;border-radius:8px">' + esc(c.note) + '</div>' : '')
+    +   (c.note ? '<div class="cc-note mkt">📋 ' + esc(c.note) + '</div>' : '')
+    +   (c.sales_note ? '<div class="cc-note sales">✍️ ' + esc(c.sales_note) + '</div>' : '')
     +   warn
     +   '<div class="cc-outs">' + btns + '</div>'
     +   '<div style="display:flex;gap:6px;margin-top:12px">'
     +     '<button class="btn btn-ghost btn-sm" onclick="ccSkip()">略過 ›</button>'
+    +     '<button class="btn btn-ghost btn-sm" onclick="ccQuickNote(\'' + c.id + '\')">✍️ 備註</button>'
     +     '<span style="flex:1"></span>'
     +     '<button class="btn btn-ghost btn-sm" onclick="openCcEdit(\'' + c.id + '\')">✏️ 編輯</button>'
     +   '</div>'
@@ -1181,6 +1294,24 @@ async function renderCcCard() {
 }
 
 function ccSkip() { ccIdx += 1; renderCcCard(); }
+
+function ccQuickNote(id) {
+  const c = ccQueue.find(function (x) { return x.id === id; }) || {};
+  openModal('✍️ 業務備註：' + (c.company || ''),
+    (c.note ? '<div class="form-label">名單備註（行銷提供）</div><div class="cc-note mkt" style="margin:0 0 12px">' + esc(c.note) + '</div>' : '')
+    + '<div class="form-group"><label class="form-label">你的備註</label>'
+    + '<textarea class="form-textarea" id="ccQN" style="min-height:110px" placeholder="這家的狀況、窗口習慣、下次切入點…">' + esc(c.sales_note || '') + '</textarea></div>', [
+    { label: '取消', cls: 'btn-secondary', action: closeModal },
+    { label: '儲存', cls: 'btn-primary', action: async function () {
+      const v = document.getElementById('ccQN').value.trim() || null;
+      const { error } = await db.from('cold_calls').update({ sales_note: v, updated_at: new Date().toISOString() }).eq('id', id);
+      if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
+      c.sales_note = v;
+      closeModal(); toast('備註已存', 'success');
+      renderCcCard();
+    }}
+  ]);
+}
 
 function ccPickOutcome(key) {
   const o = CC_OUTCOMES[key];
@@ -1241,8 +1372,10 @@ async function ccSaveOutcome(key) {
     if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
     Object.assign(c, upd);
     closeModal();
+    const gained = ccLogPoints({ outcome: key });
+    ccPop('+' + gained, o.color);
     if (key === 'interested') { openCcConvert(c.id); return; }
-    toast(o.icon + ' 已記錄' + (next ? '，' + next + ' 再打' : ''), 'success');
+    toast(o.icon + ' 已記錄　+' + gained + ' 分' + (next ? '・' + next + ' 再打' : ''), 'success');
     ccIdx += 1;
     renderCcCard();
   } finally { ccBusy = false; }
@@ -1276,6 +1409,8 @@ async function openCcConvert(ccId) {
     +   '<div class="form-group"><label class="form-label">電話</label><input class="form-input" id="cvPhone" value="' + esc(c.phone || '') + '"></div>'
     + '</div>'
     + '<div class="form-group"><label class="form-label">下次聯絡日</label><input class="form-input" id="cvNext" type="date" value="' + addDaysStr(nowDateStr(), 3) + '"></div>'
+    + ((c.note || c.sales_note) ? '<div class="form-group"><label class="form-label">帶進線索的備註</label>'
+        + '<textarea class="form-textarea" id="cvNote" style="min-height:70px">' + esc([c.note ? '【名單備註】' + c.note : '', c.sales_note ? '【業務備註】' + c.sales_note : ''].filter(Boolean).join('\n')) + '</textarea></div>' : '')
     + '<div style="font-size:12px;color:var(--text3)">所有通話紀錄會一併帶進線索的時間軸。</div>', [
     { label: '取消', cls: 'btn-secondary', action: function () { closeModal(); ccAfterConvertSkip(); } },
     { label: '✅ 建立線索', cls: 'btn-primary', action: function () { ccDoConvert(c); } }
@@ -1331,11 +1466,14 @@ async function ccDoConvert(c) {
         created_at: l.called_at || now
       });
     }
+    const cvn = document.getElementById('cvNote')?.value.trim();
+    if (cvn) await db.from('notes').insert({ content: cvn, lead_id: lead.id, user_id: currentUser.id, created_at: now });
     await db.from('cold_calls').update({ status: 'converted', lead_id: lead.id, updated_at: now }).eq('id', c.id);
     const q = ccQueue.find(function (x) { return x.id === c.id; });
     if (q) { q.status = 'converted'; q.lead_id = lead.id; }
     closeModal();
-    toast('✅ 已轉成線索：' + name, 'success');
+    ccPop('+' + CC_POINTS.converted, 'var(--green)');
+    toast('🎉 已轉成線索：' + name + '　+' + CC_POINTS.converted + ' 分', 'success');
     openCompany(lead.id);
   } finally { ccBusy = false; }
 }
@@ -1355,6 +1493,8 @@ async function renderCcList() {
     .concat(Object.keys(CC_STATUS).map(function (k) { return '<option value="' + k + '">' + CC_STATUS[k].label + '</option>'; })).join('');
   let ownerOpts = '<option value="all">全部負責人</option><option value="mine">我的</option><option value="pool">公海（未認領）</option>';
   usersData.forEach(function (u) { ownerOpts += '<option value="' + u.id + '">' + esc(u.full_name || u.email || '') + '</option>'; });
+  let gradeOpts = '<option value="">全部等級</option>';
+  Object.keys(CC_GRADES).forEach(function (g) { gradeOpts += '<option value="' + g + '">' + g + '（' + CC_GRADES[g] + '）</option>'; });
   let batchOpts = '<option value="">全部批次</option>';
   batches.forEach(function (b) { batchOpts += '<option value="' + esc(b) + '">' + esc(b) + '</option>'; });
   const sel = function (id, opts, val, w) {
@@ -1362,7 +1502,7 @@ async function renderCcList() {
       + opts.replace('value="' + val + '"', 'value="' + val + '" selected') + '</select>';
   };
   content.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">'
-    + sel('ccFStatus', stOpts, ccFilter.status) + sel('ccFOwner', ownerOpts, ccFilter.owner) + sel('ccFBatch', batchOpts, ccFilter.batch, '160px')
+    + sel('ccFStatus', stOpts, ccFilter.status) + sel('ccFGrade', gradeOpts, ccFilter.grade) + sel('ccFOwner', ownerOpts, ccFilter.owner) + sel('ccFBatch', batchOpts, ccFilter.batch, '160px')
     + '<input class="form-input" id="ccFQ" placeholder="搜尋公司、電話、窗口…" style="width:auto;height:32px;font-size:13px;flex:1;min-width:150px" value="' + esc(ccFilter.q) + '" oninput="ccApplyFilter()">'
     + '<button class="btn btn-ghost btn-sm" onclick="ccExport()">📤 匯出</button>'
     + '</div><div id="ccListBody"></div>';
@@ -1379,9 +1519,10 @@ function ccFiltered() {
     if (f.owner === 'mine') { if (c.owner_id !== currentUser.id) return false; }
     else if (f.owner === 'pool') { if (c.owner_id) return false; }
     else if (f.owner !== 'all' && c.owner_id !== f.owner) return false;
+    if (f.grade && String(c.grade || '').toUpperCase() !== f.grade) return false;
     if (f.batch && c.batch !== f.batch) return false;
     if (q) {
-      const hay = [c.company, c.phone, c.contact_name, c.industry, c.note].join(' ').toLowerCase();
+      const hay = [c.company, c.phone, c.contact_name, c.industry, c.note, c.sales_note].join(' ').toLowerCase();
       if (hay.indexOf(q) < 0) return false;
     }
     return true;
@@ -1391,6 +1532,7 @@ function ccFiltered() {
 function ccApplyFilter() {
   ccFilter.status = document.getElementById('ccFStatus')?.value || 'active';
   ccFilter.owner = document.getElementById('ccFOwner')?.value || 'all';
+  ccFilter.grade = document.getElementById('ccFGrade')?.value || '';
   ccFilter.batch = document.getElementById('ccFBatch')?.value || '';
   ccFilter.q = document.getElementById('ccFQ')?.value || '';
   const rows = ccFiltered();
@@ -1398,17 +1540,20 @@ function ccApplyFilter() {
   if (!el) return;
   if (!rows.length) { el.innerHTML = '<div class="empty-state" style="padding:28px"><div class="empty-text">沒有符合條件的名單</div></div>'; return; }
   let h = '<div style="font-size:12px;color:var(--text3);margin-bottom:6px">' + rows.length + ' 筆</div>'
-    + '<div style="overflow-x:auto"><table class="data-table"><thead><tr><th>公司</th><th>電話</th><th>窗口</th><th>狀態</th><th>撥打</th><th>下次</th><th>負責</th><th></th></tr></thead><tbody>';
+    + '<div style="overflow-x:auto"><table class="data-table"><thead><tr><th>等級</th><th>公司</th><th>備註</th><th>電話</th><th>狀態</th><th>撥打</th><th>下次</th><th>負責</th><th></th></tr></thead><tbody>';
   rows.slice(0, 300).forEach(function (c) {
     const nd = c.next_call_at ? String(c.next_call_at).slice(0, 10) : '';
     const d = nd ? daysUntil(nd) : null;
     const act = c.lead_id
       ? '<button class="btn btn-ghost btn-sm" onclick="openCompany(\'' + c.lead_id + '\')">看線索</button>'
       : (!c.owner_id ? '<button class="btn btn-secondary btn-sm" onclick="ccClaim(\'' + c.id + '\')">認領</button>' : '');
+    const notes = [c.note ? '📋 ' + c.note : '', c.sales_note ? '✍️ ' + c.sales_note : ''].filter(Boolean).join('　');
     h += '<tr>'
-      + '<td style="cursor:pointer;font-weight:500" onclick="openCcDetail(\'' + c.id + '\')">' + esc(c.company || '') + '</td>'
+      + '<td>' + (ccGradeBadge(c.grade) || '<span style="color:var(--text3)">—</span>') + '</td>'
+      + '<td style="cursor:pointer;font-weight:500" onclick="openCcDetail(\'' + c.id + '\')">' + esc(c.company || '')
+        + (c.contact_name ? '<div style="font-size:11.5px;color:var(--text3);font-weight:400">' + esc(c.contact_name) + '</div>' : '') + '</td>'
+      + '<td style="font-size:12px;color:var(--text2);max-width:280px"><div style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden" title="' + esc(notes) + '">' + esc(notes) + '</div></td>'
       + '<td style="font-family:var(--mono);font-size:12px"><a href="' + ccTelHref(c.phone) + '" style="color:var(--accent)">' + esc(c.phone || '') + '</a></td>'
-      + '<td style="font-size:12.5px">' + esc(c.contact_name || '') + '</td>'
       + '<td>' + ccStatusBadge(c.status) + '</td>'
       + '<td style="text-align:center;font-size:12px">' + (c.attempts || 0) + '</td>'
       + '<td style="font-size:12px;color:' + (d != null && d < 0 ? 'var(--red)' : 'var(--text3)') + '">' + esc(nd) + '</td>'
@@ -1446,7 +1591,7 @@ async function openCcDetail(id) {
   if (!c.lead_id && c.status !== 'converted') btns.push({ label: '🔥 轉為線索', cls: 'btn-primary', action: function () { closeModal(); openCcConvert(id); } });
   openModal('📇 ' + (c.company || ''), ''
     + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'
-    +   ccStatusBadge(c.status)
+    +   ccGradeBadge(c.grade) + ccStatusBadge(c.status)
     +   '<a class="btn btn-primary btn-sm" href="' + ccTelHref(c.phone) + '">📞 ' + esc(c.phone || '') + '</a>'
     +   (c.lead_id ? '<button class="btn btn-secondary btn-sm" onclick="closeModal();openCompany(\'' + c.lead_id + '\')">看線索</button>' : '')
     +   '<span style="flex:1"></span>'
@@ -1455,11 +1600,12 @@ async function openCcDetail(id) {
     + '</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">'
     +   info('窗口', c.contact_name) + info('職稱', c.title) + info('產業', c.industry) + info('地區', c.city)
-    +   info('Email', c.email) + info('來源', c.source) + info('批次', c.batch)
+    +   info('Email', c.email) + info('來源', c.source) + info('批次', c.batch) + info('等級', c.grade ? c.grade + '（' + (CC_GRADES[String(c.grade).toUpperCase()] || '') + '）' : '')
     +   info('負責人', ccOwnerName(c)) + info('撥打次數', String(c.attempts || 0))
     +   info('下次再打', c.next_call_at ? String(c.next_call_at).slice(0, 10) : '')
     + '</div>'
-    + (c.note ? '<div style="font-size:13px;white-space:pre-wrap;background:var(--bg3);padding:8px 10px;border-radius:8px;margin-bottom:12px">' + esc(c.note) + '</div>' : '')
+    + (c.note ? '<div class="form-label">名單備註（行銷提供）</div><div class="cc-note mkt" style="margin:0 0 10px">' + esc(c.note) + '</div>' : '')
+    + (c.sales_note ? '<div class="form-label">業務備註</div><div class="cc-note sales" style="margin:0 0 10px">' + esc(c.sales_note) + '</div>' : '')
     + '<div class="form-label">通話紀錄</div>' + hist, btns);
 }
 
@@ -1482,6 +1628,8 @@ async function openCcEdit(id) {
   usersData.forEach(function (u) { ownerOpts += '<option value="' + u.id + '"' + (u.id === c.owner_id ? ' selected' : '') + '>' + esc(u.full_name || u.email || '') + '</option>'; });
   let stOpts = '';
   Object.keys(CC_STATUS).forEach(function (k) { stOpts += '<option value="' + k + '"' + (k === c.status ? ' selected' : '') + '>' + CC_STATUS[k].label + '</option>'; });
+  let gOpts = '<option value="">— 未分級 —</option>';
+  Object.keys(CC_GRADES).forEach(function (g) { gOpts += '<option value="' + g + '"' + (String(c.grade || '').toUpperCase() === g ? ' selected' : '') + '>' + g + '（' + CC_GRADES[g] + '）</option>'; });
   openModal('✏️ 編輯名單', ''
     + '<div class="form-row">'
     +   '<div class="form-group"><label class="form-label">公司名稱 *</label><input class="form-input" id="ceCompany" value="' + esc(c.company || '') + '"></div>'
@@ -1499,12 +1647,14 @@ async function openCcEdit(id) {
     +   '<div class="form-group"><label class="form-label">Email</label><input class="form-input" id="ceEmail" value="' + esc(c.email || '') + '"></div>'
     +   '<div class="form-group"><label class="form-label">來源</label><input class="form-input" id="ceSource" value="' + esc(c.source || '') + '"></div>'
     + '</div>'
+    + '<div class="form-group"><label class="form-label">名單等級</label><select class="form-select" id="ceGrade">' + gOpts + '</select></div>'
     + '<div class="form-row">'
     +   '<div class="form-group"><label class="form-label">狀態</label><select class="form-select" id="ceStatus">' + stOpts + '</select></div>'
     +   '<div class="form-group"><label class="form-label">下次再打</label><input class="form-input" id="ceNext" type="date" value="' + esc(c.next_call_at ? String(c.next_call_at).slice(0, 10) : '') + '"></div>'
     + '</div>'
     + (window.isAdmin ? '<div class="form-group"><label class="form-label">負責業務</label><select class="form-select" id="ceOwner">' + ownerOpts + '</select></div>' : '')
-    + '<div class="form-group"><label class="form-label">備註</label><textarea class="form-textarea" id="ceNote" style="min-height:70px">' + esc(c.note || '') + '</textarea></div>', [
+    + '<div class="form-group"><label class="form-label">📋 名單備註（行銷提供）</label><textarea class="form-textarea" id="ceNote" style="min-height:70px">' + esc(c.note || '') + '</textarea></div>'
+    + '<div class="form-group"><label class="form-label">✍️ 業務備註</label><textarea class="form-textarea" id="ceSalesNote" style="min-height:70px">' + esc(c.sales_note || '') + '</textarea></div>', [
     { label: '取消', cls: 'btn-secondary', action: closeModal },
     { label: '儲存', cls: 'btn-primary', action: async function () {
       const company = document.getElementById('ceCompany').value.trim();
@@ -1521,6 +1671,8 @@ async function openCcEdit(id) {
         status: document.getElementById('ceStatus').value,
         next_call_at: document.getElementById('ceNext').value || null,
         note: document.getElementById('ceNote').value.trim() || null,
+        sales_note: document.getElementById('ceSalesNote').value.trim() || null,
+        grade: document.getElementById('ceGrade').value || null,
         updated_at: new Date().toISOString()
       };
       const oe = document.getElementById('ceOwner');
@@ -1544,7 +1696,8 @@ function ccExport() {
       產業: c.industry || '', 地區: c.city || '', Email: c.email || '', 來源: c.source || '', 批次: c.batch || '',
       狀態: (CC_STATUS[c.status] || {}).label || c.status, 撥打次數: c.attempts || 0,
       下次再打: c.next_call_at ? String(c.next_call_at).slice(0, 10) : '',
-      最後撥打: c.last_call_at ? fmtDate(c.last_call_at) : '', 負責業務: ccOwnerName(c), 備註: c.note || ''
+      最後撥打: c.last_call_at ? fmtDate(c.last_call_at) : '', 負責業務: ccOwnerName(c),
+      等級: c.grade || '', 名單備註: c.note || '', 業務備註: c.sales_note || ''
     };
   });
   if (!rows.length) { toast('沒有可匯出的資料', 'error'); return; }
@@ -1628,7 +1781,40 @@ function runCcStats() {
       + '<div style="flex:1;height:16px;background:var(--bg4);border-radius:4px;overflow:hidden"><div style="height:100%;width:' + Math.round(n / max * 100) + '%;background:' + o.color + ';opacity:.7"></div></div>'
       + '<div style="width:70px;text-align:right;font-size:12.5px;font-family:var(--mono)">' + n + '（' + Math.round(n / logs.length * 100) + '%）</div></div>';
   });
-  el.innerHTML = h + d + (window.isAdmin ? '' : '<div style="font-size:12px;color:var(--text3);margin-top:10px">僅顯示你本人的紀錄</div>');
+  // 排行榜（積分）
+  let board = '';
+  if (window.isAdmin) {
+    const pts = {};
+    logs.forEach(function (l) {
+      const k = l.user_id || '_';
+      if (!pts[k]) pts[k] = { name: l.user_name || userNameById(l.user_id, '') || '未知', p: 0, calls: 0, hot: 0 };
+      pts[k].p += ccLogPoints(l); pts[k].calls += 1;
+      if (l.outcome === 'interested') pts[k].hot += 1;
+    });
+    (window._ccCards || []).forEach(function (c) { if (c.lead_id && pts[c.owner_id]) pts[c.owner_id].p += CC_POINTS.converted; });
+    const arr = Object.values(pts).sort(function (a, b) { return b.p - a.p; });
+    const medals = ['🥇', '🥈', '🥉'];
+    board = '<div class="form-label" style="margin:18px 0 6px">🏆 積分排行榜</div>'
+      + arr.map(function (x, i) {
+        const r = ccRankOf(x.p);
+        return '<div class="cc-rank"><div class="cc-medal">' + (medals[i] || (i + 1)) + '</div>'
+          + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">' + esc(x.name) + ' <span style="font-weight:400;color:var(--text3)">' + r[2] + ' ' + r[1] + '</span></div>'
+          + '<div style="font-size:11.5px;color:var(--text3)">' + x.calls + ' 通・' + x.hot + ' 有興趣</div></div>'
+          + '<div style="font-family:var(--mono);font-weight:800;font-size:16px;color:var(--accent)">' + x.p + '</div></div>';
+      }).join('')
+      + '<div style="font-size:11.5px;color:var(--text3);margin-top:8px">計分：撥打 +' + CC_POINTS.call + '・接通 +' + CC_POINTS.connected + '・有興趣 +' + CC_POINTS.interested + '・轉線索 +' + CC_POINTS.converted + '</div>';
+  } else {
+    const myPts = logs.reduce(function (s, l) { return s + ccLogPoints(l); }, 0);
+    const conv = (window._ccCards || []).filter(function (c) { return c.lead_id && c.owner_id === currentUser.id; }).length;
+    const total = myPts + conv * CC_POINTS.converted;
+    const r = ccRankOf(total);
+    board = '<div style="margin-top:18px;padding:14px;background:var(--bg3);border-radius:10px;display:flex;align-items:center;gap:14px">'
+      + '<div style="font-size:30px">' + r[2] + '</div>'
+      + '<div style="flex:1"><div style="font-size:14px;font-weight:700">' + r[1] + '</div>'
+      + '<div style="font-size:11.5px;color:var(--text3)">撥打 +' + CC_POINTS.call + '・接通 +' + CC_POINTS.connected + '・有興趣 +' + CC_POINTS.interested + '・轉線索 +' + CC_POINTS.converted + '</div></div>'
+      + '<div style="font-family:var(--mono);font-weight:800;font-size:22px;color:var(--accent)">' + total + '</div></div>';
+  }
+  el.innerHTML = h + d + board + (window.isAdmin ? '' : '<div style="font-size:12px;color:var(--text3);margin-top:10px">僅顯示你本人的紀錄</div>');
 }
 
 // ── 加名單：貼上／檔案／手動 ──
@@ -1641,8 +1827,41 @@ const CC_FIELDS = [
   ['city', '地區', ['地區', '縣市', '地址', '區域', 'city']],
   ['email', 'Email', ['email', '信箱', '電子郵件', 'e-mail']],
   ['source', '來源', ['來源', 'source', '管道']],
-  ['note', '備註', ['備註', '說明', 'note', 'memo', '摘要']]
+  ['note', '名單備註', ['名單備註', '行銷備註', '備註', '說明', 'note', 'memo', '摘要', '推薦理由']],
+  ['grade', '等級', ['等級', '評級', '分級', 'grade', '優先']]
 ];
+function ccDownloadTemplate() {
+  const sample = [
+    { 公司名稱: '大豐食品有限公司', 電話: '02-2345-6789', 窗口: '陳小姐', 職稱: '採購主管',
+      產業: '食品批發', 地區: '新北市', Email: '', 來源: '104 人力銀行', 等級: 'A',
+      名單備註: '官網寫下單請傳真，正在徵業助打單，痛點明確' },
+    { 公司名稱: '永信五金行', 電話: '0912-345-678', 窗口: '', 職稱: '',
+      產業: '五金建材', 地區: '台中市', Email: 'info@example.com', 來源: '展覽名片', 等級: 'B',
+      名單備註: '展場聊過，對線上型錄有興趣，年後再評估' },
+    { 公司名稱: '未來科技股份有限公司', 電話: '03-111-2222', 窗口: '林經理', 職稱: '資訊部',
+      產業: '電子零件', 地區: '桃園市', Email: '', 來源: 'Mailsuite 點擊', 等級: 'C',
+      名單備註: '開信 3 次但沒回覆，規模較大可能已有系統' }
+  ];
+  const info = [
+    { 欄位: '公司名稱', 必填: '是', 說明: '沒有其他欄位時，至少要有公司名稱或電話' },
+    { 欄位: '電話', 必填: '建議', 說明: '可留空之後補；格式不拘，系統只取數字比對重複' },
+    { 欄位: '窗口', 必填: '否', 說明: '聯絡人姓名，例：陳小姐' },
+    { 欄位: '職稱', 必填: '否', 說明: '例：採購主管' },
+    { 欄位: '產業', 必填: '否', 說明: '例：食品批發' },
+    { 欄位: '地區', 必填: '否', 說明: '例：新北市' },
+    { 欄位: 'Email', 必填: '否', 說明: '有的話一併帶入，轉線索時會寫進聯絡人' },
+    { 欄位: '來源', 必填: '否', 說明: '留空會套用匯入時填的「預設來源」' },
+    { 欄位: '等級', 必填: '否', 說明: 'A=高潛力 / B=一般 / C=觀望。A 級會排在開打佇列前面；留空視同 B' },
+    { 欄位: '名單備註', 必填: '否', 說明: '給名單的人（行銷）寫的推薦理由或背景，業務打電話時看得到' },
+    { 欄位: '（業務備註）', 必填: '—', 說明: '不用放在這張表。業務自己在 CRM 裡寫，兩種備註分開存、不會互相覆蓋' },
+    { 欄位: '（重複處理）', 必填: '—', 說明: '匯入時會自動比對：已在陌開名單、已是線索或客戶、這批自己重複，三種都會略過並回報' },
+    { 欄位: '（欄位順序）', 必填: '—', 說明: '順序可以不同，系統看標題列自動對應；多餘欄位會被忽略' }
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(info), '★ 欄位說明（先看）');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sample), '名單範本');
+  XLSX.writeFile(wb, '陌開名單匯入範本.xlsx');
+}
 function ccDetectCol(header) {
   const h = String(header || '').trim().toLowerCase();
   for (const f of CC_FIELDS) {
@@ -1660,6 +1879,10 @@ function openCcImport() {
     + '<div class="form-row"><div class="form-group"><label class="form-label">批次名稱</label>'
     +   '<input class="form-input" id="ccBatch" value="' + nowDateStr() + ' 匯入" placeholder="例：1019 人力銀行"></div>'
     +   '<div class="form-group"><label class="form-label">預設來源</label><input class="form-input" id="ccSrc" placeholder="例：104 人力銀行、Mailsuite 點擊"></div></div>'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:12.5px;color:var(--text3)">'
+    +   '<span>欄位：公司名稱・電話・窗口・職稱・產業・地區・Email・來源・等級・名單備註</span>'
+    +   '<button type="button" class="btn btn-secondary btn-sm" style="margin-left:auto;white-space:nowrap" onclick="ccDownloadTemplate()">📥 下載範本</button>'
+    + '</div>'
     + '<div id="ccImpPaste">'
     +   '<div class="form-group"><label class="form-label">從 Google Sheet／Excel 整段複製貼上</label>'
     +   '<textarea class="form-textarea" id="ccPaste" style="min-height:150px;font-family:var(--mono);font-size:12px" placeholder="公司名稱&#9;電話&#9;窗口&#10;某某企業&#9;02-1234-5678&#9;陳小姐" oninput="ccParsePaste()"></textarea></div>'
@@ -1679,7 +1902,9 @@ function openCcImport() {
     +     '<div class="form-group"><label class="form-label">窗口</label><input class="form-input" id="co1Contact"></div>'
     +     '<div class="form-group"><label class="form-label">產業</label><input class="form-input" id="co1Industry"></div>'
     +   '</div>'
-    +   '<div class="form-group"><label class="form-label">備註</label><textarea class="form-textarea" id="co1Note" style="min-height:60px"></textarea></div>'
+    +   '<div class="form-group"><label class="form-label">等級</label><select class="form-select" id="co1Grade">'
+    +     '<option value="">— 未分級 —</option><option value="A">A（高潛力）</option><option value="B" selected>B（一般）</option><option value="C">C（觀望）</option></select></div>'
+    +   '<div class="form-group"><label class="form-label">名單備註</label><textarea class="form-textarea" id="co1Note" style="min-height:60px" placeholder="為什麼值得打這通電話"></textarea></div>'
     + '</div>'
     + '<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text2);margin-top:4px">'
     +   '<input type="checkbox" id="ccClaimMine"> 直接指派給我（不放公海）</label>', [
@@ -1746,11 +1971,13 @@ function ccRenderPreview(elId) {
   const rows = ccPasteRows || [];
   if (!rows.length) { el.innerHTML = '<div style="font-size:12px;color:var(--text3)">尚未辨識到資料</div>'; return; }
   const noPhone = rows.filter(function (r) { return !r.phone; }).length;
+  const graded = rows.filter(function (r) { return r.grade; }).length;
   let h = '<div style="font-size:12.5px;margin-bottom:6px">辨識到 <b>' + rows.length + '</b> 筆'
+    + (graded ? '，' + graded + ' 筆有等級' : '')
     + (noPhone ? '，其中 <span style="color:var(--yellow)">' + noPhone + ' 筆沒有電話</span>（仍會匯入，可之後補）' : '') + '</div>'
-    + '<div style="overflow-x:auto;max-height:180px;overflow-y:auto"><table class="data-table"><thead><tr><th>公司</th><th>電話</th><th>窗口</th><th>產業</th></tr></thead><tbody>';
+    + '<div style="overflow-x:auto;max-height:180px;overflow-y:auto"><table class="data-table"><thead><tr><th>等級</th><th>公司</th><th>電話</th><th>窗口</th><th>名單備註</th></tr></thead><tbody>';
   rows.slice(0, 5).forEach(function (r) {
-    h += '<tr><td>' + esc(r.company || '') + '</td><td style="font-family:var(--mono);font-size:12px">' + esc(r.phone || '') + '</td><td>' + esc(r.contact_name || '') + '</td><td>' + esc(r.industry || '') + '</td></tr>';
+    h += '<tr><td>' + esc(String(r.grade || '').toUpperCase()) + '</td><td>' + esc(r.company || '') + '</td><td style="font-family:var(--mono);font-size:12px">' + esc(r.phone || '') + '</td><td>' + esc(r.contact_name || '') + '</td><td style="font-size:12px;color:var(--text2)">' + esc((r.note || '').slice(0, 30)) + '</td></tr>';
   });
   h += '</tbody></table></div>' + (rows.length > 5 ? '<div style="font-size:11.5px;color:var(--text3);margin-top:4px">（只預覽前 5 筆）</div>' : '');
   el.innerHTML = h;
@@ -1764,7 +1991,7 @@ async function ccDoImport() {
     const company = document.getElementById('co1Company').value.trim();
     const phone = document.getElementById('co1Phone').value.trim();
     if (!company) { toast('請填公司名稱', 'error'); return; }
-    rows = [{ company: company, phone: phone, contact_name: document.getElementById('co1Contact').value.trim(), industry: document.getElementById('co1Industry').value.trim(), note: document.getElementById('co1Note').value.trim() }];
+    rows = [{ company: company, phone: phone, contact_name: document.getElementById('co1Contact').value.trim(), industry: document.getElementById('co1Industry').value.trim(), grade: document.getElementById('co1Grade').value, note: document.getElementById('co1Note').value.trim() }];
   } else {
     rows = ccPasteRows || [];
     if (!rows.length) { toast('沒有辨識到任何資料', 'error'); return; }
@@ -1803,6 +2030,7 @@ async function ccDoImport() {
         contact_name: r.contact_name || null, title: r.title || null,
         industry: r.industry || null, city: r.city || null,
         email: r.email || null, source: r.source || defSrc, note: r.note || null,
+        grade: (function () { const g = String(r.grade || '').trim().toUpperCase().charAt(0); return CC_GRADES[g] ? g : null; })(),
         batch: batch, status: 'new', attempts: 0,
         owner_id: mineOnly ? currentUser.id : null,
         owner_name: mineOnly ? myName : null,
