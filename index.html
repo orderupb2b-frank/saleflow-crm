@@ -144,6 +144,14 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .cc-rank { display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--border); }
 .cc-rank:first-child { border-top:none; }
 .cc-medal { width:26px; text-align:center; font-size:15px; flex-shrink:0; }
+.dk-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; align-items:start; max-width:980px; }
+.dk-card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:10px; }
+.dk-top { display:flex; align-items:flex-start; gap:10px; }
+.dk-ico { font-size:26px; line-height:1; flex-shrink:0; }
+.dk-name { font-size:15.5px; font-weight:700; }
+.dk-desc { font-size:12.5px; color:var(--text2); line-height:1.6; }
+.dk-meta { font-size:11.5px; color:var(--text3); font-family:var(--mono); }
+.dk-acts { display:flex; gap:6px; align-items:center; margin-top:2px; }
 .cc-dial { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:16px; border-radius:12px;
   background:var(--accent); color:#fff; font-size:20px; font-weight:700; font-family:var(--mono); letter-spacing:.02em;
   text-decoration:none; border:none; }
@@ -571,6 +579,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
         <div class="nav-item" onclick="navigate('quotes')" id="nav-quotes">
           <span class="nav-icon">🧾</span><span class="nav-text">報價</span>
         </div>
+        <div class="nav-item" onclick="navigate('decks')" id="nav-decks">
+          <span class="nav-icon">📊</span><span class="nav-text">簡報</span>
+        </div>
         <div class="nav-item" onclick="navigate('performance')" id="nav-performance">
           <span class="nav-icon">💰</span><span class="nav-text">業績</span>
         </div>
@@ -863,7 +874,7 @@ function navigate(page) {
   const bnav = document.getElementById('bnav-' + bkey);
   if (bnav) bnav.classList.add('active');
   document.getElementById('topbarTitle').textContent = {
-    today: '今天', dashboard: 'Dashboard', leads: '公司', quotes: '報價單', accounts: '成交客戶', performance: '業績', coldcall: '陌開電話',
+    today: '今天', dashboard: 'Dashboard', leads: '公司', quotes: '報價單', accounts: '成交客戶', performance: '業績', coldcall: '陌開電話', decks: '公版簡報',
     contacts: '聯絡人', settings: '設定', feed: '動態總覽'
   }[page] || page;
   document.getElementById('topbarActions').innerHTML = '';
@@ -872,7 +883,7 @@ function navigate(page) {
 }
 function openMoreMenu() {
   const b = function (pg, ico, label) { return '<button class="btn btn-secondary" style="justify-content:flex-start;width:100%;margin-bottom:8px" onclick="closeModal();navigate(\'' + pg + '\')">' + ico + '　' + label + '</button>'; };
-  openModal('更多', b('accounts', '🤝', '成交客戶') + b('performance', '💰', '業績') + b('dashboard', '📊', 'Dashboard') + b('contacts', '👥', '聯絡人') + b('feed', '📰', '動態總覽') + b('settings', '⚙️', '設定'), [{ label: '關閉', cls: 'btn-secondary', action: closeModal }]);
+  openModal('更多', b('decks', '📊', '公版簡報') + b('accounts', '🤝', '成交客戶') + b('performance', '💰', '業績') + b('dashboard', '📊', 'Dashboard') + b('contacts', '👥', '聯絡人') + b('feed', '📰', '動態總覽') + b('settings', '⚙️', '設定'), [{ label: '關閉', cls: 'btn-secondary', action: closeModal }]);
 }
 
 function onFabClick() {
@@ -891,6 +902,7 @@ async function renderPage(page) {
   switch(page) {
     case 'today': await renderToday(); break;
     case 'coldcall': await renderColdCall(); break;
+    case 'decks': await renderDecks(); break;
     case 'performance': await renderPerformance(); break;
     case 'dashboard': await renderDashboard(); break;
     case 'leads': await renderLeads(); break;
@@ -2065,6 +2077,57 @@ async function ccTodayCount() {
     if (c.next_call_at && String(c.next_call_at).slice(0, 10) > today) return false;
     return true;
   });
+}
+
+// ════════════════════════ 公版簡報區 ════════════════════════
+// 更新簡報：把新檔案覆蓋到 slides/ 底下，再改這裡的 ver / updated 即可。
+// 檔名保持不變，業務的講者資訊與頁面設定才不會掉。
+const DECKS = [
+  { id: 'intro', file: 'slides/intro.html', icon: '🎯',
+    name: '解決方案簡介',
+    desc: '給潛在客戶的完整介紹。B2B 接單痛點 → 解決方案 → 六大核心功能 → 案例與方案價目 → 資安防護。',
+    ver: 'v9.3', pages: 30, updated: '2026-10-21' },
+  { id: 'onboarding', file: 'slides/onboarding.html', icon: '🚀',
+    name: '導入指南',
+    desc: '成交後的導入啟動會議。上線地圖、準備期四大元素（商品／客戶／價格／訂單）、ERP 串接、試營運到正式上線。',
+    ver: 'v1.5', pages: 16, updated: '2026-10-21' }
+];
+function deckUrl(d) { return location.origin + '/' + d.file + '?v=' + encodeURIComponent(d.ver); }
+function openDeck(id) {
+  const d = DECKS.find(x => x.id === id); if (!d) return;
+  window.open(deckUrl(d), '_blank');
+}
+async function copyDeckLink(id) {
+  const d = DECKS.find(x => x.id === id); if (!d) return;
+  const url = deckUrl(d);
+  try { await navigator.clipboard.writeText(url); toast('已複製連結', 'success'); }
+  catch (e) {
+    const t = document.createElement('textarea');
+    t.value = url; t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select();
+    try { document.execCommand('copy'); toast('已複製連結', 'success'); }
+    catch (e2) { toast('複製失敗，請長按網址自行複製', 'error'); }
+    t.remove();
+  }
+}
+async function renderDecks() {
+  document.getElementById('topbarActions').innerHTML = '';
+  const cards = DECKS.map(function (d) {
+    return '<div class="dk-card">'
+      + '<div class="dk-top"><div class="dk-ico">' + d.icon + '</div>'
+      +   '<div style="flex:1;min-width:0"><div class="dk-name">' + esc(d.name) + '</div>'
+      +   '<div class="dk-meta">' + esc(d.ver) + '・' + d.pages + ' 頁・更新 ' + esc(d.updated) + '</div></div></div>'
+      + '<div class="dk-desc">' + esc(d.desc) + '</div>'
+      + '<div class="dk-acts">'
+      +   '<button class="btn btn-primary btn-sm" onclick="openDeck(\'' + d.id + '\')">▶ 開啟簡報</button>'
+      +   '<button class="btn btn-ghost btn-sm" onclick="copyDeckLink(\'' + d.id + '\')">🔗 複製連結</button>'
+      + '</div></div>';
+  }).join('');
+  document.getElementById('content').innerHTML = '<div class="dk-grid">' + cards + '</div>'
+    + '<div style="font-size:12px;color:var(--text3);margin-top:14px;line-height:1.7;max-width:980px">'
+    + '簡報裡的講者資訊與頁面增減，會記在你這台裝置的瀏覽器上，下次開啟自動帶回來；換手機或換電腦要重設一次。<br>'
+    + '第一次從這裡開啟時，請重新填一次講者資訊（跟你以前直接開檔案時的設定不互通）。'
+    + '</div>';
 }
 
 // ── 全域搜尋 ──
