@@ -2267,7 +2267,7 @@ function exportCSS(){if(XCSS)return XCSS;let css=[...document.querySelectorAll('
     +'.pdfroot *,.pdfroot *::before,.pdfroot *::after{transition:none!important;animation:none!important}'
     +'.pdfroot [data-bind]:empty::before{content:""!important}.pdfroot .caret{display:none!important}';
   XCSS=css.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');return XCSS}
-const SC=1.5;
+let SC=1.5;let PDQ_JPEG=0.86;
 function linkRects(s){const R=s.getBoundingClientRect(),k=R.width/1920||1;
   return [...s.querySelectorAll('a[href^="http"]')].map(a=>{const r=a.getBoundingClientRect();return {x:(r.left-R.left)/k,y:(r.top-R.top)/k,w:r.width/k,h:r.height/k,u:a.href}}).filter(o=>o.w>2&&o.h>2&&o.x>-1&&o.y>-1)}
 async function shoot(s){const c0=s.cloneNode(true);c0.classList.add('on');c0.classList.remove('xh');c0.querySelectorAll('aside.notes').forEach(n=>n.remove());
@@ -2279,7 +2279,7 @@ async function shoot(s){const c0=s.cloneNode(true);c0.classList.add('on');c0.cla
   await new Promise(r=>setTimeout(r,60));
   const cv=document.createElement('canvas');cv.width=1920*SC;cv.height=1080*SC;const g=cv.getContext('2d');
   g.fillStyle=s.classList.contains('dark')?'#1B1530':'#F5F4F9';g.fillRect(0,0,cv.width,cv.height);g.drawImage(img,0,0,cv.width,cv.height);
-  const b=await new Promise(r=>cv.toBlob(r,'image/jpeg',0.86));return {jpeg:new Uint8Array(await b.arrayBuffer()),w:cv.width,h:cv.height,links:linkRects(s)}}
+  const b=await new Promise(r=>cv.toBlob(r,'image/jpeg',PDQ_JPEG));return {jpeg:new Uint8Array(await b.arrayBuffer()),w:cv.width,h:cv.height,links:linkRects(s)}}
 function makePDF(pages,title){const te=new TextEncoder();const parts=[];let len=0;const off=[];
   const put=v=>{const b=typeof v==='string'?te.encode(v):v;parts.push(b);len+=b.length};
   let next=1;const id=()=>next++;
@@ -2321,7 +2321,7 @@ async function exportPDF(){if(exporting)return;exporting=true;panel.classList.re
     const r=await deliver(pdf,title+'.pdf');pxt.textContent=r==='declined'?'已取消下載':'PDF 已產生';
   }catch(e){console.error(e);pxt.textContent=(e&&e.name==='SecurityError')?'這個瀏覽器不支援直接產生 PDF，請改用 Chrome 或 Edge':'產生失敗，請再試一次'}
   finally{setState(tpS,tpOrig);renderTpl(false);setState(document.getElementById('s-ft'),'grid');setTimeout(()=>{px.classList.remove('on');exporting=false},pxt.textContent.length>12?3200:900);if(curEl&&ENTER[curEl.id])ENTER[curEl.id]()}}
-document.getElementById('bPdf').onclick=exportPDF;document.getElementById('bPdf2').onclick=exportPDF;
+document.getElementById('bPdf').onclick=pdqExport;document.getElementById('bPdf2').onclick=pdqExport;
 
 addEventListener('keydown',e=>{
   if(e.target.isContentEditable||e.target.tagName==='INPUT')return;
@@ -2344,6 +2344,58 @@ setTimeout(()=>hint.style.opacity=0,6000);
 const h=parseInt((location.hash||'').slice(1));
 go(isNaN(h)?0:h-1,true);
 window.__go=go;window.__pdf=exportPDF;window.__makePDFdata=async()=>{const o=[];for(const s of SEQ.slice(0,2))o.push(await shoot(s));return o.length};
+
+/* ORDERUP_PDFQ_PATCH */
+
+/* ORDERUP_PDFQ_PATCH —— PDF 畫質選擇 */
+var PDQ_KEY='orderup_pdf_quality_v1';
+function pdqGet(){try{return localStorage.getItem(PDQ_KEY)||'small'}catch(e){return 'small'}}
+function pdqSet(v){try{localStorage.setItem(PDQ_KEY,v)}catch(e){}}
+function pdqAsk(onPick){
+  var cur=pdqGet();
+  var ov=document.createElement('div');
+  ov.setAttribute('data-pdq','1');
+  ov.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(8,6,20,.72);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)';
+  var card='<div style="background:#fff;color:#1b1530;border-radius:16px;max-width:420px;width:100%;padding:22px;font-family:inherit;box-shadow:0 18px 60px rgba(0,0,0,.45)">'
+    +'<div style="font-size:18px;font-weight:800;margin-bottom:4px">下載 PDF</div>'
+    +'<div style="font-size:13px;color:#6b6880;margin-bottom:16px">選擇畫質</div>'
+    +'<button data-q="small" style="display:block;width:100%;text-align:left;border:2px solid '+(cur==='small'?'#5b3df5':'#e3e1ec')+';background:'+(cur==='small'?'#f3f1ff':'#fff')+';border-radius:12px;padding:13px 15px;margin-bottom:10px;cursor:pointer;font:inherit;color:inherit">'
+    +'<div style="font-size:14.5px;font-weight:700">一般品質</div>'
+    +'<div style="font-size:12.5px;color:#6b6880;margin-top:3px">檔案小很多，適合 Email、LINE 傳給客戶</div></button>'
+    +'<button data-q="full" style="display:block;width:100%;text-align:left;border:2px solid '+(cur==='full'?'#5b3df5':'#e3e1ec')+';background:'+(cur==='full'?'#f3f1ff':'#fff')+';border-radius:12px;padding:13px 15px;cursor:pointer;font:inherit;color:inherit">'
+    +'<div style="font-size:14.5px;font-weight:700">高畫質</div>'
+    +'<div style="font-size:12.5px;color:#6b6880;margin-top:3px">原始解析度，適合投影或印出來</div></button>'
+    +'<div style="text-align:right;margin-top:16px"><button data-q="" style="border:0;background:none;color:#6b6880;font:inherit;font-size:13.5px;cursor:pointer;padding:6px 4px">取消</button></div>'
+    +'</div>';
+  ov.innerHTML=card;
+  function close(){ov.remove()}
+  ov.addEventListener('click',function(e){
+    if(e.target===ov){close();return}
+    var b=e.target.closest('button[data-q]'); if(!b)return;
+    var q=b.getAttribute('data-q');
+    close();
+    if(q){pdqSet(q);onPick(q)}
+  });
+  document.body.appendChild(ov);
+}
+function pdqBusy(txt){
+  var d=document.createElement('div');
+  d.setAttribute('data-pdqbusy','1');
+  d.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(8,6,20,.72);display:flex;align-items:center;justify-content:center;color:#fff;font:600 15px/1.6 inherit;text-align:center;padding:24px';
+  d.innerHTML='<div><div style="width:34px;height:34px;margin:0 auto 12px;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:pdqspin .8s linear infinite"></div><span data-pdqtxt>'+txt+'</span></div>';
+  if(!document.getElementById('pdqkf')){var st=document.createElement('style');st.id='pdqkf';st.textContent='@keyframes pdqspin{to{transform:rotate(360deg)}}';document.head.appendChild(st)}
+  document.body.appendChild(d);
+  return {set:function(t){var e=d.querySelector('[data-pdqtxt]');if(e)e.textContent=t},done:function(){d.remove()}};
+}
+
+try{window.__shootPDQ=shoot;window.__makePDFPDQ=makePDF;window.__pdqSetQ=function(q){if(q==='full'){SC=1.5;PDQ_JPEG=0.86}else{SC=1.0;PDQ_JPEG=0.72}}}catch(e){}
+function pdqExport(){
+  pdqAsk(function(q){
+    if(q==='full'){SC=1.5;PDQ_JPEG=0.86}else{SC=1.0;PDQ_JPEG=0.72}
+    exportPDF();
+  });
+}
+
 })();
 
 </script>

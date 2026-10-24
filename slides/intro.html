@@ -2552,7 +2552,7 @@ C2K｜導入前：每天上百筆訂單從電話、LINE、傳真及 Email 來，
   <div class="ps-h"><b>要印哪些頁面</b><span><button type="button" id="psAll">全選</button><button type="button" id="psNone">全不選</button></span></div>
   <div class="ps-list" id="psList"></div>
   <p class="pd-note">互動頁（例如四種客戶價格、報表分頁）底下的小標籤就是各個情境，點一下可以取消，只印需要的情境。選擇會記在這台電腦；頁面順序照「排序／隱藏頁面」的設定。</p>
-  <div class="pd-btns"><span id="psSum"></span><button id="pdCancel">取消</button><button id="pdGo" class="pri">開始輸出</button></div>
+  <div class="ps-h" data-pdq-ui><b>圖片品質</b></div><div data-pdq-ui style="display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 4px"><label style="flex:1;min-width:170px;display:flex;gap:8px;align-items:flex-start;padding:9px 11px;border:1px solid rgba(255,255,255,.18);border-radius:10px;cursor:pointer"><input type="radio" name="pdqr" value="small" style="margin-top:3px"><span><b style="display:block;font-size:13.5px">一般品質</b><small style="opacity:.68">檔案小很多，寄給客戶用</small></span></label><label style="flex:1;min-width:170px;display:flex;gap:8px;align-items:flex-start;padding:9px 11px;border:1px solid rgba(255,255,255,.18);border-radius:10px;cursor:pointer"><input type="radio" name="pdqr" value="full" style="margin-top:3px"><span><b style="display:block;font-size:13.5px">高畫質</b><small style="opacity:.68">原圖，投影或列印用</small></span></label></div><div class="pd-btns"><span id="psSum"></span><button id="pdCancel">取消</button><button id="pdGo" class="pri">開始輸出</button></div>
 </div></div>
 
 <script>
@@ -2951,7 +2951,7 @@ function openPdf(){document.getElementById('pdWarn').hidden=!IS_SAFARI;document.
 document.getElementById('bPdf').onclick=openPdf;
 document.getElementById('pdCancel').onclick=()=>PDG.classList.remove('open');
 PDG.addEventListener('click',e=>{if(e.target===PDG)PDG.classList.remove('open')});
-document.getElementById('pdGo').onclick=()=>{PDG.classList.remove('open');setTimeout(()=>window.print(),80)};
+document.getElementById('pdGo').onclick=()=>{PDG.classList.remove('open');setTimeout(()=>pdqPrint(),80)};
 
 /* ---------- v7 feature map navigation ---------- */
 let lastMapTarget = null;
@@ -3215,10 +3215,130 @@ function applyPreset(k){const P=PRESETS[k];window.__PRESET=Object.assign({off:pr
   slides=[...deck.querySelectorAll('.slide:not(.skip)')];N=slides.length;updateChapters();}
 function clearPreset(){if(!window.__PRESET)return;window.__PRESET=null;document.body.classList.remove('no-trk');applyLayout()}
 window.__applyPreset=applyPreset;window.__clearPreset=clearPreset;
-document.querySelectorAll('[data-preset]').forEach(b=>b.addEventListener('click',()=>{PDG.classList.remove('open');applyPreset(b.dataset.preset);setTimeout(()=>window.print(),120)}));
+document.querySelectorAll('[data-preset]').forEach(b=>b.addEventListener('click',()=>{PDG.classList.remove('open');applyPreset(b.dataset.preset);setTimeout(()=>pdqPrint(),120)}));
 addEventListener('afterprint',()=>setTimeout(clearPreset,0));
 addEventListener('beforeprint',expand);addEventListener('afterprint',collapse);
 window.__expandForPrint=expand;
+
+/* ORDERUP_PDFQ_PATCH */
+
+/* ORDERUP_PDFQ_PATCH —— PDF 畫質選擇 */
+var PDQ_KEY='orderup_pdf_quality_v1';
+function pdqGet(){try{return localStorage.getItem(PDQ_KEY)||'small'}catch(e){return 'small'}}
+function pdqSet(v){try{localStorage.setItem(PDQ_KEY,v)}catch(e){}}
+function pdqAsk(onPick){
+  var cur=pdqGet();
+  var ov=document.createElement('div');
+  ov.setAttribute('data-pdq','1');
+  ov.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(8,6,20,.72);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)';
+  var card='<div style="background:#fff;color:#1b1530;border-radius:16px;max-width:420px;width:100%;padding:22px;font-family:inherit;box-shadow:0 18px 60px rgba(0,0,0,.45)">'
+    +'<div style="font-size:18px;font-weight:800;margin-bottom:4px">下載 PDF</div>'
+    +'<div style="font-size:13px;color:#6b6880;margin-bottom:16px">選擇畫質</div>'
+    +'<button data-q="small" style="display:block;width:100%;text-align:left;border:2px solid '+(cur==='small'?'#5b3df5':'#e3e1ec')+';background:'+(cur==='small'?'#f3f1ff':'#fff')+';border-radius:12px;padding:13px 15px;margin-bottom:10px;cursor:pointer;font:inherit;color:inherit">'
+    +'<div style="font-size:14.5px;font-weight:700">一般品質</div>'
+    +'<div style="font-size:12.5px;color:#6b6880;margin-top:3px">檔案小很多，適合 Email、LINE 傳給客戶</div></button>'
+    +'<button data-q="full" style="display:block;width:100%;text-align:left;border:2px solid '+(cur==='full'?'#5b3df5':'#e3e1ec')+';background:'+(cur==='full'?'#f3f1ff':'#fff')+';border-radius:12px;padding:13px 15px;cursor:pointer;font:inherit;color:inherit">'
+    +'<div style="font-size:14.5px;font-weight:700">高畫質</div>'
+    +'<div style="font-size:12.5px;color:#6b6880;margin-top:3px">原始解析度，適合投影或印出來</div></button>'
+    +'<div style="text-align:right;margin-top:16px"><button data-q="" style="border:0;background:none;color:#6b6880;font:inherit;font-size:13.5px;cursor:pointer;padding:6px 4px">取消</button></div>'
+    +'</div>';
+  ov.innerHTML=card;
+  function close(){ov.remove()}
+  ov.addEventListener('click',function(e){
+    if(e.target===ov){close();return}
+    var b=e.target.closest('button[data-q]'); if(!b)return;
+    var q=b.getAttribute('data-q');
+    close();
+    if(q){pdqSet(q);onPick(q)}
+  });
+  document.body.appendChild(ov);
+}
+function pdqBusy(txt){
+  var d=document.createElement('div');
+  d.setAttribute('data-pdqbusy','1');
+  d.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(8,6,20,.72);display:flex;align-items:center;justify-content:center;color:#fff;font:600 15px/1.6 inherit;text-align:center;padding:24px';
+  d.innerHTML='<div><div style="width:34px;height:34px;margin:0 auto 12px;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:pdqspin .8s linear infinite"></div><span data-pdqtxt>'+txt+'</span></div>';
+  if(!document.getElementById('pdqkf')){var st=document.createElement('style');st.id='pdqkf';st.textContent='@keyframes pdqspin{to{transform:rotate(360deg)}}';document.head.appendChild(st)}
+  document.body.appendChild(d);
+  return {set:function(t){var e=d.querySelector('[data-pdqtxt]');if(e)e.textContent=t},done:function(){d.remove()}};
+}
+
+/* ORDERUP_PDFQ_PATCH —— 列印前壓圖 */
+var PDQ_ORIG=null;
+async function pdqShrink(factor,q,prog){
+  try{if(window.__expandForPrint)window.__expandForPrint()}catch(e){}
+  await new Promise(function(r){setTimeout(r,250)});
+  var imgs=[].slice.call(document.querySelectorAll('img')).filter(function(im){
+    var s=im.getAttribute('src')||''; return s.slice(0,11)==='data:image/' && s.length>20000;
+  });
+  PDQ_ORIG=imgs.map(function(im){return [im,im.getAttribute('src')]});
+  for(var i=0;i<imgs.length;i++){
+    var im=imgs[i];
+    if(prog)prog(i+1,imgs.length);
+    try{
+      if(!im.complete){try{await im.decode()}catch(e){}}
+      var nw=im.naturalWidth,nh=im.naturalHeight;
+      if(!nw||!nh)continue;
+      var cw=Math.round(im.getBoundingClientRect().width)||0;
+      var target=cw?Math.round(cw*factor):1200;      /* 依實際顯示尺寸決定，過剩解析度才是檔案肥大主因 */
+      if(target<160)target=160;
+      if(nw<=target)continue;
+      var w=target,h=Math.max(1,Math.round(nh*target/nw));
+      var cv=document.createElement('canvas');cv.width=w;cv.height=h;
+      var g=cv.getContext('2d');
+      g.imageSmoothingQuality='high';
+      g.drawImage(im,0,0,w,h);
+      var alpha=false;
+      try{
+        var d=g.getImageData(0,0,w,h).data;
+        for(var t=3;t<d.length;t+=4){if(d[t]<250){alpha=true;break}}
+      }catch(e){alpha=true}
+      var out=alpha?cv.toDataURL('image/png'):cv.toDataURL('image/jpeg',q);
+      if(alpha&&out.length>im.getAttribute('src').length){
+        var w2=cv.toDataURL('image/webp',q);
+        if(w2&&w2.indexOf('data:image/webp')===0&&w2.length<out.length)out=w2;
+      }
+      if(out.length<im.getAttribute('src').length)im.setAttribute('src',out);
+    }catch(e){}
+    if(i%6===5)await new Promise(function(r){setTimeout(r,0)});
+  }
+  await Promise.all([].slice.call(document.querySelectorAll('img')).map(function(im){
+    return im.decode?im.decode().catch(function(){}):Promise.resolve();
+  }));
+}
+function pdqRestore(){
+  if(!PDQ_ORIG)return;
+  PDQ_ORIG.forEach(function(x){try{x[0].setAttribute('src',x[1])}catch(e){}});
+  PDQ_ORIG=null;
+}
+addEventListener('afterprint',function(){setTimeout(pdqRestore,400)});
+try{window.__pdqShrink=pdqShrink;window.__pdqRestore=pdqRestore}catch(e){}
+async function pdqPrint(){
+  var q=pdqGet();
+  if(q==='full'){window.print();return}
+  var b=pdqBusy('正在壓縮圖片…');
+  try{
+    await pdqShrink(1.6,0.82,function(i,n){b.set('正在壓縮圖片… '+i+' / '+n)});
+    b.set('準備列印視窗…');
+    await new Promise(function(r){setTimeout(r,120)});
+  }catch(e){}
+  b.done();
+  window.print();
+}
+
+(function(){
+  function sync(){
+    var r=document.querySelectorAll('input[name=pdqr]');
+    if(!r.length)return;
+    var cur=pdqGet();
+    r.forEach(function(x){
+      x.checked=(x.value===cur);
+      x.onchange=function(){if(x.checked)pdqSet(x.value)};
+    });
+  }
+  if(document.readyState==='loading')addEventListener('DOMContentLoaded',sync);else sync();
+})();
+
 })();
 </script>
 </body>
