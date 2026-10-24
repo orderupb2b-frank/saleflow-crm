@@ -144,6 +144,47 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .cc-rank { display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--border); }
 .cc-rank:first-child { border-top:none; }
 .cc-medal { width:26px; text-align:center; font-size:15px; flex-shrink:0; }
+/* 負責業務 chip（原生下拉，手機會跳系統選單） */
+.owner-sel { -webkit-appearance:none; appearance:none; font:inherit; font-size:11.5px; line-height:1.3; color:var(--text2); background:var(--bg4) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%239ca3af'/%3E%3C/svg%3E") no-repeat right 8px center; border:1px solid var(--border); border-radius:999px; padding:3px 22px 3px 9px; max-width:132px; cursor:pointer; outline:none; text-overflow:ellipsis; }
+.owner-sel:hover { border-color:var(--border2); }
+.owner-sel.none { color:var(--yellow); border-color:rgba(251,191,36,.45); }
+.owner-sel.mine { color:var(--accent); border-color:rgba(108,140,255,.5); }
+.owner-sel:disabled { opacity:.65; cursor:default; }
+.owner-sel.busy { opacity:.5; pointer-events:none; }
+/* 手機名單 */
+.ml-wrap { max-width:720px; margin:0 auto; }
+.ml-head { position:sticky; top:-14px; z-index:5; background:var(--bg); padding:2px 0 10px; }
+.ml-sbox { position:relative; }
+.ml-sbox span { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--text3); font-size:14px; pointer-events:none; }
+.ml-search { width:100%; height:44px; font:inherit; font-size:16px; padding:0 40px 0 38px; border-radius:12px; border:1px solid var(--border); background:var(--bg2); color:var(--text); outline:none; }
+.ml-search:focus { border-color:var(--accent); }
+.ml-clear { position:absolute; right:6px; top:50%; transform:translateY(-50%); width:32px; height:32px; border:0; background:transparent; color:var(--text3); font-size:16px; cursor:pointer; }
+.ml-chips { display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; margin-top:8px; }
+.ml-chips::-webkit-scrollbar { display:none; }
+.ml-chip { flex:0 0 auto; padding:6px 12px; border-radius:999px; border:1px solid var(--border); background:var(--bg2); color:var(--text2); font:inherit; font-size:13px; cursor:pointer; white-space:nowrap; }
+.ml-chip b { font-family:var(--mono); font-size:11px; font-weight:500; opacity:.7; margin-left:4px; }
+.ml-chip.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+.ml-seg .ml-chip { padding:6px 14px; }
+.ml-card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:12px 13px; margin-bottom:8px; cursor:pointer; }
+.ml-card:active { background:var(--bg3); }
+.ml-top { display:flex; gap:8px; align-items:flex-start; }
+.ml-name { flex:1; min-width:0; font-size:15px; font-weight:600; line-height:1.35; }
+.ml-stage { flex-shrink:0; font-size:11px; padding:2px 8px; border-radius:999px; background:var(--bg4); color:var(--text2); white-space:nowrap; }
+.ml-sub { font-size:12px; color:var(--text3); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ml-bot { display:flex; align-items:center; gap:8px; margin-top:10px; }
+.ml-due { flex:1; font-size:12px; color:var(--text3); }
+.ml-due.late { color:var(--red); } .ml-due.today { color:var(--yellow); }
+.ml-tel { display:inline-flex; align-items:center; justify-content:center; width:32px; height:28px; border-radius:8px; background:var(--green-bg); color:var(--green); text-decoration:none; font-size:14px; }
+.ml-empty { text-align:center; color:var(--text3); padding:40px 0; font-size:13px; }
+.tb-back { display:none; margin-right:4px; }
+@media (max-width: 768px) { body.on-company .tb-back { display:inline-flex; } }
+/* 成交回簽檔 */
+.df-files { margin:2px 0 12px; }
+.df-file { display:flex; align-items:center; gap:8px; padding:7px 9px; border:1px solid var(--border); border-radius:8px; margin-bottom:5px; font-size:12.5px; background:var(--bg3); }
+.df-file .nm { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; }
+.df-file .nm:hover { color:var(--accent); }
+.df-file .mt { font-size:11px; color:var(--text3); white-space:nowrap; }
+.df-miss { font-size:11px; color:var(--yellow); }
 .dk-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; align-items:start; max-width:980px; }
 .dk-card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:10px; }
 .dk-top { display:flex; align-items:flex-start; gap:10px; }
@@ -619,6 +660,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
   <!-- Main -->
   <div id="main">
     <div id="topbar">
+      <button class="btn btn-ghost btn-sm tb-back" onclick="goBack()" aria-label="返回">←</button>
       <div class="topbar-title" id="topbarTitle">今天</div>
       <button class="btn btn-ghost btn-sm" onclick="openGlobalSearch()" title="搜尋（⌘K）" style="margin-left:auto">🔍</button>
       <div id="topbarActions"></div>
@@ -812,11 +854,12 @@ async function bootApp() {
   await initDB();
   await loadGlobalData();
   // 若網址帶有 #lead=xxx，登入後直接開啟該 Lead
-  const hashLead = location.hash.match(/^#lead=([0-9a-fA-F\-]+)/);
+  const hashLead = location.hash.match(/^#lead=([\w-]+)/);
+  const hashPage = location.hash.match(/^#\/([a-z]+)/);
   if (hashLead) {
-    openCompany(hashLead[1]);
+    openCompany(hashLead[1], { replace: true });
   } else {
-    navigate('today');
+    navigate(hashPage && PAGE_KEYS.includes(hashPage[1]) ? hashPage[1] : 'today', { replace: true });
   }
 }
 
@@ -863,8 +906,10 @@ async function loadGlobalData() {
 }
 
 // ── Navigation ──
-function navigate(page) {
+function navigate(page, opt) {
   currentPage = page;
+  histPush('#/' + page, opt);
+  document.body.classList.remove('on-company');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.bnav-item').forEach(n => n.classList.remove('active'));
   const key = ({ company: 'leads' })[page] || page;
@@ -2079,6 +2124,226 @@ async function ccTodayCount() {
   });
 }
 
+// ════════════════════════ 負責業務 ════════════════════════
+// 呼叫自家 /api（同一支給 AI 助理用）：改負責業務會留紀錄、通知 Discord
+async function crmApi(method, path, body) {
+  const s = (await db.auth.getSession()).data.session;
+  if (!s) throw new Error('登入已過期，請重新整理');
+  const r = await fetch(path, { method: method, headers: { 'Authorization': 'Bearer ' + s.access_token, 'Content-Type': 'application/json', 'X-Client': 'crm' }, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(function () { return {}; });
+  if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+  return j;
+}
+function canChangeOwner(lead) {
+  return !!window.isAdmin || !lead.user_id || lead.user_id === currentUser.id;
+}
+function ownerSelectHtml(lead) {
+  const can = canChangeOwner(lead);
+  const cls = 'owner-sel' + (!lead.user_id ? ' none' : lead.user_id === currentUser.id ? ' mine' : '');
+  let opts = '<option value=""' + (!lead.user_id ? ' selected' : '') + '>未指派</option>';
+  const users = usersData.slice();
+  if (lead.user_id && !users.some(function (u) { return u.id === lead.user_id; })) users.push({ id: lead.user_id, full_name: lead.user_name || '（已停用）' });
+  users.forEach(function (u) { opts += '<option value="' + u.id + '"' + (u.id === lead.user_id ? ' selected' : '') + '>' + esc(u.full_name || u.email || '') + '</option>'; });
+  return '<select class="' + cls + '" data-owner-lead="' + lead.id + '"' + (can ? '' : ' disabled title="只有管理員或負責業務本人能改"')
+    + ' onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()"'
+    + ' onchange="changeLeadOwner(\'' + lead.id + '\',this.value,this)">' + opts + '</select>';
+}
+async function changeLeadOwner(leadId, uid, sel, quiet) {
+  const lead = leadsData.find(function (l) { return l.id === leadId; }) || (window._cp && window._cp.lead && window._cp.lead.id === leadId ? window._cp.lead : null);
+  const prev = lead ? (lead.user_id || '') : '';
+  const u = usersData.find(function (x) { return x.id === uid; });
+  if (sel) sel.classList.add('busy');
+  try {
+    const r = await crmApi('PATCH', '/api/leads/' + leadId + '/owner', { owner: u ? u.full_name : 'none' });
+    [leadsData.find(function (l) { return l.id === leadId; }), window._cp && window._cp.lead && window._cp.lead.id === leadId ? window._cp.lead : null].forEach(function (l) {
+      if (!l) return;
+      l.user_id = u ? u.id : null; l.user_name = u ? u.full_name : null; l.updated_at = new Date().toISOString();
+      if (r.stage === '已分配') { const st = stagesData.find(function (s) { return s.name === '已分配'; }); if (st) l.stage_id = st.id; }
+    });
+    document.querySelectorAll('select.owner-sel[data-owner-lead="' + leadId + '"]').forEach(function (s) {
+      s.value = uid || '';
+      s.classList.toggle('none', !uid); s.classList.toggle('mine', uid === currentUser.id);
+    });
+    if (!quiet || r.discord === 'sent') toast((u ? '已轉給 ' + u.full_name : '已取消指派') + (r.discord === 'sent' ? '・已通知 Discord' : ''), 'success');
+    if (r.stage === '已分配' && currentPage === 'leads' && leadsViewMode === 'kanban' && window.innerWidth > 768) renderKanban(document.getElementById('leadSearch')?.value || '');
+    if (currentPage === 'company' && currentLeadId === leadId) renderCompanyTimeline(leadId);
+  } catch (e) {
+    if (sel) sel.value = prev;
+    toast('改負責業務失敗：' + e.message, 'error');
+  } finally { if (sel) sel.classList.remove('busy'); }
+}
+function leadMatches(l, q) {
+  q = String(q || '').trim().toLowerCase();
+  if (!q) return true;
+  const qd = q.replace(/\D/g, '');
+  if ((l.name || '').toLowerCase().includes(q) || (l.company || '').toLowerCase().includes(q) || (l.user_name || '').toLowerCase().includes(q)) return true;
+  if (l.tax_id && qd.length >= 3 && String(l.tax_id).includes(qd)) return true;
+  return (l.contacts || []).some(function (c) {
+    return (c.name || '').toLowerCase().includes(q) || (qd.length >= 4 && String(c.phone || '').replace(/\D/g, '').includes(qd));
+  });
+}
+
+// ════════════════════════ 手機版名單 ════════════════════════
+let mlScope = null, mlStage = 'open', mlQuery = '', mlLimit = 40;
+function mlDue(l) {
+  if (!l.next_contact_date) return { cls: '', txt: '', rank: 2 };
+  const d = daysUntil(String(l.next_contact_date).slice(0, 10));
+  if (d < 0) return { cls: 'late', txt: '逾期 ' + (-d) + ' 天', rank: 0, d: d };
+  if (d === 0) return { cls: 'today', txt: '今天聯絡', rank: 0, d: d };
+  return { cls: '', txt: '📅 ' + String(l.next_contact_date).slice(5, 10).replace('-', '/'), rank: 1, d: d };
+}
+function renderLeadsMobile() {
+  if (currentPage !== 'leads') return;
+  const content = document.getElementById('content');
+  content.style.padding = ''; content.style.overflowX = '';
+  if (mlScope === null) mlScope = (!window.isAdmin && leadsData.some(function (l) { return l.user_id === currentUser.id; })) ? 'mine' : 'all';
+  const closed = stagesData.find(function (s) { return s.name === '結案'; });
+  const isOpen = function (l) { return !convertedLeadIds.has(l.id) && (!closed || l.stage_id !== closed.id); };
+  const inScope = function (l) { return mlScope === 'all' ? true : mlScope === 'mine' ? l.user_id === currentUser.id : !l.user_id; };
+  const scoped = leadsData.filter(inScope);
+  let list;
+  if (mlQuery) list = leadsData.filter(function (l) { return leadMatches(l, mlQuery); });
+  else if (mlStage === 'open') list = scoped.filter(isOpen);
+  else if (mlStage === 'won') list = scoped.filter(function (l) { return convertedLeadIds.has(l.id); });
+  else list = scoped.filter(function (l) { return l.stage_id === mlStage && !convertedLeadIds.has(l.id); });
+  list = list.map(function (l) { return { l: l, due: mlDue(l) }; }).sort(function (a, b) {
+    if (a.due.rank !== b.due.rank) return a.due.rank - b.due.rank;
+    if (a.due.rank < 2 && a.due.d !== b.due.d) return a.due.d - b.due.d;
+    return new Date(b.l.updated_at || b.l.created_at) - new Date(a.l.updated_at || a.l.created_at);
+  });
+  const cnt = function (f) { return leadsData.filter(function (l) { return f(l) && isOpen(l); }).length; };
+  const seg = [['mine', '我的', cnt(function (l) { return l.user_id === currentUser.id; })], ['all', '全部', cnt(function () { return true; })], ['none', '未指派', cnt(function (l) { return !l.user_id; })]]
+    .map(function (x) { return '<button class="ml-chip' + (mlScope === x[0] ? ' on' : '') + '" onclick="mlSet(\'scope\',\'' + x[0] + '\')">' + x[1] + '<b>' + x[2] + '</b></button>'; }).join('');
+  const stageChips = [['open', '進行中', scoped.filter(isOpen).length]]
+    .concat(stagesData.filter(function (s) { return s.name !== '結案' && s.name !== '簽約進件'; }).map(function (s) { return [s.id, s.name, scoped.filter(function (l) { return l.stage_id === s.id && !convertedLeadIds.has(l.id); }).length]; }))
+    .concat([['won', '已成交', scoped.filter(function (l) { return convertedLeadIds.has(l.id); }).length]])
+    .concat(closed ? [[closed.id, '結案', scoped.filter(function (l) { return l.stage_id === closed.id && !convertedLeadIds.has(l.id); }).length]] : [])
+    .map(function (x) { return '<button class="ml-chip' + (mlStage === x[0] ? ' on' : '') + '" onclick="mlSet(\'stage\',\'' + x[0] + '\')">' + esc(x[1]) + '<b>' + x[2] + '</b></button>'; }).join('');
+  const cards = list.slice(0, mlLimit).map(function (x) {
+    const l = x.l;
+    const st = convertedLeadIds.has(l.id) ? '已成交' : ((stagesData.find(function (s) { return s.id === l.stage_id; }) || {}).name || '');
+    const c0 = (l.contacts || [])[0];
+    const sub = [l.company || (c0 && c0.name) || '', l.tax_id || ''].filter(Boolean).join('・');
+    const phone = c0 && c0.phone ? String(c0.phone).replace(/[^\d+#,]/g, '') : '';
+    return '<div class="ml-card" onclick="openCompany(\'' + l.id + '\')">'
+      + '<div class="ml-top"><div class="ml-name">' + esc(l.name) + '</div><span class="ml-stage">' + esc(st) + '</span></div>'
+      + (sub ? '<div class="ml-sub">' + esc(sub) + '</div>' : '')
+      + '<div class="ml-bot"><span class="ml-due ' + x.due.cls + '">' + x.due.txt + '</span>'
+      + (phone ? '<a class="ml-tel" href="tel:' + esc(phone) + '" onclick="event.stopPropagation()" aria-label="撥打">📞</a>' : '')
+      + ownerSelectHtml(l) + '</div></div>';
+  }).join('');
+  const more = list.length > mlLimit ? '<button class="btn btn-secondary" style="width:100%;margin-top:4px" onclick="mlLimit+=60;renderLeadsMobile()">再顯示 ' + Math.min(60, list.length - mlLimit) + ' 筆（共 ' + list.length + '）</button>' : '';
+  const hadFocus = document.activeElement && document.activeElement.id === 'mlSearch';
+  content.innerHTML = '<div class="ml-wrap"><div class="ml-head">'
+    + '<div class="ml-sbox"><span>🔍</span><input id="mlSearch" class="ml-search" type="search" enterkeyhint="search" placeholder="公司、聯絡人、電話、統編" value="' + esc(mlQuery) + '" oninput="mlSearchInput(this.value)">'
+    + (mlQuery ? '<button class="ml-clear" onclick="mlSearchInput(\'\')" aria-label="清除">✕</button>' : '') + '</div>'
+    + (mlQuery ? '<div style="font-size:12px;color:var(--text3);margin-top:8px">搜尋全部名單：' + list.length + ' 筆</div>'
+      : '<div class="ml-chips ml-seg">' + seg + '</div><div class="ml-chips">' + stageChips + '</div>')
+    + '</div>'
+    + (cards || '<div class="ml-empty">' + (mlQuery ? '找不到「' + esc(mlQuery) + '」<br><button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="openNewLeadModal()">＋ 新增這家</button>' : '這裡沒有名單') + '</div>')
+    + more + '<div style="height:70px"></div></div>';
+  if (hadFocus) { const i = document.getElementById('mlSearch'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
+}
+let _mlT = null;
+function mlSearchInput(v) {
+  mlQuery = String(v || '').trim(); mlLimit = 40;
+  clearTimeout(_mlT); _mlT = setTimeout(renderLeadsMobile, v ? 160 : 0);
+}
+function mlSet(k, v) {
+  if (k === 'scope') mlScope = v; else mlStage = v;
+  mlLimit = 40; renderLeadsMobile();
+  const c = document.getElementById('content'); if (c) c.scrollTop = 0;
+}
+
+// ════════════════════════ 成交回簽檔 ════════════════════════
+const DEAL_FILE_MAX = 20 * 1024 * 1024;
+let dealFilesCache = {};
+async function loadDealFiles(ctIds) {
+  if (!ctIds || !ctIds.length) return;
+  const r = await db.from('deal_files').select('*').in('contract_id', ctIds).order('created_at', { ascending: false });
+  if (r.error) return;
+  ctIds.forEach(function (id) { dealFilesCache[id] = []; });
+  (r.data || []).forEach(function (f) { (dealFilesCache[f.contract_id] = dealFilesCache[f.contract_id] || []).push(f); });
+}
+function dealFilesBadge(ctId) {
+  const fs = dealFilesCache[ctId];
+  if (!fs) return '';
+  return fs.length ? '<span class="badge badge-blue">📎 ' + fs.length + '</span>' : '<span class="df-miss">未附回簽</span>';
+}
+function dealFilesListHtml(ctId, accId) {
+  const fs = dealFilesCache[ctId] || [];
+  if (!fs.length) return '<div style="font-size:12px;color:var(--text3)">還沒有檔案。可以直接上傳，或在 ChatGPT 丟檔案給 SaleFlow 助理。</div>';
+  return fs.map(function (f) {
+    const canDel = window.isAdmin || f.uploaded_by === currentUser.id;
+    const ico = /pdf/.test(f.mime || '') ? '📄' : '🖼';
+    return '<div class="df-file"><span>' + ico + '</span>'
+      + '<span class="nm" onclick="openDealFile(\'' + f.id + '\')">' + esc(f.file_name) + '</span>'
+      + '<span class="mt">' + esc(f.kind || '') + '・' + fmtDate(f.created_at) + (f.source === 'ai' ? '・AI' : '') + '</span>'
+      + (canDel ? '<button class="btn btn-ghost btn-sm" style="padding:1px 6px" onclick="deleteDealFile(\'' + f.id + '\',\'' + ctId + '\',\'' + accId + '\')">🗑</button>' : '')
+      + '</div>';
+  }).join('');
+}
+function pickDealFiles(ctId, accId) {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.multiple = true; inp.accept = 'application/pdf,image/*';
+  inp.onchange = function () { uploadDealFiles(ctId, accId, Array.from(inp.files || [])); };
+  inp.click();
+}
+function dealFileMime(f) {
+  if (f.type) return f.type;
+  const ext = (f.name.split('.').pop() || '').toLowerCase();
+  return ({ pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', heic: 'image/heic', heif: 'image/heif', webp: 'image/webp' })[ext] || 'application/octet-stream';
+}
+async function uploadDealFiles(ctId, accId, files) {
+  if (!files.length) return;
+  const acc = accountsData.find(function (a) { return a.id === accId; }) || (window._cp && window._cp.acc);
+  const leadId = (acc && acc.lead_id) || (window._cp && window._cp.lead && window._cp.lead.id) || null;
+  let ok = 0;
+  for (const f of files) {
+    if (f.size > DEAL_FILE_MAX) { toast(f.name + ' 超過 20MB', 'error'); continue; }
+    const mime = dealFileMime(f);
+    if (!/^(application\/pdf|image\/)/.test(mime)) { toast(f.name + '：只收 PDF 或照片', 'error'); continue; }
+    const ext = (f.name.match(/\.([A-Za-z0-9]{1,6})$/) || [, mime === 'application/pdf' ? 'pdf' : 'jpg'])[1].toLowerCase();
+    const path = ctId + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+    toast('上傳中：' + f.name, 'info');
+    const up = await db.storage.from('deal-files').upload(path, f, { contentType: mime, upsert: false });
+    if (up.error) { toast('上傳失敗：' + up.error.message, 'error'); continue; }
+    const ins = await db.from('deal_files').insert({
+      contract_id: ctId, lead_id: leadId, kind: '回簽報價單', file_name: f.name.slice(0, 120), path: path, mime: mime, size: f.size,
+      uploaded_by: currentUser.id, uploaded_by_name: window.userProfile?.full_name || currentUser.email || '', source: 'crm'
+    });
+    if (ins.error) { await db.storage.from('deal-files').remove([path]); toast('存檔失敗：' + ins.error.message, 'error'); continue; }
+    ok++;
+  }
+  if (!ok) return;
+  toast('已上傳 ' + ok + ' 個檔案', 'success');
+  await loadDealFiles([ctId]);
+  if (currentPage === 'company') { await refreshCompany(); const b = document.getElementById('ct-body-' + ctId); if (b) b.style.display = 'block'; }
+  else { const el = document.getElementById('ct-files-' + ctId); if (el) el.innerHTML = dealFilesListHtml(ctId, accId); }
+}
+async function openDealFile(fileId) {
+  let f = null;
+  Object.keys(dealFilesCache).forEach(function (k) { (dealFilesCache[k] || []).forEach(function (x) { if (x.id === fileId) f = x; }); });
+  if (!f) return;
+  const w = window.open('', '_blank');
+  const r = await db.storage.from('deal-files').createSignedUrl(f.path, 600);
+  if (r.error || !r.data) { if (w) w.close(); toast('開啟失敗：' + (r.error ? r.error.message : ''), 'error'); return; }
+  if (w) w.location.href = r.data.signedUrl; else location.href = r.data.signedUrl;
+}
+async function deleteDealFile(fileId, ctId, accId) {
+  const f = (dealFilesCache[ctId] || []).find(function (x) { return x.id === fileId; });
+  if (!f) return;
+  openConfirm('刪除檔案', '確定刪除「' + esc(f.file_name) + '」？', async function () {
+    closeModal();
+    const d = await db.from('deal_files').delete().eq('id', fileId);
+    if (d.error) { toast('刪除失敗：' + d.error.message, 'error'); return; }
+    await db.storage.from('deal-files').remove([f.path]);
+    await loadDealFiles([ctId]);
+    const el = document.getElementById('ct-files-' + ctId); if (el) el.innerHTML = dealFilesListHtml(ctId, accId);
+    toast('已刪除', 'success');
+  }, closeModal, '刪除', '取消');
+}
+
 // ════════════════════════ 公版簡報區 ════════════════════════
 // 更新簡報：把新檔案覆蓋到 slides/ 底下，再改這裡的 ver / updated 即可。
 // 檔名保持不變，業務的講者資訊與頁面設定才不會掉。
@@ -2524,7 +2789,7 @@ async function renderDashboard() {
 async function renderLeads() {
   await loadGlobalData();
   // Fetch leads without sort_order dependency (sort in JS to avoid NULL issues)
-  const { data } = await db.from('leads').select('*, contacts(id)').order('created_at', {ascending:true});
+  const { data } = await db.from('leads').select('*, contacts(id,name,phone)').order('created_at', {ascending:true});
   leadsData = (data || []).sort((a,b) => (a.sort_order ?? 999999) - (b.sort_order ?? 999999));
 
   // Load which leads have been converted to accounts
@@ -2564,7 +2829,7 @@ async function renderLeads() {
 
   // Auto list-mode on mobile
   const isMobile = window.innerWidth <= 768;
-  if (isMobile) { renderLeadsList(); return; }
+  if (isMobile) { renderLeadsMobile(); return; }
   if (leadsViewMode === 'list') renderLeadsList();
   else renderKanban();
 }
@@ -2610,7 +2875,7 @@ function renderKanban(searchStr = '') {
     const stageleads = leadsData.filter(l => {
       if (l.stage_id !== stage.id) return false;
       if (!showConvertedLeads && !searchStr && convertedLeadIds.has(l.id)) return false;
-      if (searchStr && !l.name?.toLowerCase().includes(searchStr.toLowerCase()) && !l.company?.toLowerCase().includes(searchStr.toLowerCase())) return false;
+      if (searchStr && !leadMatches(l, searchStr)) return false;
       if (kanbanFilterSrc !== 'all' && (l.source_id||'') !== kanbanFilterSrc) return false;
       if (kanbanFilterUser !== 'all' && (l.user_id||'') !== kanbanFilterUser) return false;
       return true;
@@ -2671,30 +2936,12 @@ function createKanbanCard(lead) {
       ${src ? `<div class="kc-tag">${esc(src.name)}</div>` : ''}
     </div>
     <div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between;gap:4px">
-      ${usersData.length > 0
-        ? '<select class="kc-user-select" data-lead-id="'+lead.id+'" style="font-size:11px;background:var(--bg4);border:1px solid var(--border);border-radius:4px;color:var(--text2);padding:2px 4px;cursor:pointer;max-width:120px;outline:none">'
-          + '<option value="">👤 未指派</option>'
-          + usersData.map(u => { const n=u.full_name||u.email||''; return '<option value="'+u.id+'|'+n+'"'+(u.id===lead.user_id?' selected':'')+'>'+n+'</option>'; }).join('')
-          + '</select>'
-        : '<span style="font-size:11px;color:var(--text3)">👤 '+(lead.user_name||'未指派')+'</span>'
-      }
+      ${ownerSelectHtml(lead)}
       <span style="font-size:10.5px;color:var(--text3)">${fmtDate(lead.created_at)}</span>
     </div>
   `;
-  // Inline user assign
-  const userSel = card.querySelector('.kc-user-select');
-  if (userSel) {
-    userSel.addEventListener('mousedown', e => e.stopPropagation());
-    userSel.addEventListener('change', async e => {
-      e.stopPropagation();
-      const val = e.target.value;
-      const [uid, uname] = val ? val.split('|') : ['', ''];
-      await db.from('leads').update({ user_id: uid||null, user_name: uname||null, updated_at: new Date().toISOString() }).eq('id', lead.id);
-      const ld = leadsData.find(l => l.id === lead.id);
-      if (ld) { ld.user_id = uid||null; ld.user_name = uname||null; }
-      toast((uname||'未指派') + ' 已接手 ' + esc(lead.name), 'success');
-    });
-  }
+  const ownSel = card.querySelector('.owner-sel');
+  if (ownSel) { ownSel.draggable = false; ownSel.addEventListener('dragstart', e => { e.preventDefault(); e.stopPropagation(); }); }
   card.addEventListener('dragstart', e => {
     dragSrcId = lead.id;
     dragSrcEl = card;
@@ -2752,7 +2999,7 @@ function createKanbanCard(lead) {
     }
     dragSrcId = null; dragSrcEl = null;
   });
-  card.addEventListener('click', () => openLeadDrawer(lead.id));
+  card.addEventListener('click', e => { if (e.target.closest('select,button,a,input')) return; openLeadDrawer(lead.id); });
   return card;
 }
 
@@ -2828,10 +3075,7 @@ function renderLeadsList(searchStr) {
     if (listFilterStage !== 'all' && l.stage_id !== listFilterStage) return false;
     if (listFilterSrc   !== 'all' && (l.source_id||'') !== listFilterSrc) return false;
     if (listFilterUser  !== 'all' && (l.user_id||'')   !== listFilterUser) return false;
-    if (searchStr) {
-      const q = searchStr.toLowerCase();
-      return (l.name||'').toLowerCase().includes(q) || (l.company||'').toLowerCase().includes(q);
-    }
+    if (searchStr) return leadMatches(l, searchStr);
     return true;
   });
   if (listSortMode === 'updated_desc') filtered.sort(function(a,b){ return new Date(b.updated_at||b.created_at) - new Date(a.updated_at||a.created_at); });
@@ -2860,7 +3104,7 @@ function renderLeadsList(searchStr) {
           ${sourcesData.map(s=>`<option value="${s.id}"${s.id===l.source_id?' selected':''}>${esc(s.name)}</option>`).join('')}
         </select>
       </td>
-      <td style="font-size:12px;color:var(--text3)">${esc(l.user_name||'—')}</td>
+      <td onclick="event.stopPropagation()">${ownerSelectHtml(l)}</td>
       <td style="font-size:12px;color:var(--text3);cursor:pointer" onclick="openSetNextContact('${l.id}','${l.next_contact_date||''}')">${l.next_contact_date?new Date(l.next_contact_date).toLocaleDateString('zh-TW'):'<span style=\'color:var(--text3);font-size:11px\'>設定</span>'}</td>
       <td style="font-size:11px;color:var(--text3)">${fmtDate(l.updated_at || l.created_at)}</td>
       <td style="font-size:11px;color:var(--text3)">${fmtDate(l.created_at)}</td>
@@ -3705,6 +3949,7 @@ async function saveLead() {
   }
   closeModal();
   toast('Lead 建立成功' + (contacts.length ? '，已新增 ' + contacts.length + ' 位聯絡人' : ''), 'success');
+  if (userId && userId !== currentUser.id) crmApi('POST', '/api/leads/' + lead.id + '/announce').catch(function () {});
   navigate('leads');
 }
 
@@ -3714,10 +3959,12 @@ async function openLeadDrawer(leadId) { return openCompany(leadId); }
 
 let _cpBack = 'leads';
 let _cpFilter = 'all';
-async function openCompany(leadId) {
+async function openCompany(leadId, opt) {
   if (!leadId) return;
+  histPush('#lead=' + leadId, opt);
   if (currentPage !== 'company') _cpBack = currentPage && currentPage !== 'company' ? currentPage : 'leads';
   currentPage = 'company';
+  document.body.classList.add('on-company');
   currentLeadId = leadId;
   _cpFilter = 'all';
   setLeadHash(leadId);
@@ -3726,7 +3973,7 @@ async function openCompany(leadId) {
   const nv = document.getElementById('nav-leads'); if (nv) nv.classList.add('active');
   const bn = document.getElementById('bnav-leads'); if (bn) bn.classList.add('active');
   document.getElementById('topbarTitle').textContent = '公司';
-  document.getElementById('topbarActions').innerHTML = '<div class="action-bar"><button class="btn btn-ghost btn-sm" onclick="navigate(_cpBack)">← 返回</button></div>';
+  document.getElementById('topbarActions').innerHTML = '<div class="action-bar"><button class="btn btn-ghost btn-sm" onclick="goBack()">← 返回</button></div>';
   const content = document.getElementById('content');
   content.classList.remove('quote-mode');
   content.innerHTML = '<div class="loading"><span class="dot-pulse">載入中</span></div>';
@@ -3753,6 +4000,7 @@ async function refreshCompany() {
     if (i >= 0) accountsData[i] = acc; else accountsData.push(acc);
     const r = await db.from('contracts').select('*').eq('account_id', acc.id);
     contracts = (r.data || []).sort(function (a, b) { return dealDate(b).localeCompare(dealDate(a)); });
+    await loadDealFiles(contracts.map(function (c) { return c.id; }));
   }
   const li = leadsData.findIndex(l => l.id === leadId);
   if (li >= 0) leadsData[li] = Object.assign(leadsData[li], lead);
@@ -3803,7 +4051,7 @@ function companyHeaderHtml(lead, acc) {
     +       (lead.company ? '<span>👤 ' + esc(lead.company) + '</span>' : '')
     +       (lead.tax_id ? '<span style="font-family:var(--mono)">🏷 ' + esc(lead.tax_id) + '</span>' : '')
     +       (src ? '<span>來源：' + esc(src.name) + '</span>' : '')
-    +       '<span>負責：' + esc(lead.user_name || '未指派') + '</span>'
+    +       '<span style="display:inline-flex;align-items:center;gap:5px">負責 ' + ownerSelectHtml(lead) + '</span>'
     +     '</div>'
     +     '<div style="font-size:12.5px;margin-top:6px">' + nextHtml + '</div>'
     +     (lead.lost_reason && !acc ? '<div style="font-size:12px;color:var(--red);margin-top:4px">📉 結案原因：' + esc(lead.lost_reason) + '</div>' : '')
@@ -3974,12 +4222,35 @@ function closeDrawer() {
 function leadUrl(leadId) {
   return location.origin + location.pathname + '#lead=' + leadId;
 }
-function setLeadHash(leadId) {
+function setLeadHash(leadId) { /* 網址由 histPush 管理 */ }
+
+// ── 瀏覽器「上一頁／下一頁」──
+// 每換一頁就推一筆紀錄：#/today、#/leads…；公司頁是 #lead=<id>
+const PAGE_KEYS = ['today', 'dashboard', 'leads', 'quotes', 'accounts', 'performance', 'coldcall', 'decks', 'contacts', 'settings', 'feed'];
+let _histRouting = false;
+function histPush(hash, opt) {
+  if (_histRouting) return;
   try {
-    if (leadId) history.replaceState(null, '', '#lead=' + leadId);
-    else history.replaceState(null, '', location.pathname + location.search);
-  } catch(e) {}
+    const st = history.state && typeof history.state.sf === 'number' ? history.state.sf : 0;
+    if (opt && opt.replace) history.replaceState({ sf: st }, '', hash);
+    else if (location.hash !== hash) history.pushState({ sf: st + 1 }, '', hash);
+  } catch (e) {}
 }
+function goBack() {
+  if (history.state && history.state.sf > 0) history.back();
+  else navigate(_cpBack || 'leads', { replace: true });
+}
+window.addEventListener('popstate', function () {
+  if (!currentUser) return;
+  if (document.getElementById('modalOverlay')?.style.display === 'flex' || document.getElementById('modalOverlay')?.style.display === 'block') closeModal();
+  const m = location.hash.match(/^#lead=([\w-]+)/);
+  const p = location.hash.match(/^#\/([a-z]+)/);
+  _histRouting = true;
+  try {
+    if (m) { if (!(currentPage === 'company' && currentLeadId === m[1])) openCompany(m[1]); }
+    else navigate(p && PAGE_KEYS.includes(p[1]) ? p[1] : 'today');
+  } finally { _histRouting = false; }
+});
 async function copyLeadLink(leadId) {
   const url = leadUrl(leadId);
   try {
@@ -3996,17 +4267,7 @@ async function copyLeadLink(leadId) {
     ta.remove();
   }
 }
-// 使用者貼上/修改網址 hash 時同步開關 Drawer（程式內部用 replaceState，不會觸發此事件）
-window.addEventListener('hashchange', () => {
-  const m = location.hash.match(/^#lead=([0-9a-fA-F\-]+)/);
-  if (m) {
-    if (!currentUser) return;
-    if (currentLeadId === m[1]) return;
-    openCompany(m[1]);
-  } else if (currentPage === 'company') {
-    navigate(_cpBack || 'leads');
-  }
-});
+
 
 // ── 防止未儲存內容因誤點背景而遺失 ──
 function containerHasTypedContent(rootEl) {
@@ -4543,10 +4804,10 @@ async function openEditLeadModal(leadId) {
         next_contact_date: document.getElementById('elNextContact')?.value || null,
         updated_at: new Date().toISOString()
       };
-      if (elUserId) updatePayload.user_id = elUserId;
-      if (elUserName) updatePayload.user_name = elUserName;
+      const ownerChanged = !!elUserId && elUserId !== (lead.user_id || '');
       const { error: updateErr } = await db.from('leads').update(updatePayload).eq('id', leadId);
       if (updateErr) { toast('更新失敗：' + updateErr.message, 'error'); return; }
+      if (ownerChanged) await changeLeadOwner(leadId, elUserId, null, true);
       // Refresh local leadsData cache
       const updatedIdx = leadsData.findIndex(l => l.id === leadId);
       if (updatedIdx >= 0) Object.assign(leadsData[updatedIdx], updatePayload);
@@ -5405,6 +5666,7 @@ function renderContractList(contracts, accId) {
     const mf = ctMonthly(c);
     if (mf) meta += '<span class="badge badge-blue" style="font-family:var(--mono)">月費 $' + fmtNum(mf) + '</span>';
     if (sales) meta += '<span style="font-size:11px;color:var(--text3)">👤 ' + esc(sales) + '</span>';
+    meta += dealFilesBadge(c.id);
     let dates = '';
     const sd = dealDate(c);
     if (sd) dates += '<span>簽約 ' + sd + '</span>';
@@ -5437,11 +5699,14 @@ function renderContractList(contracts, accId) {
       +       (dates ? '<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--text3)">' + dates + '</div>' : '')
       +     '</div>'
       +     '<div style="display:flex;align-items:center;gap:2px">'
+      +       '<button class="btn btn-ghost btn-sm" title="上傳回簽檔" onclick="event.stopPropagation();pickDealFiles(\'' + c.id + '\',\'' + accId + '\')">📎</button>'
       +       '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();openEditContract(\'' + c.id + '\',\'' + accId + '\')">✏️</button>'
       +       (window.isAdmin ? '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();deleteContract(\'' + c.id + '\',\'' + accId + '\')">🗑</button>' : '')
       +     '</div>'
       +   '</div>'
       +   '<div class="contract-card-body" id="ct-body-' + c.id + '" style="display:none">'
+      +     '<div class="form-label" style="display:flex;align-items:center;justify-content:space-between">回簽檔<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="pickDealFiles(\'' + c.id + '\',\'' + accId + '\')">＋ 上傳</button></div>'
+      +     '<div class="df-files" id="ct-files-' + c.id + '">' + dealFilesListHtml(c.id, accId) + '</div>'
       +     itemsHtml + instHtml
       +     (c.plan_content ? '<div class="form-label">方案內容 / 開通功能</div><div style="font-size:12.5px;white-space:pre-wrap;margin-bottom:10px;padding:8px 10px;background:var(--bg3);border-radius:6px;line-height:1.6">' + esc(c.plan_content) + '</div>' : '')
       +     (c.note ? '<div style="font-size:12px;color:var(--text3);margin-bottom:10px;padding:6px 8px;background:var(--bg3);border-radius:5px;white-space:pre-wrap">' + esc(c.note) + '</div>' : '')

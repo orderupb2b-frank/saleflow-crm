@@ -12,7 +12,7 @@ const AI_TAG = '\n\n— 由 ChatGPT 助理記錄';
 const ACTIVITY_TYPES = { email: 'Email', call: '電話/LINE', visit: '實體拜訪', event: '展覽活動', note: '內部備註' };
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ectx) {
     const url = new URL(request.url);
     const p = url.pathname;
     try {
@@ -20,7 +20,7 @@ export default {
       if (p === '/openapi.json') return json(openapi(url.origin));
       if (p === '/oauth/authorize') return await authorize(request, env, url);
       if (p === '/oauth/token') return await token(request, env);
-      if (p.startsWith('/api/')) return await api(request, env, url);
+      if (p.startsWith('/api/')) return await api(request, env, url, ectx);
       if (p === '/privacy') return html(privacyPage());
       return env.ASSETS.fetch(request);
     } catch (e) {
@@ -33,7 +33,7 @@ export default {
 
 // ───────────────────────── helpers ─────────────────────────
 class HttpError extends Error { constructor(status, msg) { super(msg); this.status = status; } }
-const cors = () => ({ 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Authorization, Content-Type', 'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS' });
+const cors = () => ({ 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Client', 'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS' });
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', ...cors() } });
 const html = (s, status = 200) => new Response(s, { status, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -143,7 +143,7 @@ function privacyPage() {
 }
 
 // ───────────────────────── API ─────────────────────────
-async function api(request, env, url) {
+async function api(request, env, url, ectx) {
   const auth = request.headers.get('authorization') || '';
   if (!auth.startsWith('Bearer ')) throw new HttpError(401, '尚未登入');
   const tk = auth.slice(7);
@@ -153,7 +153,9 @@ async function api(request, env, url) {
   const db = sb(env, tk);
   const prof = (await db.get(`user_profiles?id=eq.${user.id}&select=id,full_name,role,email`))?.[0];
   const me = { id: user.id, name: prof?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0], role: prof?.role || 'sales', email: user.email };
-  const ctx = { env, db, me, url, request };
+  // X-Client: crm → 從 CRM 畫面呼叫（不加 AI 標記）；其他 → AI 助理
+  const via = request.headers.get('x-client') === 'crm' ? 'crm' : 'ai';
+  const ctx = { env, db, me, url, request, via, tk, ectx };
 
   const path = url.pathname.replace(/\/+$/, '');
   const m = request.method;
@@ -165,6 +167,10 @@ async function api(request, env, url) {
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/activities$/)) && m === 'POST') return json(await addActivity(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/next-contact$/)) && m === 'PATCH') return json(await setNextContact(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/stage$/)) && m === 'PATCH') return json(await setStage(ctx, mm[1], await readBody(request)));
+  if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/owner$/)) && m === 'PATCH') return json(await setOwner(ctx, mm[1], await readBody(request)));
+  if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/files$/)) && m === 'POST') return json(await attachFile(ctx, mm[1], await readBody(request)));
+  if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/announce$/)) && m === 'POST') return json(await announceLead(ctx, mm[1]));
+  if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/files$/)) && m === 'GET') return json(await listFiles(ctx, mm[1]));
   if (m === 'GET' && path === '/api/followups') return json(await followups(ctx));
   if (m === 'GET' && path === '/api/report/activity') return json(await activityReport(ctx));
   if (m === 'GET' && path === '/api/report/attention') return json(await attentionReport(ctx));
@@ -179,17 +185,53 @@ async function api(request, env, url) {
 async function lookups(db) {
   const [stages, users] = await Promise.all([
     db.get('stages?select=id,name,order_index&order=order_index'),
-    db.get('user_profiles?select=id,full_name,role')
+    db.get('user_profiles?select=id,full_name,role,email')
   ]);
   return {
     stages,
     stageName: id => stages.find(s => s.id === id)?.name || null,
     stageByName: n => stages.find(s => s.name === String(n || '').trim()),
     userName: id => users.find(u => u.id === id)?.full_name || null,
-    userByName: n => users.find(u => u.full_name && (u.full_name === n || u.full_name.includes(n))),
+    userByName: n => findUser(users, n).user,
+    findUser: n => findUser(users, n),
     users
   };
 }
+// 業務的別稱（對話裡常用的叫法）→ CRM 上的名字
+const USER_ALIASES = { '阿璁': 'Greenion', '璁': 'Greenion', 'cj': 'CJ Wang', 'jack': 'Jack Wang' };
+function findUser(users, raw) {
+  const n = String(raw || '').trim();
+  if (!n) return { user: null, candidates: [] };
+  const key = (USER_ALIASES[n] || USER_ALIASES[n.toLowerCase()] || n).toLowerCase();
+  const name = u => String(u.full_name || '').toLowerCase();
+  const exact = users.filter(u => name(u) === key || String(u.email || '').toLowerCase().split('@')[0] === key);
+  if (exact.length === 1) return { user: exact[0], candidates: exact };
+  const part = users.filter(u => name(u) && (name(u).includes(key) || key.includes(name(u))));
+  return { user: part.length === 1 ? part[0] : null, candidates: part };
+}
+function resolveOwner(L, raw) {
+  const r = L.findUser(raw);
+  if (r.user) return r.user;
+  const all = L.users.map(u => u.full_name).filter(Boolean).join('、');
+  if (r.candidates.length > 1) throw new HttpError(400, `「${raw}」符合不只一位：${r.candidates.map(u => u.full_name).join('、')}，請講全名`);
+  throw new HttpError(400, `找不到業務「${raw}」。可指派：${all}`);
+}
+
+// ───────── Discord 通知（Webhook 存在 Cloudflare 的 DISCORD_WEBHOOK_URL）─────────
+async function notifyDiscord(ctx, embed) {
+  const hook = ctx.env.DISCORD_WEBHOOK_URL;
+  if (!hook) return 'not_configured';
+  const send = fetch(hook, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'CRM Bot', allowed_mentions: { parse: [] }, embeds: [{ color: 0x6c8cff, timestamp: new Date().toISOString(), ...embed }] })
+  }).then(r => r.ok ? 'sent' : 'failed:' + r.status).catch(e => 'failed:' + (e.message || e));
+  return await send;
+}
+function contactLine(c) {
+  if (!c || !c.name) return '';
+  return '聯絡人：' + [c.name, c.role || c.title, c.phone, c.email].filter(Boolean).join('｜');
+}
+
 function leadSummary(l, L) {
   return {
     id: l.id, name: l.name, tax_id: l.tax_id || null,
@@ -212,7 +254,8 @@ async function apiMe({ me, db }) {
     stages: L.stages.map(s => s.name),
     gpt_cannot_set_stages: BLOCKED_STAGES,
     activity_types: ACTIVITY_TYPES,
-    team: me.role === 'admin' ? L.users.map(u => ({ name: u.full_name, role: u.role })) : undefined
+    team: L.users.filter(u => u.full_name).map(u => ({ name: u.full_name, role: u.role })),
+    note: '建名單或改負責業務時，owner 請用 team 裡的名字'
   };
 }
 
@@ -306,7 +349,8 @@ async function setStage({ db, url }, leadId, b) {
   return { ok: true, lead: lead.name, from: prev, to: st.name, crm_link: url.origin + '/#lead=' + leadId };
 }
 
-async function createLead({ db, me, url }, b) {
+async function createLead(ctx, b) {
+  const { db, me, url } = ctx;
   const name = String(b.name || '').trim();
   if (!name) throw new HttpError(400, 'name（公司名稱）必填');
   const tax = b.tax_id ? String(b.tax_id).trim() : null;
@@ -321,17 +365,122 @@ async function createLead({ db, me, url }, b) {
     const sim = await db.get(`leads?name=ilike.${encodeURIComponent('*' + core + '*')}&select=id,name,user_name&limit=5`);
     if (sim.length) return { ok: false, possible_duplicates: sim.map(s => withLink({ id: s.id, name: s.name, owner: s.user_name }, url.origin)), message: '有名稱相近的名單，請跟使用者確認是不是同一家；確定是新的再帶 confirm_not_duplicate=true 重送。' };
   }
-  const stage = (b.stage && L.stageByName(b.stage)) || L.stages[0];
+  const owner = b.owner ? resolveOwner(L, b.owner) : { id: me.id, full_name: me.name };
+  let stage = (b.stage && L.stageByName(b.stage)) || L.stages[0];
   if (BLOCKED_STAGES.includes(stage.name)) throw new HttpError(400, `新名單不能直接放在「${stage.name}」`);
+  // 指派給別人、又沒指定階段 → 直接放「已分配」
+  if (!b.stage && owner.id !== me.id && L.stageByName('已分配')) stage = L.stageByName('已分配');
   const lead = await db.insert('leads', {
     name, tax_id: tax, stage_id: stage.id, product_type: b.product_type || null,
-    user_id: me.id, user_name: me.name, created_at: new Date().toISOString(), updated_at: new Date().toISOString()
+    user_id: owner.id, user_name: owner.full_name, created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   });
   if (b.contact_name) await db.insert('contacts', {
     name: b.contact_name, role: b.contact_title || null, phone: b.contact_phone || null, email: b.contact_email || null,
     lead_id: lead.id, user_id: me.id, created_at: new Date().toISOString()
   });
-  return { ok: true, created: withLink({ id: lead.id, name, stage: stage.name, owner: me.name }, url.origin) };
+  const link = url.origin + '/#lead=' + lead.id;
+  const discord = await notifyDiscord(ctx, {
+    title: `📌 新名單 → ${owner.full_name}`, url: link,
+    description: [`**${name}**`, contactLine({ name: b.contact_name, role: b.contact_title, phone: b.contact_phone, email: b.contact_email }), b.note ? String(b.note).slice(0, 300) : '', `建立：${me.name}${ctx.via === 'ai' ? '（AI 助理）' : ''}`].filter(Boolean).join('\n')
+  });
+  if (b.note) await db.insert('activities', { type: 'note', content: String(b.note) + (ctx.via === 'ai' ? AI_TAG : ''), lead_id: lead.id, user_id: me.id, created_at: new Date().toISOString() });
+  return { ok: true, created: withLink({ id: lead.id, name, stage: stage.name, owner: owner.full_name }, url.origin), discord };
+}
+
+// 改負責業務：管理員可改任何名單；業務只能處理「沒人負責」或「自己的」名單
+async function setOwner(ctx, leadId, b) {
+  const { db, me, url } = ctx;
+  const [L, lead] = await Promise.all([lookups(db), loadLead({ db }, leadId)]);
+  const unassign = b.owner === null || b.owner === '' || b.owner === 'none' || b.owner === '未指派';
+  const to = unassign ? null : resolveOwner(L, b.owner);
+  if (me.role !== 'admin' && lead.user_id && lead.user_id !== me.id)
+    throw new HttpError(403, `這家目前是 ${lead.user_name || '其他同事'} 負責，只有管理員或負責業務本人能改`);
+  const fromName = lead.user_name || L.userName(lead.user_id) || '未指派';
+  if ((to?.id || null) === (lead.user_id || null)) return { ok: true, unchanged: true, lead: lead.name, owner: fromName };
+  const upd = { user_id: to?.id || null, user_name: to?.full_name || null, updated_at: new Date().toISOString() };
+  const cur = L.stageName(lead.stage_id);
+  if (to && cur === '新名單' && L.stageByName('已分配')) upd.stage_id = L.stageByName('已分配').id;
+  await db.update('leads', `id=eq.${leadId}`, upd);
+  const toName = to?.full_name || '未指派';
+  const why = String(b.note || '').trim();
+  await db.insert('activities', { type: 'note', content: `負責業務：${fromName} → ${toName}` + (why ? `\n${why}` : '') + (ctx.via === 'ai' ? AI_TAG : ''), lead_id: leadId, user_id: me.id, created_at: new Date().toISOString() });
+  const link = url.origin + '/#lead=' + leadId;
+  const discord = to ? await notifyDiscord(ctx, {
+    title: `🔁 名單轉給 ${toName}`, url: link,
+    description: [`**${lead.name}**`, `${fromName} → ${toName}`, why.slice(0, 300), `操作：${me.name}${ctx.via === 'ai' ? '（AI 助理）' : ''}`].filter(Boolean).join('\n')
+  }) : 'skipped';
+  return { ok: true, lead: lead.name, from: fromName, to: toName, stage: upd.stage_id ? '已分配' : cur, discord, crm_link: link };
+}
+
+// CRM 畫面新增名單（指派給別人）時發通知
+async function announceLead(ctx, leadId) {
+  const { db, me, url } = ctx;
+  const lead = await loadLead({ db }, leadId);
+  const c = (await db.get(`contacts?lead_id=eq.${leadId}&select=name,role,phone,email&limit=1`))?.[0];
+  const discord = await notifyDiscord(ctx, {
+    title: `📌 新名單 → ${lead.user_name || '未指派'}`, url: url.origin + '/#lead=' + leadId,
+    description: [`**${lead.name}**`, contactLine(c), `建立：${me.name}`].filter(Boolean).join('\n')
+  });
+  return { ok: true, discord };
+}
+
+// ───────── 成交回簽檔（Supabase Storage：deal-files/<成交單id>/...）─────────
+const FILE_MAX = 20 * 1024 * 1024;
+const FILE_KINDS = ['回簽報價單', '合約', '發票', '其他'];
+const extOf = (name, mime) => {
+  const m = String(name || '').match(/\.([A-Za-z0-9]{1,6})$/);
+  if (m) return m[1].toLowerCase();
+  return ({ 'application/pdf': 'pdf', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/heic': 'heic', 'image/webp': 'webp' })[mime] || 'bin';
+};
+async function pickDeal(db, leadId, dealId) {
+  const acc = await accountForLead(db, leadId);
+  if (!acc) throw new HttpError(400, '這家還沒有成交單，請先建立成交單（record_deal）再附檔');
+  const cts = await db.get(`contracts?account_id=eq.${acc.id}&select=id,name,signed_date,amount&order=signed_date.desc.nullslast`);
+  if (!cts.length) throw new HttpError(400, '這家還沒有成交單，請先建立成交單（record_deal）再附檔');
+  if (dealId) { const c = cts.find(x => x.id === dealId); if (!c) throw new HttpError(400, 'deal_id 不屬於這家公司'); return { acc, ct: c, all: cts }; }
+  return { acc, ct: cts[0], all: cts };
+}
+async function attachFile(ctx, leadId, b) {
+  const { db, me, url, env, tk } = ctx;
+  const lead = await loadLead({ db }, leadId);
+  // MCP（ChatGPT 外掛）：file = { download_url, file_name, mime_type }；GPT Actions：openaiFileIdRefs = [{ name, download_link, mime_type }]
+  const refs = [];
+  if (b.file && b.file.download_url) refs.push({ url: b.file.download_url, name: b.file.file_name, mime: b.file.mime_type });
+  for (const f of (Array.isArray(b.files) ? b.files : [])) if (f && f.download_url) refs.push({ url: f.download_url, name: f.file_name, mime: f.mime_type });
+  for (const f of (Array.isArray(b.openaiFileIdRefs) ? b.openaiFileIdRefs : [])) if (f && (f.download_link || f.download_url)) refs.push({ url: f.download_link || f.download_url, name: f.name, mime: f.mime_type });
+  if (!refs.length) throw new HttpError(400, '沒有收到檔案，請請使用者把回簽檔（PDF 或照片）直接傳到對話裡');
+  const { ct, all } = await pickDeal(db, leadId, b.deal_id);
+  const kind = FILE_KINDS.includes(b.kind) ? b.kind : '回簽報價單';
+  const saved = [];
+  for (const r of refs.slice(0, 5)) {
+    if (!/^https:\/\//.test(r.url)) throw new HttpError(400, '檔案連結不正確');
+    const fr = await fetch(r.url);
+    if (!fr.ok) throw new HttpError(400, '讀不到檔案（連結可能過期），請使用者重新上傳一次');
+    const buf = await fr.arrayBuffer();
+    if (buf.byteLength > FILE_MAX) throw new HttpError(400, `檔案超過 20MB（${(buf.byteLength / 1048576).toFixed(1)}MB）`);
+    const mime = r.mime || fr.headers.get('content-type') || 'application/octet-stream';
+    const name = String(r.name || `${lead.name}-${kind}.${extOf('', mime)}`).slice(0, 120);
+    const path = `${ct.id}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${extOf(name, mime)}`;
+    const up = await fetch(`${env.SUPABASE_URL}/storage/v1/object/deal-files/${path}`, {
+      method: 'POST', headers: { apikey: env.SUPABASE_KEY, Authorization: 'Bearer ' + tk, 'Content-Type': mime, 'x-upsert': 'false' }, body: buf
+    });
+    if (!up.ok) throw new HttpError(400, '檔案存檔失敗：' + (await up.text()).slice(0, 200));
+    const row = await db.insert('deal_files', {
+      contract_id: ct.id, lead_id: leadId, kind, file_name: name, path, mime, size: buf.byteLength,
+      uploaded_by: me.id, uploaded_by_name: me.name, source: ctx.via === 'ai' ? 'ai' : 'crm'
+    });
+    saved.push({ id: row?.id, file_name: name, size_kb: Math.round(buf.byteLength / 1024) });
+  }
+  return {
+    ok: true, lead: lead.name, deal: ct.name, deal_signed_date: ct.signed_date, kind, saved,
+    note: all.length > 1 && !b.deal_id ? `這家有 ${all.length} 張成交單，已歸到最新一張「${ct.name}」；要放別張請帶 deal_id` : undefined,
+    crm_link: url.origin + '/#lead=' + leadId
+  };
+}
+async function listFiles({ db, url }, leadId) {
+  const lead = await loadLead({ db }, leadId);
+  const rows = await db.get(`deal_files?lead_id=eq.${leadId}&select=id,contract_id,kind,file_name,size,uploaded_by_name,created_at&order=created_at.desc`);
+  return { lead: lead.name, count: rows.length, files: rows.map(f => ({ ...f, created_at: toTW(f.created_at) })), crm_link: url.origin + '/#lead=' + leadId };
 }
 
 // 我的待聯絡（主管可指定業務或看全部）
@@ -488,8 +637,12 @@ async function getDeals({ db, url }, leadId) {
   const lead = await loadLead({ db }, leadId);
   const acc = await accountForLead(db, leadId);
   if (!acc) return { lead: lead.name, is_customer: false, message: '這家還不是成交客戶，沒有成交單。可用 record_deal 建立。', crm_link: url.origin + '/#lead=' + leadId };
-  const cts = await db.get(`contracts?account_id=eq.${acc.id}&select=*&order=signed_date.desc`);
-  return { lead: lead.name, is_customer: true, status: acc.status === 'terminated' ? '終止合作' : '合作中', summary: finSummary(cts), deals: cts.map(dealView), crm_link: url.origin + '/#lead=' + leadId };
+  const [cts, files] = await Promise.all([
+    db.get(`contracts?account_id=eq.${acc.id}&select=*&order=signed_date.desc`),
+    db.get(`deal_files?lead_id=eq.${leadId}&select=contract_id,kind,file_name`).catch(() => [])
+  ]);
+  const deals = cts.map(c => ({ ...dealView(c), files: files.filter(f => f.contract_id === c.id).map(f => `${f.kind}：${f.file_name}`) }));
+  return { lead: lead.name, is_customer: true, status: acc.status === 'terminated' ? '終止合作' : '合作中', summary: finSummary(cts), deals, crm_link: url.origin + '/#lead=' + leadId };
 }
 async function recordDeal({ db, me, url }, leadId, b) {
   const lead = await loadLead({ db }, leadId);
@@ -594,8 +747,23 @@ function openapi(origin) {
             name: { type: 'string', description: '公司名稱' }, tax_id: { type: 'string', description: '8 碼統編（選填）' },
             stage: { type: 'string', description: '階段名稱，預設第一個階段' }, product_type: { type: 'string' },
             contact_name: { type: 'string' }, contact_title: { type: 'string' }, contact_phone: { type: 'string' }, contact_email: { type: 'string' },
+            owner: { type: 'string', description: '負責業務姓名（getMe 的 team）；省略＝自己' },
+            note: { type: 'string', description: '名單備註／來源說明（選填）' },
             confirm_not_duplicate: { type: 'boolean', description: '使用者確認不是重複名單後才設 true' }
           }, ['name']), responses: ok
+        }
+      },
+      '/api/leads/{id}/owner': {
+        patch: { operationId: 'assignLead', summary: '改負責業務（會通知 Discord 群組）', 'x-openai-isConsequential': true, parameters: [id], requestBody: body({ owner: { type: 'string', description: '業務姓名；none＝取消指派' }, note: { type: 'string', description: '交接說明（選填）' } }, ['owner']), responses: ok }
+      },
+      '/api/leads/{id}/files': {
+        get: { operationId: 'listDealFiles', summary: '看這家公司已歸檔的回簽報價單／合約檔', parameters: [id], responses: ok },
+        post: {
+          operationId: 'attachDealFile', summary: '把使用者上傳的回簽報價單／合約（PDF 或照片）歸檔到這家的成交單', 'x-openai-isConsequential': true, parameters: [id],
+          requestBody: body({
+            openaiFileIdRefs: { type: 'array', items: { type: 'string' }, description: '使用者在對話中上傳的檔案' },
+            kind: { type: 'string', enum: FILE_KINDS }, deal_id: { type: 'string', description: '指定成交單（選填，預設最新一張）' }
+          }, ['openaiFileIdRefs']), responses: ok
         }
       },
       '/api/leads/{id}': { get: { operationId: 'getLead', summary: '看一筆名單的完整狀況：階段、負責業務、下次聯絡日、聯絡人、最近 15 筆活動', parameters: [id], responses: ok } },

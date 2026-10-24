@@ -3,7 +3,7 @@
 // 其他路徑原樣交給 worker.js。工具一律轉呼叫既有的 /api，權限與邏輯完全共用。
 import app from './worker.js';
 
-const SERVER = { name: 'saleflow-crm', version: '1.1.0' };
+const SERVER = { name: 'saleflow-crm', version: '1.2.0' };
 const INSTRUCTIONS = `你在操作奧德上（OrderUp B2B）的 SaleFlow CRM。一律繁體中文、簡潔回覆。
 - 對話開始先呼叫 get_me 取得使用者、角色與今天日期（台北時間），相對日期都用它換算成 YYYY-MM-DD。
 - 記錄活動：search_leads 找公司 → 整理內容（重點、需求、下一步，不加料）→ 先向使用者複述公司、類型、聯絡人、內容、下次聯絡日並取得確認 → add_activity。
@@ -11,13 +11,19 @@ const INSTRUCTIONS = `你在操作奧德上（OrderUp B2B）的 SaleFlow CRM。�
 - 主管總結：get_activity_report（owner=all）、get_attention_report；先講結論與風險，再列細節。
 - 報價單／合約截圖：逐張讀出公司、統編、方案、各項目未稅折後金額、月費、合約期間、付款方式。search_leads（可用統編）找公司，找不到先 create_lead；已成交的用 record_deal 建成交單（items 用未稅折後金額，月費填 monthly_fee，合約起訖填 start_date／end_date），寫入前先列表給使用者確認。只是報價、還沒成交的，用 add_activity（note）記報價重點。
 - 看客戶合約、已收／未收、月費：get_customer_deals；全部客戶總覽：list_customers。收款確認用 record_payment（限管理員）。
+- 新增名單：問清楚要給哪位業務（owner 用 get_me 的 team 名字；「阿璁」= Greenion）。沒講就是使用者自己。寫入前複述公司、聯絡人、負責業務並確認。建好或改負責業務會自動通知 Discord 群組，回覆時說明通知結果（discord=sent 已通知；not_configured 尚未設定通知）。
+- 改負責業務用 assign_lead（業務只能轉出自己的或沒人負責的名單，其他要主管）。
+- 回簽報價單／合約檔：使用者傳 PDF 或照片 → search_leads 找公司 → attach_deal_file 歸檔（預設歸到最新一張成交單）。還沒成交單的，先讀檔案內容用 record_deal 建單，確認後再附檔。
 - 只根據工具回傳資料回答，不捏造；沒有刪除功能。`;
 
-const T = (name, description, properties = {}, required = [], readOnly = true) => ({
+const T = (name, description, properties = {}, required = [], readOnly = true, meta) => ({
   name, description,
   inputSchema: { type: 'object', properties, required },
-  annotations: { readOnlyHint: readOnly, destructiveHint: false, openWorldHint: false }
+  annotations: { readOnlyHint: readOnly, destructiveHint: false, openWorldHint: false },
+  ...(meta ? { _meta: meta } : {})
 });
+// ChatGPT 檔案參數：download_url、file_id 必填，mime_type、file_name 選填
+const FILE = { type: 'object', description: '使用者在對話中上傳的檔案', properties: { download_url: { type: 'string' }, file_id: { type: 'string' }, mime_type: { type: 'string' }, file_name: { type: 'string' } }, required: ['download_url', 'file_id'] };
 const S = (description, extra = {}) => ({ type: 'string', description, ...extra });
 const owner = S('僅主管有效：業務姓名，或 all 代表全隊');
 const TOOLS = [
@@ -27,8 +33,14 @@ const TOOLS = [
   T('create_lead', '新增名單（會自動檢查統編與相近名稱重複）', {
     name: S('公司名稱'), tax_id: S('8 碼統編（選填）'), stage: S('階段名稱，預設第一個階段'), product_type: S('產品類型（選填）'),
     contact_name: S('聯絡人'), contact_title: S('職稱'), contact_phone: S('電話'), contact_email: S('Email'),
+    owner: S('負責業務姓名（get_me 的 team）；省略＝使用者自己'), note: S('名單備註／來源說明（選填）'),
     confirm_not_duplicate: { type: 'boolean', description: '使用者確認不是重複名單後才設 true' }
   }, ['name'], false),
+  T('assign_lead', '改名單的負責業務，並通知 Discord 群組', { lead_id: S('名單 id'), owner: S('業務姓名；none＝取消指派'), note: S('交接說明（選填）') }, ['lead_id', 'owner'], false),
+  T('attach_deal_file', '把回簽報價單／合約（PDF 或照片）歸檔到這家的成交單', {
+    lead_id: S('名單 id'), file: FILE, kind: S('檔案類型', { enum: ['回簽報價單', '合約', '發票', '其他'] }), deal_id: S('指定成交單 id（選填，預設最新一張）')
+  }, ['lead_id', 'file'], false, { 'openai/fileParams': ['file'] }),
+  T('list_deal_files', '看這家已歸檔的回簽報價單／合約檔', { lead_id: S('名單 id') }, ['lead_id']),
   T('add_activity', '新增一筆活動紀錄，並可同時設定下次聯絡日', {
     lead_id: S('名單 id'),
     type: S('email=Email, call=電話/LINE, visit=實體拜訪, event=展覽活動, note=內部備註', { enum: ['email', 'call', 'visit', 'event', 'note'] }),
@@ -72,7 +84,10 @@ const ROUTES = {
   get_me: () => ['GET', '/api/me'],
   search_leads: a => ['GET', '/api/leads' + qs(a, ['q'])],
   get_lead: a => ['GET', '/api/leads/' + id(a)],
-  create_lead: a => ['POST', '/api/leads', pick(a, ['name', 'tax_id', 'stage', 'product_type', 'contact_name', 'contact_title', 'contact_phone', 'contact_email', 'confirm_not_duplicate'])],
+  create_lead: a => ['POST', '/api/leads', pick(a, ['name', 'tax_id', 'stage', 'product_type', 'contact_name', 'contact_title', 'contact_phone', 'contact_email', 'owner', 'note', 'confirm_not_duplicate'])],
+  assign_lead: a => ['PATCH', `/api/leads/${id(a)}/owner`, pick(a, ['owner', 'note'])],
+  attach_deal_file: a => ['POST', `/api/leads/${id(a)}/files`, pick(a, ['file', 'kind', 'deal_id'])],
+  list_deal_files: a => ['GET', `/api/leads/${id(a)}/files`],
   add_activity: a => ['POST', `/api/leads/${id(a)}/activities`, pick(a, ['type', 'content', 'contact_name', 'occurred_at', 'next_contact_date'])],
   set_next_contact: a => ['PATCH', `/api/leads/${id(a)}/next-contact`, pick(a, ['date'])],
   set_stage: a => ['PATCH', `/api/leads/${id(a)}/stage`, pick(a, ['stage'])],
