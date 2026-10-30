@@ -239,6 +239,17 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .df-sec-t { font-size:13px; font-weight:600; flex:1; }
 .df-chip { border:1px solid var(--border); background:var(--bg3); color:var(--text2); border-radius:8px; padding:6px 10px; font-size:12px; cursor:pointer; text-align:left; line-height:1.4; }
 .df-chip:hover { border-color:var(--accent); }
+.df-chip b { font-family:var(--mono); font-weight:600; margin-left:4px; }
+.onb-mini { display:inline-flex; gap:2px; vertical-align:middle; margin-right:6px; }
+.onb-mini i { width:12px; height:5px; border-radius:2px; background:var(--bg4); display:block; }
+.onb-mini i.on { background:var(--accent); }
+.onb-sel { font:inherit; font-size:12px; background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--text); padding:2px 4px; max-width:96px; cursor:pointer; }
+.onb-steps { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:4px; margin:2px 0 6px; }
+.onb-steps button { font:inherit; font-size:12px; height:32px; border-radius:7px; border:1px solid var(--border); background:var(--bg3); color:var(--text3); cursor:pointer; padding:0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.onb-steps button.done { background:var(--accent-glow); border-color:transparent; color:var(--text2); }
+.onb-steps button.cur { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+.onb-steps button:disabled { cursor:default; }
+.onb-meta { font-size:11.5px; color:var(--text3); margin-bottom:12px; }
 .df-chip.on { border-color:var(--accent); background:var(--accent-glow); color:var(--text); }
 .df-bar { height:5px; background:var(--bg4); border-radius:3px; overflow:hidden; width:120px; }
 .df-bar > div { height:100%; background:var(--green); }
@@ -2286,8 +2297,25 @@ function dealFilesListHtml(ctId, accId) {
 function pickDealFiles(ctId, accId) {
   const inp = document.createElement('input');
   inp.type = 'file'; inp.multiple = true; inp.accept = 'application/pdf,image/*';
-  inp.onchange = function () { uploadDealFiles(ctId, accId, Array.from(inp.files || [])); };
+  inp.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+  document.body.appendChild(inp);
+  inp.onchange = function () { const fs = Array.from(inp.files || []); inp.remove(); uploadDealFiles(ctId, accId, fs); };
   inp.click();
+}
+// 從客戶層級上傳：只有一張成交單就直接選檔，多張先選要放哪一張
+async function pickDealFilesForAccount(accId) {
+  let cts = (window._cp && window._cp.acc && window._cp.acc.id === accId && window._cp.contracts) || ((accountsData.find(function (a) { return a.id === accId; }) || {}).contracts) || null;
+  if (!cts) { const r = await db.from('contracts').select('*').eq('account_id', accId); cts = r.data || []; }
+  if (!cts.length) { toast('這家還沒有成交單，先建立成交單再上傳回簽', 'error'); return; }
+  cts = cts.slice().sort(function (a, b) { return dealDate(b).localeCompare(dealDate(a)); });
+  if (cts.length === 1) { pickDealFiles(cts[0].id, accId); return; }
+  openModal('回簽檔要放哪張成交單？', cts.map(function (c) {
+    return '<button class="btn btn-secondary" style="width:100%;justify-content:space-between;margin-bottom:8px" onclick="closeModal();pickDealFiles(\'' + c.id + '\',\'' + accId + '\')"><span>' + esc(c.name || '成交') + '</span><span style="font-size:12px;color:var(--text3)">' + esc(dealDate(c)) + '</span></button>';
+  }).join(''), [{ label: '取消', cls: 'btn-secondary', action: closeModal }]);
+}
+function accMissingSigned(a) {
+  const cts = (a && a.contracts) || [];
+  return cts.length > 0 && cts.every(function (c) { return dealFilesCache[c.id] && !dealFilesCache[c.id].length; });
 }
 function dealFileMime(f) {
   if (f.type) return f.type;
@@ -2319,6 +2347,7 @@ async function uploadDealFiles(ctId, accId, files) {
   toast('已上傳 ' + ok + ' 個檔案', 'success');
   await loadDealFiles([ctId]);
   if (currentPage === 'company') { await refreshCompany(); const b = document.getElementById('ct-body-' + ctId); if (b) b.style.display = 'block'; }
+  else if (currentPage === 'accounts') renderAccountsList(accountsData, true);
   else { const el = document.getElementById('ct-files-' + ctId); if (el) el.innerHTML = dealFilesListHtml(ctId, accId); }
 }
 async function openDealFile(fileId) {
@@ -4042,6 +4071,7 @@ function companyHeaderHtml(lead, acc) {
   }
   const mainBtn = acc
     ? '<button class="btn btn-primary btn-sm" onclick="openDealModal(\'' + acc.id + '\',null,{leadId:\'' + id + '\'})">＋ 新增成交</button>'
+      + '<button class="btn btn-secondary btn-sm" onclick="pickDealFilesForAccount(\'' + acc.id + '\')">📎 上傳回簽</button>'
     : '<button class="btn btn-primary btn-sm" onclick="quickConvert(\'' + id + '\')">🤝 轉為成交</button>';
   return '<div class="cp-card">'
     + '<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">'
@@ -4078,7 +4108,15 @@ function companyDealsCardHtml(acc, contracts) {
   const nr = pickNextRenewal(contracts);
   const stat = function (label, val, sub, color) { return '<div class="fin-stat"><div class="form-label">' + label + '</div><div class="fin-val"' + (color ? ' style="color:' + color + '"' : '') + '>' + val + '</div>' + (sub ? '<div class="fin-sub">' + sub + '</div>' : '') + '</div>'; };
   const np = f.nextPay, npd = np ? daysUntil(np.due_date) : null;
+  const oi = onbIdx(acc), od = onbDays(acc), can = canEditAcc(acc);
+  const steps = '<div class="onb-steps">' + ONB_STAGES.map(function (s, k) {
+    return '<button class="' + (k === oi ? 'cur' : k < oi ? 'done' : '') + '"' + (can ? ' onclick="setOnboarding(\'' + acc.id + '\',\'' + s + '\')"' : ' disabled') + '>' + s + '</button>';
+  }).join('') + '</div>';
+  const onbMeta = oi < 0 ? '<span style="color:var(--yellow)">還沒設定導入階段</span>'
+    : (oi === ONB_STAGES.length - 1 ? (acc.go_live_date ? acc.go_live_date + ' 全面上線' : '已全面上線')
+      : (od != null ? '這個階段第 ' + (od + 1) + ' 天' + (od >= ONB_STUCK_DAYS ? '・<span style="color:var(--red)">停太久了</span>' : '') : ''));
   return '<div class="cp-card">'
+    + '<div class="cp-card-h"><div class="cp-card-t">🚀 導入</div></div>' + steps + '<div class="onb-meta">' + onbMeta + '</div>'
     + '<div class="cp-card-h"><div class="cp-card-t">💰 合約與收款</div><button class="btn btn-primary btn-sm" onclick="openDealModal(\'' + acc.id + '\',null,{leadId:\'' + acc.lead_id + '\'})">＋ 新增成交</button></div>'
     + '<div class="fin-grid">'
     +   stat('月費', f.monthly ? '$' + fmtNum(f.monthly) : '—', f.monthly ? '未稅／月' : '成交單未填月費')
@@ -5219,6 +5257,10 @@ async function renderAccounts() {
   if (!usersData.length || !dealTypesData.length) await loadGlobalData();
   const { data: accs } = await db.from('accounts').select('*, contracts(*)');
   accountsData = accs || [];
+  await Promise.all([
+    loadAccQuotes(accountsData),
+    loadDealFiles([].concat.apply([], accountsData.map(function (a) { return (a.contracts || []).map(function (c) { return c.id; }); })))
+  ]);
   document.getElementById('topbarActions').innerHTML = `
     <div class="action-bar">
       <div class="view-toggle">
@@ -5242,30 +5284,42 @@ function filterAccounts() {
 
 function renderAccountsList(accs, keepSearch) {
   const content = document.getElementById('content');
-  const rows = accs.map(function (a) { return { a: a, f: acctFin(a.contracts || []), off: a.status === 'terminated' }; });
-  const all = accountsData.map(function (a) { return { f: acctFin(a.contracts || []), off: a.status === 'terminated' }; });
+  const mk = function (a) {
+    const qs = accOpenQuotes(a);
+    return { a: a, f: acctFin(a.contracts || []), off: a.status === 'terminated', oi: onbIdx(a), qn: qs.length, qsum: qs.reduce(function (s, r) { return s + (Number((r.summary || {}).grand) || 0); }, 0) };
+  };
+  const rows = accs.map(mk);
+  const all = accountsData.map(mk);
   const act = all.filter(function (r) { return !r.off; });
   const sum = function (list, k) { return list.reduce(function (s, r) { return s + r.f[k]; }, 0); };
-  const overdue = all.filter(function (r) { return r.f.nextPay && daysUntil(r.f.nextPay.due_date) < 0; }).length;
-  const soon = act.filter(function (r) { return r.f.renewDays != null && r.f.renewDays >= 0 && r.f.renewDays <= 30; }).length;
-  const lapsed = act.filter(function (r) { return r.f.renewDays != null && r.f.renewDays < 0; }).length;
-  let shown = rows;
-  if (_accFilter === 'active') shown = rows.filter(function (r) { return !r.off; });
-  else if (_accFilter === 'unpaid') shown = rows.filter(function (r) { return r.f.unpaid > 0; });
-  else if (_accFilter === 'renew') shown = rows.filter(function (r) { return !r.off && r.f.renewDays != null && r.f.renewDays <= 90; });
+  const isOver = function (r) { return r.f.nextPay && daysUntil(r.f.nextPay.due_date) < 0; };
+  const F = {
+    active: function (r) { return !r.off; },
+    pay: function (r) { return r.f.unpaid > 0; },
+    renew: function (r) { return !r.off && r.f.renewDays != null && r.f.renewDays <= 90; },
+    onb: function (r) { return !r.off && r.oi < ONB_STAGES.length - 1; },
+    quote: function (r) { return r.qn > 0; },
+    all: function () { return true; }
+  };
+  if (!F[_accFilter]) _accFilter = 'active';
+  let shown = rows.filter(F[_accFilter]);
   if (_accFilter === 'renew') shown.sort(function (x, y) { return x.f.renewDays - y.f.renewDays; });
+  else if (_accFilter === 'pay') shown.sort(function (x, y) { return (isOver(y) - isOver(x)) || String((x.f.nextPay || {}).due_date || '').localeCompare(String((y.f.nextPay || {}).due_date || '')); });
+  else if (_accFilter === 'onb') shown.sort(function (x, y) { return (x.oi - y.oi) || ((onbDays(y.a) || 0) - (onbDays(x.a) || 0)); });
   else shown.sort(function (x, y) { return (x.off - y.off) || (y.f.monthly - x.f.monthly) || (y.f.total - x.f.total); });
   const kpi = function (label, val, sub, color) { return '<div class="fin-stat"><div class="form-label">' + label + '</div><div class="fin-val"' + (color ? ' style="color:' + color + '"' : '') + '>' + val + '</div>' + (sub ? '<div class="fin-sub">' + sub + '</div>' : '') + '</div>'; };
-  const chip = function (k, label) { return '<button class="df-chip' + (_accFilter === k ? ' on' : '') + '" onclick="setAccFilter(\'' + k + '\')">' + label + '</button>'; };
+  const cnt = function (k) { return all.filter(F[k]).length; };
+  const chip = function (k, label) { return '<button class="df-chip' + (_accFilter === k ? ' on' : '') + '" onclick="setAccFilter(\'' + k + '\')">' + label + '<b>' + cnt(k) + '</b></button>'; };
+  const overdue = all.filter(isOver).length;
   const q = keepSearch ? (document.getElementById('accSearch')?.value || '') : '';
   let html = '<div class="fin-grid">'
-    + kpi('合作中客戶', act.length + ' 家', (soon ? '30 天內續約 ' + soon + ' 家' : '近 30 天無續約') + (lapsed ? '・<span style="color:var(--red)">已過期 ' + lapsed + ' 家</span>' : ''))
-    + kpi('每月月費合計', '$' + fmtNum(sum(act, 'monthly')), '未稅・合約中')
+    + kpi('合作中', act.length + ' 家', '導入中 ' + act.filter(F.onb).length + ' 家')
+    + kpi('每月月費', '$' + fmtNum(sum(act, 'monthly')), '未稅・合約中')
     + kpi('已收', '$' + fmtNum(sum(all, 'paid')), '合約總額 $' + fmtNum(sum(all, 'total')))
-    + kpi('未收', '$' + fmtNum(sum(all, 'unpaid')), overdue ? overdue + ' 家有逾期款' : '無逾期', overdue ? 'var(--red)' : '')
+    + kpi('未收', '$' + fmtNum(sum(all, 'unpaid')), overdue ? overdue + ' 家逾期' : '無逾期', overdue ? 'var(--red)' : '')
     + '</div>'
     + '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px">'
-    +   chip('active', '合作中') + chip('unpaid', '有未收款') + chip('renew', '🔄 續約排程（90 天內）') + chip('all', '全部')
+    +   chip('active', '合作中') + chip('pay', '待收款') + chip('renew', '續約 90 天內') + chip('onb', '導入中') + chip('quote', '報價待回') + chip('all', '全部')
     +   '<input class="form-input" id="accSearch" placeholder="🔍 搜尋客戶" style="width:180px;margin-left:auto;padding:6px 10px" oninput="filterAccounts()" value="' + esc(q) + '">'
     + '</div>';
   if (!shown.length) {
@@ -5273,19 +5327,26 @@ function renderAccountsList(accs, keepSearch) {
     if (keepSearch) { const el = document.getElementById('accSearch'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }
     return;
   }
+  const payCell = function (f) {
+    if (!f.count) return '<span style="color:var(--text3)">—</span>';
+    if (!f.unpaid) return '<span style="color:var(--green)">已收齊</span>';
+    return '<span style="font-family:var(--mono)">$' + fmtNum(f.unpaid) + '</span><div style="font-size:11px">' + finNextPayHtml(f.nextPay) + '</div>';
+  };
+  const quoteCell = function (r) {
+    return r.qn ? '<span class="badge badge-yellow">待回 ' + r.qn + ' 張</span><div style="font-size:11px;color:var(--text3);font-family:var(--mono)">$' + fmtNum(r.qsum) + '</div>' : '<span style="color:var(--text3)">—</span>';
+  };
   html += '<div class="panel acc-table-wrap"><table class="data-table"><thead><tr>'
-    + '<th>客戶</th><th>業務</th><th style="text-align:right">月費</th><th>下次續約</th><th>已收／合約總額</th><th style="text-align:right">未收</th><th>下次收款</th>'
+    + '<th>客戶</th><th>導入</th><th>收款</th><th>續約</th><th>報價</th><th style="text-align:right">月費</th>'
     + '</tr></thead><tbody>';
   shown.forEach(function (r) {
     const a = r.a, f = r.f;
     html += '<tr onclick="openAccountDetail(\'' + a.id + '\')" style="cursor:pointer;' + (r.off ? 'opacity:0.55' : '') + '">'
-      + '<td><div style="font-weight:500">' + esc(a.name) + '</div>' + (r.off ? '<span class="badge badge-red">終止合作</span>' : '') + (f.count ? '' : '<span style="font-size:11px;color:var(--text3)">尚無成交單</span>') + '</td>'
-      + '<td style="font-size:12px;color:var(--text3)">' + esc(a.user_name || '—') + '</td>'
+      + '<td><div style="font-weight:500">' + esc(a.name) + '</div><div style="font-size:11px;color:var(--text3)">' + (r.off ? '<span style="color:var(--red)">終止合作</span>・' : '') + esc(a.user_name || '—') + '</div>' + signedLinkHtml(a) + '</td>'
+      + '<td onclick="event.stopPropagation()">' + onbCellHtml(a) + '</td>'
+      + '<td style="font-size:12.5px">' + payCell(f) + '</td>'
+      + '<td style="font-size:12px">' + (f.count ? finRenewHtml(f) : '<span style="color:var(--text3)">—</span>') + '</td>'
+      + '<td>' + quoteCell(r) + '</td>'
       + '<td style="text-align:right;font-family:var(--mono);font-weight:600">' + (f.monthly ? '$' + fmtNum(f.monthly) : '—') + '</td>'
-      + '<td style="font-size:12px">' + (f.count ? finRenewHtml(f) + (f.start ? '<div style="font-size:10.5px;color:var(--text3)">合約 ' + esc(f.start) + ' 起</div>' : '') : '—') + '</td>'
-      + '<td style="font-family:var(--mono);font-size:12.5px">' + (f.total ? '$' + fmtNum(f.paid) + ' <span style="color:var(--text3)">/ $' + fmtNum(f.total) + '</span>' + finBarHtml(f) : '—') + '</td>'
-      + '<td style="text-align:right;font-family:var(--mono);font-size:12.5px;color:' + (f.unpaid ? 'var(--text)' : 'var(--text3)') + '">' + (f.unpaid ? '$' + fmtNum(f.unpaid) : '—') + '</td>'
-      + '<td style="font-size:12px">' + (f.count ? finNextPayHtml(f.nextPay) : '—') + '</td>'
       + '</tr>';
   });
   html += '</tbody></table></div><div class="acc-cards">';
@@ -5293,14 +5354,93 @@ function renderAccountsList(accs, keepSearch) {
     const a = r.a, f = r.f;
     html += '<div class="acc-card" onclick="openAccountDetail(\'' + a.id + '\')"' + (r.off ? ' style="opacity:0.55"' : '') + '>'
       + '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b>' + esc(a.name) + '</b><span style="font-family:var(--mono);font-weight:600">' + (f.monthly ? '$' + fmtNum(f.monthly) + '<span style="font-size:11px;color:var(--text3);font-weight:400">/月</span>' : '') + '</span></div>'
-      + '<div style="font-size:11.5px;color:var(--text3);margin:3px 0 6px">' + (r.off ? '終止合作・' : '') + esc(a.user_name || '') + (f.count ? '・續約 ' + finRenewHtml(f, true) : '') + '</div>'
-      + (f.total ? '<div style="display:flex;justify-content:space-between;font-size:12px;font-family:var(--mono)"><span>已收 $' + fmtNum(f.paid) + ' / $' + fmtNum(f.total) + '</span><span' + (f.unpaid ? '' : ' style="color:var(--text3)"') + '>未收 $' + fmtNum(f.unpaid) + '</span></div>' + finBarHtml(f)
-        + '<div style="font-size:11.5px">下次收款：' + finNextPayHtml(f.nextPay) + '</div>' : '<div style="font-size:11.5px;color:var(--text3)">尚無成交單</div>')
+      + signedLinkHtml(a)
+      + '<div style="margin:6px 0" onclick="event.stopPropagation()">' + onbCellHtml(a) + '</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">'
+      +   '<div><div style="color:var(--text3);font-size:11px">收款</div>' + payCell(f) + '</div>'
+      +   '<div><div style="color:var(--text3);font-size:11px">續約</div>' + (f.count ? finRenewHtml(f, true) : '—') + '</div>'
+      + '</div>'
+      + (r.qn ? '<div style="margin-top:6px">' + quoteCell(r) + '</div>' : '')
       + '</div>';
   });
   html += '</div>';
   content.innerHTML = html;
   if (keepSearch) { const el = document.getElementById('accSearch'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }
+}
+
+// ════════════════════════ 成交後：導入階段 ════════════════════════
+// 跟「導入指南」簡報同一條路線：啟動會議 → 準備期 → 試營運 → 熟客試用 → 全面上線
+const ONB_STAGES = ['啟動會議', '準備期', '試營運', '熟客試用', '全面上線'];
+const ONB_STUCK_DAYS = 21;
+function onbIdx(a) { return ONB_STAGES.indexOf((a && a.onboarding_stage) || ''); }
+function onbDays(a) { return a && a.onboarding_updated_at ? Math.floor((Date.now() - new Date(a.onboarding_updated_at).getTime()) / 864e5) : null; }
+function canEditAcc(a) { return !!window.isAdmin || (a && a.user_id === currentUser.id); }
+function onbMiniHtml(i) {
+  let s = '<span class="onb-mini" aria-hidden="true">';
+  for (let k = 0; k < ONB_STAGES.length; k++) s += '<i' + (k <= i ? ' class="on"' : '') + '></i>';
+  return s + '</span>';
+}
+function onbCellHtml(a) {
+  const i = onbIdx(a), d = onbDays(a);
+  const stuck = i >= 0 && i < ONB_STAGES.length - 1 && d != null && d >= ONB_STUCK_DAYS;
+  let opts = '<option value=""' + (i < 0 ? ' selected' : '') + '>未設定</option>';
+  ONB_STAGES.forEach(function (s, k) { opts += '<option value="' + s + '"' + (k === i ? ' selected' : '') + '>' + s + '</option>'; });
+  const sel = canEditAcc(a)
+    ? '<select class="onb-sel" onclick="event.stopPropagation()" onchange="setOnboarding(\'' + a.id + '\',this.value,this)"' + (i < 0 ? ' style="color:var(--yellow)"' : '') + '>' + opts + '</select>'
+    : '<span style="font-size:12px' + (i < 0 ? ';color:var(--yellow)' : '') + '">' + esc(i < 0 ? '未設定' : ONB_STAGES[i]) + '</span>';
+  return '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">' + onbMiniHtml(i) + sel + '</div>'
+    + (stuck ? '<div style="font-size:11px;color:var(--red);margin-top:2px">停 ' + d + ' 天</div>' : (i === ONB_STAGES.length - 1 && a.go_live_date ? '<div style="font-size:11px;color:var(--text3);margin-top:2px">' + esc(a.go_live_date) + ' 上線</div>' : ''));
+}
+async function setOnboarding(accId, stage, sel) {
+  const a = accountsData.find(function (x) { return x.id === accId; }) || (window._cp && window._cp.acc && window._cp.acc.id === accId ? window._cp.acc : null);
+  const prev = a ? (a.onboarding_stage || '') : '';
+  if (stage === prev) return;
+  const upd = { onboarding_stage: stage || null, onboarding_updated_at: new Date().toISOString() };
+  if (stage === ONB_STAGES[ONB_STAGES.length - 1] && a && !a.go_live_date) upd.go_live_date = nowDateStr();
+  const { data, error } = await db.from('accounts').update(upd).eq('id', accId).select('id');
+  if (error || !data || !data.length) {
+    if (sel) sel.value = prev;
+    toast(error ? '儲存失敗：' + error.message : '只有管理員或負責業務能改導入階段', 'error');
+    return;
+  }
+  [a, accountsData.find(function (x) { return x.id === accId; }), window._cp && window._cp.acc && window._cp.acc.id === accId ? window._cp.acc : null]
+    .forEach(function (x) { if (x) Object.assign(x, upd); });
+  if (a && a.lead_id) await db.from('activities').insert({ type: 'note', content: '導入階段：' + (prev || '未設定') + ' → ' + (stage || '未設定'), lead_id: a.lead_id, user_id: currentUser.id, created_at: new Date().toISOString() });
+  toast('導入階段：' + (stage || '未設定'), 'success');
+  if (currentPage === 'accounts') renderAccountsList(accountsData, true);
+  else if (currentPage === 'company') refreshCompany();
+}
+// 每家客戶「還沒成交、也沒作廢」的報價
+let _accQuotes = {};
+async function loadAccQuotes(accs) {
+  _accQuotes = {};
+  const ids = (accs || []).map(function (a) { return a.lead_id; }).filter(Boolean);
+  if (!ids.length) return;
+  const { data } = await db.from('notes').select('*').in('lead_id', ids).like('content', QUOTE_NOTE_PREFIX + '%');
+  const recs = [];
+  (data || []).forEach(function (n) { const r = parseQuoteNote(n); if (r) { r.leadId = n.lead_id; recs.push(r); } });
+  if (recs.length) {
+    const { data: cts } = await db.from('contracts').select('id,quote_note_id').in('quote_note_id', recs.map(function (r) { return String(r.noteId); }));
+    const won = {}; (cts || []).forEach(function (c) { won[c.quote_note_id] = c.id; });
+    recs.forEach(function (r) { r.wonContractId = won[String(r.noteId)] || null; });
+  }
+  recs.forEach(function (r) { (_accQuotes[r.leadId] = _accQuotes[r.leadId] || []).push(r); });
+}
+// 同一個報價編號存了好幾次只算一張；編號已經成交的，其他存檔也不算
+function accOpenQuotes(a) {
+  const all = (a && a.lead_id && _accQuotes[a.lead_id]) || [];
+  const wonNo = {};
+  all.forEach(function (r) { if (r.wonContractId && r.summary && r.summary.quoteNo) wonNo[r.summary.quoteNo] = 1; });
+  const seen = {};
+  return all.slice().sort(function (x, y) { return String(y.savedAt).localeCompare(String(x.savedAt)); }).filter(function (r) {
+    const no = (r.summary && r.summary.quoteNo) || r.noteId;
+    if (r.wonContractId || r.quoteStatus === 'void' || wonNo[no] || seen[no]) return false;
+    seen[no] = 1; return true;
+  });
+}
+function signedLinkHtml(a) {
+  if (!accMissingSigned(a)) return '';
+  return '<button onclick="event.stopPropagation();pickDealFilesForAccount(\'' + a.id + '\')" style="margin-top:3px;font:inherit;font-size:11px;color:var(--yellow);background:none;border:1px dashed rgba(251,191,36,.5);border-radius:6px;padding:1px 7px;cursor:pointer">📎 未附回簽，點此上傳</button>';
 }
 
 // ── 合併重複（管理員）──

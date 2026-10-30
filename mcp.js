@@ -3,17 +3,18 @@
 // 其他路徑原樣交給 worker.js。工具一律轉呼叫既有的 /api，權限與邏輯完全共用。
 import app from './worker.js';
 
-const SERVER = { name: 'saleflow-crm', version: '1.2.0' };
+const SERVER = { name: 'saleflow-crm', version: '1.3.0' };
 const INSTRUCTIONS = `你在操作奧德上（OrderUp B2B）的 SaleFlow CRM。一律繁體中文、簡潔回覆。
 - 對話開始先呼叫 get_me 取得使用者、角色與今天日期（台北時間），相對日期都用它換算成 YYYY-MM-DD。
 - 記錄活動：search_leads 找公司 → 整理內容（重點、需求、下一步，不加料）→ 先向使用者複述公司、類型、聯絡人、內容、下次聯絡日並取得確認 → add_activity。
 - 改階段 set_stage、改下次聯絡日 set_next_contact，都先確認。「結案」「簽約進件」只能在 CRM 裡操作，請提供 crm_link。
 - 主管總結：get_activity_report（owner=all）、get_attention_report；先講結論與風險，再列細節。
 - 報價單／合約截圖：逐張讀出公司、統編、方案、各項目未稅折後金額、月費、合約期間、付款方式。search_leads（可用統編）找公司，找不到先 create_lead；已成交的用 record_deal 建成交單（items 用未稅折後金額，月費填 monthly_fee，合約起訖填 start_date／end_date），寫入前先列表給使用者確認。只是報價、還沒成交的，用 add_activity（note）記報價重點。
-- 看客戶合約、已收／未收、月費：get_customer_deals；全部客戶總覽：list_customers。收款確認用 record_payment（限管理員）。
+- 看客戶合約、已收／未收、月費、導入階段：get_customer_deals；全部客戶總覽：list_customers。收款確認用 record_payment（限管理員）。
+- 導入階段（啟動會議→準備期→試營運→熟客試用→全面上線）用 set_onboarding 更新，先確認。
 - 新增名單：問清楚要給哪位業務（owner 用 get_me 的 team 名字；「阿璁」= Greenion）。沒講就是使用者自己。寫入前複述公司、聯絡人、負責業務並確認。建好或改負責業務會自動通知 Discord 群組，回覆時說明通知結果（discord=sent 已通知；not_configured 尚未設定通知）。
 - 改負責業務用 assign_lead（業務只能轉出自己的或沒人負責的名單，其他要主管）。
-- 回簽報價單／合約檔：使用者傳 PDF 或照片 → search_leads 找公司 → attach_deal_file 歸檔（預設歸到最新一張成交單）。還沒成交單的，先讀檔案內容用 record_deal 建單，確認後再附檔。
+- 回簽報價單／合約檔：使用者傳 PDF 或照片 → search_leads 找公司 → 已有成交單就直接 attach_deal_file 歸檔；還沒有的，先讀檔案內容用 record_deal 建單（帶 quote_no 報價編號），確認後一定要再用 attach_deal_file 把同一個檔案附上。
 - 只根據工具回傳資料回答，不捏造；沒有刪除功能。`;
 
 const T = (name, description, properties = {}, required = [], readOnly = true, meta) => ({
@@ -50,6 +51,9 @@ const TOOLS = [
   }, ['lead_id', 'type', 'content'], false),
   T('set_next_contact', '設定或清除下次聯絡日', { lead_id: S('名單 id'), date: S('YYYY-MM-DD，或 none 清除') }, ['lead_id', 'date'], false),
   T('set_stage', '變更名單階段（不能改成 結案、簽約進件）', { lead_id: S('名單 id'), stage: S('階段名稱，需與 get_me 一致') }, ['lead_id', 'stage'], false),
+  T('set_onboarding', '更新成交客戶的導入階段', {
+    lead_id: S('名單 id'), stage: S('導入階段', { enum: ['啟動會議', '準備期', '試營運', '熟客試用', '全面上線'] }), go_live_date: S('全面上線日 YYYY-MM-DD（選填，預設今天）')
+  }, ['lead_id', 'stage'], false),
   T('list_customers', '成交客戶總覽：每家的月費、合約期間、合約總額、已收、未收、下次收款；以及全公司月費合計'),
   T('get_customer_deals', '看一家公司的成交單與收款：月費、合約期間、明細、付款期數（含 index）、已收／未收', { lead_id: S('名單 id') }, ['lead_id']),
   T('record_deal', '建立成交單（會自動把公司轉為成交客戶、階段移到簽約進件）。金額一律未稅、折後實收', {
@@ -59,7 +63,7 @@ const TOOLS = [
     installments: { type: 'array', description: '付款期數，合計要等於明細合計；省略＝一次付清。已收款可帶 paid_date（限管理員）', items: { type: 'object', properties: { label: S('期別名稱'), amount: { type: 'number' }, due_date: S('YYYY-MM-DD'), paid_date: S('實收日 YYYY-MM-DD（已收才填）'), paid_amount: { type: 'number' } }, required: ['amount'] } },
     monthly_fee: { type: 'number', description: '月費（未稅）' },
     signed_date: S('簽約日 YYYY-MM-DD（報價單日期或客戶確認日）'), start_date: S('合約／系統啟用日 YYYY-MM-DD'), end_date: S('合約到期／續約日 YYYY-MM-DD'),
-    plan_content: S('方案內容：訂單額度、贈送、優惠條件等'), note: S('備註，例如報價單號'),
+    plan_content: S('方案內容：訂單額度、贈送、優惠條件等'), note: S('備註'), quote_no: S('報價單編號，例如 OU-20261029-GROWTH-01（有就帶，會連到 CRM 裡的報價）'),
     confirm_not_duplicate: { type: 'boolean', description: '使用者確認不是重複才設 true' }
   }, ['lead_id', 'items', 'signed_date'], false),
   T('update_deal', '修改成交單：月費、合約期間、方案內容、備註；改金額時 items 與 installments 一起給', {
@@ -92,8 +96,9 @@ const ROUTES = {
   set_next_contact: a => ['PATCH', `/api/leads/${id(a)}/next-contact`, pick(a, ['date'])],
   set_stage: a => ['PATCH', `/api/leads/${id(a)}/stage`, pick(a, ['stage'])],
   list_customers: () => ['GET', '/api/customers'],
+  set_onboarding: a => ['PATCH', `/api/leads/${id(a)}/onboarding`, pick(a, ['stage', 'go_live_date'])],
   get_customer_deals: a => ['GET', `/api/leads/${id(a)}/deals`],
-  record_deal: a => ['POST', `/api/leads/${id(a)}/deals`, pick(a, ['plan_name', 'category', 'items', 'installments', 'monthly_fee', 'signed_date', 'start_date', 'end_date', 'plan_content', 'note', 'confirm_not_duplicate'])],
+  record_deal: a => ['POST', `/api/leads/${id(a)}/deals`, pick(a, ['plan_name', 'category', 'items', 'installments', 'monthly_fee', 'signed_date', 'start_date', 'end_date', 'plan_content', 'note', 'quote_no', 'confirm_not_duplicate'])],
   update_deal: a => ['PATCH', `/api/deals/${did(a)}`, pick(a, ['plan_name', 'category', 'items', 'installments', 'monthly_fee', 'signed_date', 'start_date', 'end_date', 'plan_content', 'note'])],
   record_payment: a => ['POST', `/api/deals/${did(a)}/payments`, pick(a, ['installment_index', 'paid_date', 'paid_amount'])],
   get_followups: a => ['GET', '/api/followups' + qs(a, ['days', 'owner'])],

@@ -169,6 +169,7 @@ async function api(request, env, url, ectx) {
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/stage$/)) && m === 'PATCH') return json(await setStage(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/owner$/)) && m === 'PATCH') return json(await setOwner(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/files$/)) && m === 'POST') return json(await attachFile(ctx, mm[1], await readBody(request)));
+  if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/onboarding$/)) && m === 'PATCH') return json(await setOnboarding(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/announce$/)) && m === 'POST') return json(await announceLead(ctx, mm[1]));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/files$/)) && m === 'GET') return json(await listFiles(ctx, mm[1]));
   if (m === 'GET' && path === '/api/followups') return json(await followups(ctx));
@@ -412,6 +413,31 @@ async function setOwner(ctx, leadId, b) {
   return { ok: true, lead: lead.name, from: fromName, to: toName, stage: upd.stage_id ? '已分配' : cur, discord, crm_link: link };
 }
 
+// ───────── 成交後：導入階段（跟導入指南簡報同一條路線）─────────
+const ONB_STAGES = ['啟動會議', '準備期', '試營運', '熟客試用', '全面上線'];
+const onbView = a => a ? {
+  stage: a.onboarding_stage || '未設定',
+  days_in_stage: a.onboarding_updated_at ? Math.floor((Date.now() - new Date(a.onboarding_updated_at).getTime()) / 864e5) : null,
+  go_live_date: a.go_live_date || null
+} : null;
+async function setOnboarding(ctx, leadId, b) {
+  const { db, me, url } = ctx;
+  const lead = await loadLead({ db }, leadId);
+  const acc = await accountForLead(db, leadId);
+  if (!acc) throw new HttpError(400, '這家還不是成交客戶，沒有導入階段');
+  const st = String(b.stage || '').trim();
+  if (!ONB_STAGES.includes(st)) throw new HttpError(400, '導入階段只能是：' + ONB_STAGES.join('、'));
+  if (b.go_live_date && !isDate(b.go_live_date)) throw new HttpError(400, 'go_live_date 要是 YYYY-MM-DD');
+  const prev = acc.onboarding_stage || '未設定';
+  const upd = { onboarding_stage: st, onboarding_updated_at: new Date().toISOString() };
+  if (b.go_live_date) upd.go_live_date = b.go_live_date;
+  else if (st === '全面上線' && !acc.go_live_date) upd.go_live_date = todayTW();
+  const r = await db.update('accounts', `id=eq.${acc.id}`, upd);
+  if (!r || !r.length) throw new HttpError(403, '只有管理員或負責業務能改導入階段');
+  if (prev !== st) await db.insert('activities', { type: 'note', content: `導入階段：${prev} → ${st}` + (ctx.via === 'ai' ? AI_TAG : ''), lead_id: leadId, user_id: me.id, created_at: new Date().toISOString() });
+  return { ok: true, lead: lead.name, from: prev, to: st, go_live_date: upd.go_live_date || acc.go_live_date || null, crm_link: url.origin + '/#lead=' + leadId };
+}
+
 // CRM 畫面新增名單（指派給別人）時發通知
 async function announceLead(ctx, leadId) {
   const { db, me, url } = ctx;
@@ -642,7 +668,7 @@ async function getDeals({ db, url }, leadId) {
     db.get(`deal_files?lead_id=eq.${leadId}&select=contract_id,kind,file_name`).catch(() => [])
   ]);
   const deals = cts.map(c => ({ ...dealView(c), files: files.filter(f => f.contract_id === c.id).map(f => `${f.kind}：${f.file_name}`) }));
-  return { lead: lead.name, is_customer: true, status: acc.status === 'terminated' ? '終止合作' : '合作中', summary: finSummary(cts), deals, crm_link: url.origin + '/#lead=' + leadId };
+  return { lead: lead.name, is_customer: true, status: acc.status === 'terminated' ? '終止合作' : '合作中', onboarding: onbView(acc), summary: finSummary(cts), deals, crm_link: url.origin + '/#lead=' + leadId };
 }
 async function recordDeal({ db, me, url }, leadId, b) {
   const lead = await loadLead({ db }, leadId);
@@ -661,7 +687,9 @@ async function recordDeal({ db, me, url }, leadId, b) {
   }
   if (!acc) acc = await db.insert('accounts', { name: lead.name, company: lead.company || null, lead_id: leadId, user_id: lead.user_id || me.id, user_name: lead.user_name || me.name, created_at: new Date().toISOString() });
   const monthly = num(b.monthly_fee);
+  const quoteNoteId = await matchQuote(db, leadId, b.quote_no);
   const ct = await db.insert('contracts', {
+    quote_note_id: quoteNoteId,
     account_id: acc.id, user_id: me.id, created_at: new Date().toISOString(),
     name: String(b.plan_name || '').trim() || items[0].name, deal_category: cat, amount: total, items, installments: inst,
     monthly_fee: monthly, plan_content: b.plan_content || null, signed_date: b.signed_date, start_date: b.start_date || null, end_date: b.end_date || null,
@@ -672,6 +700,20 @@ async function recordDeal({ db, me, url }, leadId, b) {
   const won = L.stageByName('簽約進件');
   if (won && lead.stage_id !== won.id) await db.update('leads', `id=eq.${leadId}`, { stage_id: won.id, updated_at: new Date().toISOString() });
   return { ok: true, lead: lead.name, deal: dealView(ct), notes: notes.length ? notes : undefined, crm_link: url.origin + '/#lead=' + leadId };
+}
+// 成交單對回報價：指定報價編號就用它；沒指定時，如果這家只有一個還沒成交的報價編號，就自動對上
+const QUOTE_PREFIX = '__ORDERUP_QUOTE_V1__';
+async function matchQuote(db, leadId, quoteNo) {
+  try {
+    const notes = await db.get(`notes?lead_id=eq.${leadId}&content=like.${encodeURIComponent(QUOTE_PREFIX)}*&select=id,content,quote_status,created_at&order=created_at.desc`);
+    const recs = notes.map(n => { try { return { id: n.id, st: n.quote_status, no: JSON.parse(n.content.slice(QUOTE_PREFIX.length)).summary?.quoteNo || '' }; } catch { return null; } }).filter(Boolean);
+    if (!recs.length) return null;
+    const won = new Set((await db.get(`contracts?quote_note_id=in.(${recs.map(r => r.id).join(',')})&select=quote_note_id`)).map(c => c.quote_note_id));
+    const open = recs.filter(r => r.st !== 'void' && !won.has(String(r.id)));
+    if (quoteNo) return (open.find(r => r.no === String(quoteNo).trim()) || recs.find(r => r.no === String(quoteNo).trim()))?.id || null;
+    const nos = [...new Set(open.map(r => r.no))];
+    return nos.length === 1 ? open[0].id : null;
+  } catch { return null; }
 }
 async function loadDeal(db, id) {
   const c = (await db.get(`contracts?id=eq.${id}&select=*`))?.[0];
@@ -720,8 +762,8 @@ async function recordPayment({ db, me }, id, b) {
   return { ok: true, deal: c.name, installment: p.label, paid_date: d, paid_amount: p.paid_amount };
 }
 async function listCustomers({ db, url }) {
-  const accs = await db.get('accounts?select=id,name,lead_id,status,user_name,contracts(*)&limit=500');
-  const rows = accs.map(a => ({ name: a.name, status: a.status === 'terminated' ? '終止合作' : '合作中', owner: a.user_name || null, ...finSummary(a.contracts || []), crm_link: a.lead_id ? url.origin + '/#lead=' + a.lead_id : null, lead_id: a.lead_id }));
+  const accs = await db.get('accounts?select=id,name,lead_id,status,user_name,onboarding_stage,onboarding_updated_at,go_live_date,contracts(*)&limit=500');
+  const rows = accs.map(a => ({ name: a.name, status: a.status === 'terminated' ? '終止合作' : '合作中', owner: a.user_name || null, onboarding: onbView(a), ...finSummary(a.contracts || []), crm_link: a.lead_id ? url.origin + '/#lead=' + a.lead_id : null, lead_id: a.lead_id }));
   rows.sort((x, y) => (x.status === y.status ? y.monthly_fee - x.monthly_fee : x.status === '合作中' ? -1 : 1));
   const act = rows.filter(r => r.status === '合作中');
   return { today: todayTW(), active_customers: act.length, monthly_recurring: act.reduce((s, r) => s + r.monthly_fee, 0), total_contracted: rows.reduce((s, r) => s + r.total, 0), total_paid: rows.reduce((s, r) => s + r.paid, 0), total_unpaid: rows.reduce((s, r) => s + r.unpaid, 0), customers: rows };
