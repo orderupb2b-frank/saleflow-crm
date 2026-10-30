@@ -176,6 +176,30 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
   border-radius:12px; padding:10px 14px; margin-bottom:12px; }
 .cc-hud-n { font-size:17px; font-weight:800; font-family:var(--mono); line-height:1; }
 .cc-hud-l { font-size:10.5px; color:var(--text3); margin-top:3px; }
+.ccb-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+.ccb-go { height:40px; padding:0 18px; border-radius:12px; border:0; background:var(--accent); color:#fff; font:inherit; font-size:14px; font-weight:700; cursor:pointer; }
+.ccb-board { display:flex; gap:8px; overflow-x:auto; padding-bottom:12px; align-items:flex-start; }
+.ccb-board .kanban-col { flex:1 1 0; min-width:170px; width:auto; max-height:calc(100vh - 230px); }
+.ccb-board .kanban-cards { padding:6px; }
+.ccb-card { background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:9px 10px; cursor:pointer; }
+.ccb-card.due { border-color:var(--yellow); }
+.ccb-card.late { border-color:var(--red); }
+.ccb-card.pool { border-style:dashed; }
+.ccb-name { font-size:13px; font-weight:600; display:flex; align-items:center; gap:6px; }
+.ccb-sub { font-size:11.5px; color:var(--text3); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ccb-note { font-size:11.5px; color:var(--text2); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ccb-foot { display:flex; align-items:center; gap:6px; margin-top:7px; }
+.ccb-when { font-size:11px; color:var(--text3); }
+.ccb-when.due { color:var(--yellow); font-weight:600; }
+.ccb-when.late { color:var(--red); font-weight:600; }
+.ccb-tel { margin-left:auto; width:30px; height:30px; border-radius:50%; background:var(--green-bg); color:var(--green); display:flex; align-items:center; justify-content:center; text-decoration:none; font-size:14px; }
+.ccb-log { width:30px; height:30px; border-radius:50%; border:1px solid var(--border); background:var(--bg2); color:var(--text2); font-size:15px; line-height:1; cursor:pointer; }
+.ccb-log:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+.ccb-outs { display:none; grid-template-columns:repeat(3,1fr); gap:4px; margin-top:6px; }
+.ccb-card.open .ccb-outs { display:grid; }
+.ccb-outs button { font:inherit; font-size:11px; padding:5px 2px; border-radius:6px; border:1px solid var(--border); background:var(--bg2); cursor:pointer; color:var(--text); }
+.ccb-outs button:hover { border-color:var(--accent); color:var(--accent); }
+.ccb-convert { width:100%; margin-top:6px; }
 .cc-hud-bar { flex:1; min-width:90px; height:7px; background:var(--bg4); border-radius:4px; overflow:hidden; }
 .cc-hud-bar > div { height:100%; background:linear-gradient(90deg,var(--accent),var(--green)); transition:width .4s; }
 .cc-note { font-size:13px; white-space:pre-wrap; padding:8px 10px; border-radius:8px; line-height:1.55; margin-top:10px; }
@@ -751,6 +775,9 @@ document.addEventListener('DOMContentLoaded',function(){var b=document.getElemen
         <div class="nav-item active" onclick="navigate('today')" id="nav-home">
           <span class="nav-icon">📊</span><span class="nav-text">Dashboard</span>
         </div>
+        <div class="nav-item" onclick="navigate('ccboard')" id="nav-cc">
+          <span class="nav-icon">📞</span><span class="nav-text">陌開</span>
+        </div>
         <div class="nav-item" onclick="navigate('leads')" id="nav-pipe">
           <span class="nav-icon">🗂</span><span class="nav-text">開發看板</span>
         </div>
@@ -1040,9 +1067,10 @@ function navigate(page, opt) {
 // ── 五個區塊：Dashboard／開發看板／導入看板／列表清單／工具箱 ──
 const SECTIONS = [
   { key: 'home', label: 'Dashboard', pages: [['today', '今天'], ['dashboard', '數據'], ['performance', '業績']] },
+  { key: 'cc', label: '陌開', pages: [['ccboard', '看板'], ['coldcall', '開打'], ['cclist', '名單'], ['ccstats', '統計']] },
   { key: 'pipe', label: '開發看板', pages: [['leads', '']] },
   { key: 'onb', label: '導入看板', pages: [['onboard', '']] },
-  { key: 'lists', label: '列表清單', pages: [['accounts', '合作中客戶'], ['leadlist', '線索'], ['contacts', '聯絡人'], ['coldcall', '陌開名單'], ['feed', '動態']] },
+  { key: 'lists', label: '列表清單', pages: [['accounts', '合作中客戶'], ['leadlist', '線索'], ['contacts', '聯絡人'], ['feed', '動態']] },
   { key: 'tools', label: '工具箱', pages: [['quotes', '報價單'], ['decks', '簡報'], ['bonus', '業績計算器'], ['settings', '設定']] }
 ];
 function sectionOf(page) {
@@ -1068,7 +1096,7 @@ function openMoreMenu() {
 
 function onFabClick() {
   if (currentPage === 'company' && currentLeadId) openQuickLog(currentLeadId);
-  else if (currentPage === 'coldcall') openCcImport();
+  else if (currentPage === 'coldcall' || currentPage === 'ccboard' || currentPage === 'cclist') openCcImport();
   else if (currentPage === 'quotes') saveCurrentQuote();
   else openQuickLogPicker();
 }
@@ -1079,7 +1107,10 @@ async function renderPage(page) {
   content.innerHTML = '<div class="loading"><span class="dot-pulse">載入中</span></div>';
   switch(page) {
     case 'today': await renderToday(); break;
-    case 'coldcall': await renderColdCall(); break;
+    case 'coldcall': ccTab = 'call'; await renderColdCall(); break;
+    case 'cclist': ccTab = 'list'; await renderColdCall(); break;
+    case 'ccstats': ccTab = 'stats'; await renderColdCall(); break;
+    case 'ccboard': await renderCcBoard(); break;
     case 'decks': await renderDecks(); break;
     case 'performance': await renderPerformance(); break;
     case 'dashboard': await renderDashboard(); break;
@@ -1353,6 +1384,7 @@ let ccIdx = 0;
 let ccFilter = { status: 'active', owner: 'all', batch: '', q: '', grade: '' };
 let ccPasteRows = null;
 let ccBusy = false;
+let ccCur = null; // 看板上直接記錄時指定的那筆
 
 function ccDigits(s) { return String(s || '').replace(/\D/g, ''); }
 function ccNormCo(s) {
@@ -1368,17 +1400,13 @@ function ccOwnerName(c) {
 }
 function ccMine(c) { return c.owner_id === currentUser.id; }
 function ccCanTouch(c) { return window.isAdmin || !c.owner_id || ccMine(c); }
+function isCcPage() { return ['coldcall', 'cclist', 'ccstats'].indexOf(currentPage) >= 0; }
 function ccTelHref(p) { return 'tel:' + String(p || '').replace(/[^\d+]/g, ''); }
 
 // ── 頁面 ──
 async function renderColdCall() {
   if (!usersData.length) await loadGlobalData();
-  const tab = function (k, label) {
-    return '<button class="view-toggle-btn' + (ccTab === k ? ' active' : '') + '" onclick="ccTab=\'' + k + '\';renderColdCall()">' + label + '</button>';
-  };
-  document.getElementById('topbarActions').innerHTML = '<div class="action-bar"><div class="view-toggle">'
-    + tab('call', '📞 開打') + tab('list', '📋 名單') + tab('stats', '📊 統計')
-    + '</div><button class="btn btn-primary btn-sm" onclick="openCcImport()">＋ 加名單</button></div>';
+  document.getElementById('topbarActions').innerHTML = '<div class="action-bar"><button class="btn btn-primary btn-sm" onclick="openCcImport()">＋ 加名單</button></div>';
   if (ccTab === 'call') return renderCcCall();
   if (ccTab === 'list') return renderCcList();
   return renderCcStats();
@@ -1498,7 +1526,7 @@ async function renderCcCard() {
 function ccSkip() { ccIdx += 1; renderCcCard(); }
 
 function ccQuickNote(id) {
-  const c = ccQueue.find(function (x) { return x.id === id; }) || {};
+  const c = ccQueue.find(function (x) { return x.id === id; }) || (window._ccBoard || []).find(function (x) { return x.id === id; }) || {};
   openModal('✍️ 業務備註：' + (c.company || ''),
     (c.note ? '<div class="form-label">名單備註（行銷提供）</div><div class="cc-note mkt" style="margin:0 0 12px">' + esc(c.note) + '</div>' : '')
     + '<div class="form-group"><label class="form-label">你的備註</label>'
@@ -1510,14 +1538,15 @@ function ccQuickNote(id) {
       if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
       c.sales_note = v;
       closeModal(); toast('備註已存', 'success');
-      renderCcCard();
+      if (currentPage === 'ccboard') renderCcBoard(); else renderCcCard();
     }}
   ]);
 }
 
-function ccPickOutcome(key) {
+function ccPickOutcome(key, card) {
   const o = CC_OUTCOMES[key];
-  const c = ccQueue[ccIdx];
+  ccCur = card || null;
+  const c = card || ccQueue[ccIdx];
   if (!c) return;
   let extra = '';
   if (key === 'callback' || key === 'no_answer' || key === 'gatekeeper') {
@@ -1548,7 +1577,7 @@ function ccSetNext(days, btn) {
 async function ccSaveOutcome(key) {
   if (ccBusy) return;
   const o = CC_OUTCOMES[key];
-  const c = ccQueue[ccIdx];
+  const c = ccCur || ccQueue[ccIdx];
   if (!c || !o) return;
   ccBusy = true;
   try {
@@ -1578,6 +1607,7 @@ async function ccSaveOutcome(key) {
     ccPop('+' + gained, o.color);
     if (key === 'interested') { openCcConvert(c.id); return; }
     toast(o.icon + ' 已記錄　+' + gained + ' 分' + (next ? '・' + next + ' 再打' : ''), 'success');
+    if (ccCur) { ccCur = null; if (currentPage === 'ccboard') renderCcBoard(); return; }
     ccIdx += 1;
     renderCcCard();
   } finally { ccBusy = false; }
@@ -1680,12 +1710,122 @@ async function ccDoConvert(c) {
   } finally { ccBusy = false; }
 }
 
+// ── 陌開看板 ──
+let ccbScope = null, ccbGrade = 'all', ccbShowDone = false;
+async function renderCcBoard() {
+  if (!usersData.length) await loadGlobalData();
+  const content = document.getElementById('content');
+  document.getElementById('topbarActions').innerHTML = '<div class="action-bar"><button class="btn btn-primary btn-sm" onclick="openCcImport()">＋ 加名單</button></div>';
+  const [r, sc] = await Promise.all([db.from('cold_calls').select('*').order('created_at', { ascending: false }), ccTodayScore()]);
+  if (currentPage !== 'ccboard') return;
+  if (r.error) { content.innerHTML = '<div class="cp-card" style="color:var(--red)">讀取失敗：' + esc(r.error.message) + '</div>'; return; }
+  const all = r.data || [];
+  window._ccBoard = all;
+  if (ccbScope === null) ccbScope = window.isAdmin ? 'all' : 'mine';
+  const today = nowDateStr();
+  const dueOf = function (c) { if (!c.next_call_at) return null; return daysUntil(String(c.next_call_at).slice(0, 10)); };
+  const inScope = function (c) {
+    if (ccbScope === 'mine') return c.owner_id === currentUser.id || !c.owner_id;
+    if (ccbScope === 'pool') return !c.owner_id;
+    if (ccbScope === 'all') return true;
+    return c.owner_id === ccbScope;
+  };
+  const list = all.filter(function (c) { return inScope(c) && (ccbGrade === 'all' || String(c.grade || '').toUpperCase() === ccbGrade); });
+  const COLS = [
+    ['new', '未撥打', function (c) { return c.status === 'new' || !c.status; }],
+    ['calling', '跟進中', function (c) { return c.status === 'calling'; }],
+    ['callback', '約再聯絡', function (c) { return c.status === 'callback'; }],
+    ['interested', '有興趣', function (c) { return c.status === 'interested'; }],
+    ['converted', '已轉線索', function (c) { return c.status === 'converted'; }]
+  ];
+  if (ccbShowDone) COLS.push(['done', '婉拒／無效', function (c) { return c.status === 'rejected' || c.status === 'invalid'; }]);
+  const sortCol = function (arr, key) {
+    return arr.slice().sort(function (a, b) {
+      if (key === 'converted') return String(b.updated_at || '').localeCompare(String(a.updated_at || ''));
+      const da = dueOf(a), db_ = dueOf(b);
+      const ra = da == null ? 1 : da <= 0 ? 0 : 2, rb = db_ == null ? 1 : db_ <= 0 ? 0 : 2;
+      if (ra !== rb) return ra - rb;
+      if (ra === 0 && da !== db_) return da - db_;
+      if (ra === 2 && da !== db_) return da - db_;
+      const ga = 'ABC'.indexOf(String(a.grade || 'B').toUpperCase()), gb = 'ABC'.indexOf(String(b.grade || 'B').toUpperCase());
+      if (ga !== gb) return (ga < 0 ? 1 : ga) - (gb < 0 ? 1 : gb);
+      return String(b.updated_at || b.created_at || '').localeCompare(String(a.updated_at || a.created_at || ''));
+    });
+  };
+  const queueN = all.filter(function (c) {
+    if (['interested', 'rejected', 'invalid', 'converted'].indexOf(c.status) >= 0) return false;
+    if (c.owner_id && c.owner_id !== currentUser.id) return false;
+    if (c.next_call_at && String(c.next_call_at).slice(0, 10) > today) return false;
+    return true;
+  }).length;
+  const rank = ccRankOf(sc.pts);
+  const goalPct = Math.min(100, Math.round(sc.calls / sc.goal * 100));
+  const chip = function (v, label, cur, fn, n) { return '<button class="ml-chip' + (cur === v ? ' on' : '') + '" onclick="' + fn + '(\'' + v + '\')">' + label + (n != null ? '<b>' + n + '</b>' : '') + '</button>'; };
+  const cnt = function (f) { return all.filter(f).length; };
+  let scopeChips = chip('mine', '我的＋公海', ccbScope, 'ccbSetScope', cnt(function (c) { return (c.owner_id === currentUser.id || !c.owner_id) && c.status !== 'converted' && c.status !== 'rejected' && c.status !== 'invalid'; }))
+    + chip('pool', '公海', ccbScope, 'ccbSetScope', cnt(function (c) { return !c.owner_id && c.status !== 'converted'; }));
+  if (window.isAdmin) scopeChips += chip('all', '全部', ccbScope, 'ccbSetScope') + usersData.filter(function (u) { return all.some(function (c) { return c.owner_id === u.id; }); }).map(function (u) { return chip(u.id, esc(u.full_name || u.email || ''), ccbScope, 'ccbSetScope'); }).join('');
+  const gradeChips = ['all', 'A', 'B', 'C'].map(function (g) { return chip(g, g === 'all' ? '全部等級' : g + ' ' + CC_GRADES[g], ccbGrade, 'ccbSetGrade'); }).join('');
+  const hud = '<div class="cc-hud" style="margin:0;flex:1;min-width:260px">'
+    + '<div style="cursor:pointer" onclick="ccSetDailyGoal()" title="點我改每日目標"><div class="cc-hud-n">' + sc.calls + '<span style="font-size:12px;color:var(--text3);font-weight:500"> / ' + sc.goal + '</span></div><div class="cc-hud-l">今天撥打</div></div>'
+    + '<div class="cc-hud-bar"><div style="width:' + goalPct + '%"></div></div>'
+    + '<div style="text-align:center"><div class="cc-hud-n" style="color:var(--green)">' + sc.conn + '</div><div class="cc-hud-l">接通</div></div>'
+    + '<div style="text-align:center"><div class="cc-hud-n" style="color:var(--yellow)">' + sc.hot + '</div><div class="cc-hud-l">有興趣</div></div>'
+    + '<div style="text-align:center"><div class="cc-hud-n" style="color:var(--accent)">' + sc.pts + '</div><div class="cc-hud-l">' + rank[2] + ' ' + rank[1] + '</div></div>'
+    + '</div>';
+  const card = function (c, key) {
+    const d = dueOf(c);
+    const cls = key === 'converted' ? '' : d == null ? '' : d < 0 ? ' late' : d === 0 ? ' due' : '';
+    const when = key === 'converted' ? '' : d == null ? (c.attempts ? '已撥 ' + c.attempts + ' 次' : '') : d < 0 ? '逾期 ' + (-d) + ' 天' : d === 0 ? '今天打' : String(c.next_call_at).slice(5, 10).replace('-', '/');
+    const warn = (c.attempts || 0) >= CC_GIVEUP_AFTER && key !== 'converted' && key !== 'interested' ? ' ⚠️' : '';
+    const sub = [c.contact_name, c.title, c.industry].filter(Boolean).map(esc).join('・');
+    const note = c.sales_note || c.note || '';
+    const outs = Object.keys(CC_OUTCOMES).map(function (k) { const o = CC_OUTCOMES[k]; return '<button type="button" onclick="event.stopPropagation();ccbOutcome(\'' + c.id + '\',\'' + k + '\')">' + o.icon + ' ' + o.label + '</button>'; }).join('');
+    return '<div class="ccb-card' + cls + (!c.owner_id ? ' pool' : '') + '" id="ccb-' + c.id + '" onclick="openCcDetail(\'' + c.id + '\')">'
+      + '<div class="ccb-name">' + ccGradeBadge(c.grade) + '<span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(c.company || '') + '</span>' + warn + '</div>'
+      + (sub ? '<div class="ccb-sub">' + sub + '</div>' : '')
+      + (note ? '<div class="ccb-note">' + esc(note) + '</div>' : '')
+      + '<div class="ccb-foot"><span class="ccb-when' + cls + '">' + when + (!c.owner_id ? (when ? '・' : '') + '公海' : (ccbScope !== 'mine' && c.owner_name ? (when ? '・' : '') + esc(c.owner_name) : '')) + '</span>'
+      + (key === 'converted' ? (c.lead_id ? '<a class="btn btn-ghost btn-sm" style="margin-left:auto;padding:2px 8px;font-size:11px" href="#" onclick="event.preventDefault();event.stopPropagation();openCompany(\'' + c.lead_id + '\')">看線索 →</a>' : '')
+        : '<a class="ccb-tel" href="' + ccTelHref(c.phone) + '" onclick="event.stopPropagation()" aria-label="撥打">📞</a>'
+          + (key === 'interested' ? '' : '<button type="button" class="ccb-log" onclick="event.stopPropagation();ccbToggle(\'' + c.id + '\')" aria-label="記錄結果">＋</button>'))
+      + '</div>'
+      + (key === 'interested' ? '<button class="btn btn-primary btn-sm ccb-convert" onclick="event.stopPropagation();openCcConvert(\'' + c.id + '\')">🔥 轉成線索</button>' : key === 'converted' ? '' : '<div class="ccb-outs">' + outs + '</div>')
+      + '</div>';
+  };
+  const cols = COLS.map(function (col) {
+    let items = list.filter(col[2]);
+    if (col[0] === 'converted') items = items.filter(function (c) { return daysSince(c.updated_at || c.created_at) <= 30; });
+    items = sortCol(items, col[0]);
+    const due = col[0] === 'converted' || col[0] === 'done' ? 0 : items.filter(function (c) { const d = dueOf(c); return d != null && d <= 0; }).length;
+    return '<div class="kanban-col"><div class="kanban-col-header"><div style="display:flex;align-items:center;gap:7px"><div class="kanban-col-title">' + col[1] + '</div>'
+      + (due ? '<span class="badge badge-yellow" style="font-size:10px">今天 ' + due + '</span>' : '') + '</div><div class="kanban-col-count">' + items.length + '</div></div>'
+      + '<div class="kanban-cards">' + (items.slice(0, 60).map(function (c) { return card(c, col[0]); }).join('') || '<div style="height:30px"></div>') + (items.length > 60 ? '<div style="font-size:11px;color:var(--text3);text-align:center;padding:6px">還有 ' + (items.length - 60) + ' 筆，到「名單」看全部</div>' : '') + '</div></div>';
+  }).join('');
+  content.style.padding = '16px'; content.style.overflowX = 'auto';
+  content.innerHTML = '<div class="ccb-head">' + hud + '<button class="ccb-go" onclick="navigate(\'coldcall\')">▶ 開打' + (queueN ? '（' + queueN + ' 通）' : '') + '</button></div>'
+    + '<div class="kanban-filters" style="gap:10px"><div class="ml-chips ml-seg" style="margin:0">' + scopeChips + '</div><div class="ml-chips" style="margin:0">' + gradeChips + '</div>'
+    + '<button class="ml-chip' + (ccbShowDone ? ' on' : '') + '" onclick="ccbShowDone=!ccbShowDone;renderCcBoard()">婉拒／無效<b>' + cnt(function (c) { return c.status === 'rejected' || c.status === 'invalid'; }) + '</b></button></div>'
+    + '<div class="ccb-board">' + cols + '</div>';
+}
+function ccbSetScope(v) { ccbScope = v; renderCcBoard(); }
+function ccbSetGrade(v) { ccbGrade = v; renderCcBoard(); }
+function ccbToggle(id) {
+  document.querySelectorAll('.ccb-card.open').forEach(function (el) { if (el.id !== 'ccb-' + id) el.classList.remove('open'); });
+  const el = document.getElementById('ccb-' + id); if (el) el.classList.toggle('open');
+}
+function ccbOutcome(id, key) {
+  const c = (window._ccBoard || []).find(function (x) { return x.id === id; }); if (!c) return;
+  if (!ccCanTouch(c)) { toast('這筆是 ' + esc(c.owner_name || '別人') + ' 的名單', 'error'); return; }
+  ccPickOutcome(key, c);
+}
+
 // ── ② 名單 ──
 async function renderCcList() {
   const content = document.getElementById('content');
   content.innerHTML = '<div class="loading"><span class="dot-pulse">載入中</span></div>';
   const { data, error } = await db.from('cold_calls').select('*').order('created_at', { ascending: false });
-  if (currentPage !== 'coldcall' || ccTab !== 'list') return;
+  if (!isCcPage() || ccTab !== 'list') return;
   if (error) { content.innerHTML = '<div class="cp-card" style="color:var(--red)">讀取失敗：' + esc(error.message) + '（是否已執行 v5 SQL？）</div>'; return; }
   const all = data || [];
   window._ccAll = all;
@@ -1918,7 +2058,7 @@ async function renderCcStats() {
     db.from('call_logs').select('*'),
     db.from('cold_calls').select('id,status,owner_id,owner_name,batch,lead_id')
   ]);
-  if (currentPage !== 'coldcall' || ccTab !== 'stats') return;
+  if (!isCcPage() || ccTab !== 'stats') return;
   if (lR.error) { content.innerHTML = '<div class="cp-card" style="color:var(--red)">讀取失敗：' + esc(lR.error.message) + '（是否已執行 v5 SQL？）</div>'; return; }
   window._ccLogs = lR.data || [];
   window._ccCards = cR.data || [];
@@ -2253,7 +2393,7 @@ async function ccDoImport() {
     if (dupKnown) skipped.push('已是線索／客戶 ' + dupKnown);
     if (dupSelf) skipped.push('這批自己重複 ' + dupSelf);
     toast('✅ 加入 ' + toInsert.length + ' 筆' + (skipped.length ? '，略過：' + skipped.join('、') : ''), 'success');
-    if (currentPage === 'coldcall') renderColdCall(); else navigate('coldcall');
+    if (currentPage === 'ccboard') renderCcBoard(); else if (isCcPage()) renderColdCall(); else navigate('ccboard');
   } finally { ccBusy = false; }
 }
 
@@ -4625,7 +4765,7 @@ function setLeadHash(leadId) { /* 網址由 histPush 管理 */ }
 
 // ── 瀏覽器「上一頁／下一頁」──
 // 每換一頁就推一筆紀錄：#/today、#/leads…；公司頁是 #lead=<id>
-const PAGE_KEYS = ['today', 'dashboard', 'leads', 'leadlist', 'bonus', 'quotes', 'accounts', 'onboard', 'performance', 'coldcall', 'decks', 'contacts', 'settings', 'feed'];
+const PAGE_KEYS = ['today', 'dashboard', 'leads', 'leadlist', 'bonus', 'quotes', 'accounts', 'onboard', 'performance', 'coldcall', 'ccboard', 'cclist', 'ccstats', 'decks', 'contacts', 'settings', 'feed'];
 let _histRouting = false;
 function histPush(hash, opt) {
   if (_histRouting) return;
@@ -8218,6 +8358,9 @@ db.auth.onAuthStateChange(async (event, session) => {
 <div id="bottom-nav">
   <div class="bnav-item" id="bnav-home" onclick="navigate('today')">
     <div class="bnav-icon">📊</div><div class="bnav-label">Dashboard</div>
+  </div>
+  <div class="bnav-item" id="bnav-cc" onclick="navigate('ccboard')">
+    <div class="bnav-icon">📞</div><div class="bnav-label">陌開</div>
   </div>
   <div class="bnav-item" id="bnav-pipe" onclick="navigate('leads')">
     <div class="bnav-icon">🗂</div><div class="bnav-label">開發</div>
