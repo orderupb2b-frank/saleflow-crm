@@ -241,10 +241,10 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .df-chip:hover { border-color:var(--accent); }
 .df-chip b { font-family:var(--mono); font-weight:600; margin-left:4px; }
 .onb-mini { display:inline-flex; gap:2px; vertical-align:middle; margin-right:6px; }
-.onb-mini i { width:12px; height:5px; border-radius:2px; background:var(--bg4); display:block; }
+.onb-mini i { width:9px; height:5px; border-radius:2px; background:var(--bg4); display:block; }
 .onb-mini i.on { background:var(--accent); }
 .onb-sel { font:inherit; font-size:12px; background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--text); padding:2px 4px; max-width:96px; cursor:pointer; }
-.onb-steps { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:4px; margin:2px 0 6px; }
+.onb-steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(70px,1fr)); gap:4px; margin:2px 0 6px; }
 .onb-steps button { font:inherit; font-size:12px; height:32px; border-radius:7px; border:1px solid var(--border); background:var(--bg3); color:var(--text3); cursor:pointer; padding:0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .onb-steps button.done { background:var(--accent-glow); border-color:transparent; color:var(--text2); }
 .onb-steps button.cur { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
@@ -296,8 +296,10 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .kanban-card.dragging { opacity: 0.4; }
 .kanban-card.drag-over { border-color: var(--accent); background: var(--accent-glow); }
 .kanban-col.drag-over-col .kanban-cards { background: var(--accent-glow); border-radius: 6px; }
-.onb-board { display:flex; gap:12px; overflow-x:auto; padding-bottom:12px; align-items:flex-start; }
-.onb-board .kanban-col { width:230px; max-height:calc(100vh - 170px); }
+.onb-board { display:flex; gap:8px; overflow-x:auto; padding-bottom:12px; align-items:flex-start; }
+.onb-board .kanban-col { flex:1 1 0; min-width:140px; width:auto; max-height:calc(100vh - 170px); }
+.onb-board .kanban-cards { padding:6px; }
+.onb-board .kc-name { font-size:12.5px; }
 .onb-card .oc-meta { display:flex; justify-content:space-between; gap:6px; font-size:11px; color:var(--text3); margin-top:4px; }
 .onb-card .oc-days.stuck { color:var(--red); font-weight:600; }
 .onb-card select { margin-top:8px; width:100%; }
@@ -4126,7 +4128,7 @@ function companyDealsCardHtml(acc, contracts) {
     return '<button class="' + (k === oi ? 'cur' : k < oi ? 'done' : '') + '"' + (can ? ' onclick="setOnboarding(\'' + acc.id + '\',\'' + s + '\')"' : ' disabled') + '>' + s + '</button>';
   }).join('') + '</div>';
   const onbMeta = oi < 0 ? '<span style="color:var(--yellow)">還沒設定導入階段</span>'
-    : (oi === ONB_STAGES.length - 1 ? (acc.go_live_date ? acc.go_live_date + ' 全面上線' : '已全面上線')
+    : (oi === ONB_STAGES.length - 1 ? '維運中' + (acc.go_live_date ? '・' + acc.go_live_date + ' 上線' : '')
       : (od != null ? '這個階段第 ' + (od + 1) + ' 天' + (od >= ONB_STUCK_DAYS ? '・<span style="color:var(--red)">停太久了</span>' : '') : ''));
   return '<div class="cp-card">'
     + '<div class="cp-card-h"><div class="cp-card-t">🚀 導入</div></div>' + steps + '<div class="onb-meta">' + onbMeta + '</div>'
@@ -5495,7 +5497,7 @@ async function openRenewalQuote(leadId) {
 function fmtDateSlash(s) { return s ? String(s).slice(0, 10).replace(/-/g, '/') : ''; }
 
 // ════════════════════════ 導入看板 ════════════════════════
-// 欄位＝導入階段；拖卡片換階段（手機用卡片上的下拉）。全面上線只列最近 30 天上線的，其他收起來
+// 欄位＝導入階段；拖卡片換階段（手機用卡片上的下拉）。維運狀態只列最近 30 天轉進來的，其他收起來
 let _onbOwner = 'all', _onbShowAllLive = false, _onbDragId = null;
 async function renderOnboard() {
   if (!usersData.length) await loadGlobalData();
@@ -5531,15 +5533,15 @@ function renderOnboardBoard() {
     cards.sort(function (x, y) { return (onbDays(y) || 0) - (onbDays(x) || 0); });
     let hidden = 0;
     if (st === live && !_onbShowAllLive) {
-      const recent = cards.filter(function (a) { return !a.go_live_date || daysUntil(a.go_live_date) >= -30; });
+      const recent = cards.filter(function (a) { const d = onbDays(a); return d == null || d <= 30; });
       hidden = cards.length - recent.length; cards = recent;
-      cards.sort(function (x, y) { return String(y.go_live_date || '').localeCompare(String(x.go_live_date || '')); });
+      cards.sort(function (x, y) { return (onbDays(x) || 0) - (onbDays(y) || 0); });
     }
     if (st === '' && !cards.length) return;
     html += '<div class="kanban-col" ondragover="onbDragOver(event,this)" ondragleave="this.classList.remove(\'drag-over-col\')" ondrop="onbDrop(event,this,\'' + st + '\')">'
       + '<div class="kanban-col-header"><div class="kanban-col-title"' + (st === '' ? ' style="color:var(--yellow)"' : '') + '>' + (st || '未設定') + '</div><div class="kanban-col-count">' + (cards.length + hidden) + '</div></div>'
       + '<div class="kanban-cards">' + cards.map(onbCardHtml).join('')
-      + (hidden ? '<button class="onb-more" onclick="_onbShowAllLive=true;renderOnboardBoard()">再顯示 ' + hidden + ' 家較早上線的</button>' : '')
+      + (hidden ? '<button class="onb-more" onclick="_onbShowAllLive=true;renderOnboardBoard()">再顯示 ' + hidden + ' 家（維運超過 30 天）</button>' : '')
       + '</div></div>';
   });
   html += '</div>';
@@ -5549,7 +5551,7 @@ function onbCardHtml(a) {
   const i = onbIdx(a), d = onbDays(a), f = acctFin(a.contracts || []);
   const isLive = i === ONB_STAGES.length - 1;
   const stuck = i >= 0 && !isLive && d != null && d >= ONB_STUCK_DAYS;
-  const dayTxt = isLive ? (a.go_live_date ? a.go_live_date + ' 上線' : '') : (d != null ? '第 ' + (d + 1) + ' 天' : '');
+  const dayTxt = isLive ? (a.go_live_date ? a.go_live_date.slice(2).replace(/-/g, '/') + ' 上線' : '') : (d != null ? '第 ' + (d + 1) + ' 天' : '');
   const can = canEditAcc(a);
   let sel = '';
   if (can) {
@@ -5582,8 +5584,9 @@ function onbDrop(e, col, stage) {
 }
 
 // ════════════════════════ 成交後：導入階段 ════════════════════════
-// 跟「導入指南」簡報同一條路線：啟動會議 → 準備期 → 試營運 → 熟客試用 → 全面上線
-const ONB_STAGES = ['啟動會議', '準備期', '試營運', '熟客試用', '全面上線'];
+// 啟動會議 → 填資料 → 系統教學 → 內部建置 → 小量試用 → 上線推廣 → 維運狀態（最後一段＝導入完成）
+const ONB_STAGES = ['啟動會議', '填資料', '系統教學', '內部建置', '小量試用', '上線推廣', '維運狀態'];
+const ONB_LIVE_IDX = ONB_STAGES.indexOf('上線推廣'); // 進到這段起記上線日
 const ONB_STUCK_DAYS = 21;
 function onbIdx(a) { return ONB_STAGES.indexOf((a && a.onboarding_stage) || ''); }
 function onbDays(a) { return a && a.onboarding_updated_at ? Math.floor((Date.now() - new Date(a.onboarding_updated_at).getTime()) / 864e5) : null; }
@@ -5609,7 +5612,7 @@ async function setOnboarding(accId, stage, sel) {
   const prev = a ? (a.onboarding_stage || '') : '';
   if (stage === prev) return;
   const upd = { onboarding_stage: stage || null, onboarding_updated_at: new Date().toISOString() };
-  if (stage === ONB_STAGES[ONB_STAGES.length - 1] && a && !a.go_live_date) upd.go_live_date = nowDateStr();
+  if (ONB_STAGES.indexOf(stage) >= ONB_LIVE_IDX && a && !a.go_live_date) upd.go_live_date = nowDateStr();
   const { data, error } = await db.from('accounts').update(upd).eq('id', accId).select('id');
   if (error || !data || !data.length) {
     if (sel) sel.value = prev;

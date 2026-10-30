@@ -413,8 +413,8 @@ async function setOwner(ctx, leadId, b) {
   return { ok: true, lead: lead.name, from: fromName, to: toName, stage: upd.stage_id ? '已分配' : cur, discord, crm_link: link };
 }
 
-// ───────── 成交後：導入階段（跟導入指南簡報同一條路線）─────────
-const ONB_STAGES = ['啟動會議', '準備期', '試營運', '熟客試用', '全面上線'];
+// ───────── 成交後：導入階段 ─────────
+const ONB_STAGES = ['啟動會議', '填資料', '系統教學', '內部建置', '小量試用', '上線推廣', '維運狀態'];
 const onbView = a => a ? {
   stage: a.onboarding_stage || '未設定',
   days_in_stage: a.onboarding_updated_at ? Math.floor((Date.now() - new Date(a.onboarding_updated_at).getTime()) / 864e5) : null,
@@ -431,7 +431,7 @@ async function setOnboarding(ctx, leadId, b) {
   const prev = acc.onboarding_stage || '未設定';
   const upd = { onboarding_stage: st, onboarding_updated_at: new Date().toISOString() };
   if (b.go_live_date) upd.go_live_date = b.go_live_date;
-  else if (st === '全面上線' && !acc.go_live_date) upd.go_live_date = todayTW();
+  else if (ONB_STAGES.indexOf(st) >= ONB_STAGES.indexOf('上線推廣') && !acc.go_live_date) upd.go_live_date = todayTW();
   const r = await db.update('accounts', `id=eq.${acc.id}`, upd);
   if (!r || !r.length) throw new HttpError(403, '只有管理員或負責業務能改導入階段');
   if (prev !== st) await db.insert('activities', { type: 'note', content: `導入階段：${prev} → ${st}` + (ctx.via === 'ai' ? AI_TAG : ''), lead_id: leadId, user_id: me.id, created_at: new Date().toISOString() });
