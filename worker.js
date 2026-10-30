@@ -726,7 +726,8 @@ async function quoteDeal(db, noteId) {
       const fin = (a != null && s != null && s < a) ? s : (a != null ? a : s);
       if (fin == null) continue;
       const total = Math.round(fin * qty);
-      items.push({ name: p.item || '項目', amount: total, bonus_type: total === 0 ? 'none' : kind === 'custom' ? 'custom' : (p.preset === 'sub' && kind === 'renewal') ? 'renewal' : 'standard' });
+      const bt = total === 0 ? 'none' : (p.preset === 'sub' && kind === 'renewal') ? 'renewal' : ['standard', 'custom', 'none'].includes(p.bonus) ? p.bonus : (kind === 'custom' || p.preset === 'custom') ? 'custom' : 'standard';
+      items.push({ name: p.item || '項目', amount: total, bonus_type: bt });
     }
     let monthly = kind === 'custom' ? null : (num(sm.monthly) || null);
     if (!monthly && kind !== 'custom') { const sp = (S.prices || []).find(x => x.preset === 'sub'); if (sp) { const a = num(sp.amount), s = num(sp.sale); monthly = (a != null && s != null && s < a) ? s : (a != null ? a : s); } }
