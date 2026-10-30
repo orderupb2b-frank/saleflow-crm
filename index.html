@@ -209,6 +209,83 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .pool-table tr { cursor:pointer; }
 .pool-table tr.sel td { background:var(--accent-glow); }
 .pool-bar { position:sticky; bottom:8px; display:flex; align-items:center; gap:8px; padding:10px 14px; background:var(--bg2); border:1px solid var(--accent); border-radius:12px; box-shadow:var(--shadow); margin-top:10px; flex-wrap:wrap; }
+.ccp-f { width:auto; height:30px; font-size:12.5px; padding:0 26px 0 10px; }
+.ccp-f.on { border-color:var(--accent); color:var(--accent); }
+.ccp-th { cursor:pointer; user-select:none; white-space:nowrap; }
+.ccp-th:hover { color:var(--text); }
+.ccp-th.dragging { opacity:.4; }
+.ccp-th.over { box-shadow:inset 3px 0 0 var(--accent); }
+.ccp-s { color:var(--accent); font-size:10px; }
+.ccp-menu { position:absolute; right:0; top:36px; z-index:50; background:var(--bg2); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow); padding:8px; min-width:150px; }
+.ccp-menu label { display:flex; align-items:center; gap:8px; font-size:13px; padding:5px 6px; border-radius:6px; cursor:pointer; }
+.ccp-menu label:hover { background:var(--bg3); }
+.ccp-menu input { width:15px; height:15px; }
+.st-two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:900px){ .st-two { grid-template-columns:1fr; } }
+.fn-row { display:flex; align-items:center; gap:10px; margin:7px 0; font-size:12.5px; }
+.fn-l { width:52px; color:var(--text2); flex-shrink:0; }
+.fn-bar { flex:1; height:16px; background:var(--bg3); border-radius:4px; overflow:hidden; }
+.fn-bar > div { height:100%; background:linear-gradient(90deg,var(--accent),#8b5cf6); border-radius:4px; }
+.fn-bar.red > div { background:linear-gradient(90deg,#f97316,var(--red)); }
+.fn-n { width:44px; text-align:right; font-family:var(--mono); font-weight:600; }
+.fn-p { width:48px; text-align:right; font-size:11.5px; color:var(--text3); font-family:var(--mono); }
+/* 電玩 HUD */
+.gm { display:grid; grid-template-columns:1.1fr 1.2fr 1fr; gap:14px; margin-bottom:14px; padding:14px 16px; border-radius:16px; color:#fff;
+  background:radial-gradient(120% 140% at 0% 0%,#3b2a8f 0%,#1d1747 55%,#120f2e 100%); box-shadow:0 8px 28px rgba(40,20,120,.28), inset 0 0 0 1px rgba(255,255,255,.06); }
+@media (max-width:1000px){ .gm { grid-template-columns:1fr; } }
+.gm-me { display:flex; align-items:center; gap:14px; }
+.gm-badge { width:64px; height:64px; flex-shrink:0; border-radius:18px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  background:linear-gradient(145deg,#ffd76a,#ff9a3c); color:#3a1d00; box-shadow:0 0 0 3px rgba(255,215,106,.25),0 0 22px rgba(255,170,60,.55); }
+.gm-badge span { font-size:11px; font-weight:800; letter-spacing:.05em; margin-bottom:-4px; }
+.gm-badge b { font-size:28px; font-weight:900; font-family:var(--mono); line-height:1; }
+.gm-title { font-size:15px; font-weight:800; margin-bottom:8px; letter-spacing:.02em; }
+.gm-bar { height:12px; border-radius:999px; background:rgba(255,255,255,.12); overflow:hidden; box-shadow:inset 0 1px 3px rgba(0,0,0,.4); }
+.gm-bar > div { height:100%; border-radius:999px; background:linear-gradient(90deg,#3ee0ff,#7c6bff 60%,#ff6bd6); box-shadow:0 0 12px rgba(124,107,255,.9); transition:width .6s cubic-bezier(.2,1.2,.4,1); }
+.gm-xp { font-size:11.5px; opacity:.75; margin-top:6px; font-family:var(--mono); }
+.gm-h { font-size:11px; font-weight:800; letter-spacing:.12em; opacity:.65; margin-bottom:6px; display:flex; align-items:center; gap:6px; }
+.gm-edit { margin-left:4px; border:0; background:none; color:#fff; opacity:.6; cursor:pointer; font-size:12px; padding:0; }
+.gm-q { display:flex; align-items:center; gap:8px; font-size:13px; padding:5px 8px; border-radius:8px; background:rgba(255,255,255,.06); margin-bottom:4px; }
+.gm-q.done { background:linear-gradient(90deg,rgba(62,224,160,.28),rgba(62,224,160,.08)); }
+.gm-qi { width:18px; height:18px; border-radius:5px; border:1.5px solid rgba(255,255,255,.35); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:900; flex-shrink:0; }
+.gm-q.done .gm-qi { background:#3ee0a0; border-color:#3ee0a0; color:#0a2a1a; }
+.gm-ql { flex:1; }
+.gm-q.done .gm-ql { opacity:.75; }
+.gm-qp { font-family:var(--mono); font-size:12px; opacity:.85; }
+.gm-qx { font-size:11px; font-weight:800; color:#ffd76a; }
+.gm-q.done .gm-qx { opacity:.5; }
+.gm-side { display:flex; flex-direction:column; gap:10px; }
+.gm-streak { display:flex; align-items:baseline; gap:6px; }
+.gm-streak b { font-size:22px; font-weight:900; font-family:var(--mono); }
+.gm-streak span { font-size:12px; opacity:.7; }
+.gm-streak.on b { color:#ff9a3c; text-shadow:0 0 14px rgba(255,140,40,.8); }
+.gm-lb { display:flex; align-items:center; gap:8px; font-size:12.5px; padding:3px 6px; border-radius:6px; }
+.gm-lb.me { background:rgba(255,255,255,.12); font-weight:700; }
+.gm-lbn { width:20px; text-align:center; }
+.gm-lbname { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.gm-lbx { font-family:var(--mono); font-size:12px; color:#ffd76a; }
+.gm-lvup { position:fixed; inset:0; z-index:10000; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; opacity:0; transition:opacity .35s;
+  background:radial-gradient(circle at 50% 45%,rgba(124,107,255,.45),rgba(10,8,30,.75) 60%); }
+.gm-lvup.on { opacity:1; }
+.gm-lvup .a { font-size:20px; font-weight:900; letter-spacing:.4em; color:#3ee0ff; text-shadow:0 0 18px #3ee0ff; transform:scale(.6); transition:transform .5s cubic-bezier(.2,1.6,.4,1); }
+.gm-lvup .b { font-size:96px; font-weight:900; font-family:var(--mono); color:#ffd76a; text-shadow:0 0 40px rgba(255,170,60,.9); transform:scale(.4); transition:transform .6s cubic-bezier(.2,1.8,.4,1) .05s; }
+.gm-lvup .c { font-size:18px; color:#fff; margin-top:6px; opacity:.9; }
+.gm-lvup.on .a, .gm-lvup.on .b { transform:scale(1); }
+.gm-kpi { grid-column:1/-1; border-top:1px solid rgba(255,255,255,.1); padding-top:12px; display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:8px 16px; }
+.gm-kpi > .gm-h { grid-column:1/-1; margin-bottom:0; }
+.gm-boss .gm-bt { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; margin-bottom:5px; }
+.gm-boss .gm-bt > span:first-child { flex:1; }
+.gm-bs { font-family:var(--mono); font-size:12px; opacity:.8; font-weight:500; }
+.gm-bb { font-size:11.5px; color:#ffd76a; font-weight:800; }
+.gm-bbar { height:10px; border-radius:999px; background:rgba(255,255,255,.12); overflow:hidden; }
+.gm-bbar > div { height:100%; border-radius:999px; background:linear-gradient(90deg,#ff6b6b,#ffb35c); box-shadow:0 0 10px rgba(255,120,80,.7); transition:width .6s; }
+.gm-boss.done .gm-bbar > div { background:linear-gradient(90deg,#3ee0a0,#3ee0ff); box-shadow:0 0 12px rgba(62,224,160,.9); }
+.kpi-row { display:grid; grid-template-columns:1.1fr 1fr 0.9fr 1fr 1.1fr auto; gap:6px; align-items:center; margin-bottom:8px; }
+@media (max-width:700px){ .kpi-row { grid-template-columns:1fr 1fr; } }
+.kpi-in { display:flex; align-items:center; gap:4px; font-size:12px; color:var(--text3); white-space:nowrap; }
+.kpi-in input { min-width:0; }
+.kpi-cell { display:grid; grid-template-columns:1fr 120px 110px; gap:10px; align-items:center; font-size:12.5px; padding:3px 0; }
+.kpi-cell.done span:first-child { color:var(--green); font-weight:600; }
+.kpi-sub { font-family:var(--mono); font-size:11.5px; color:var(--text3); text-align:right; }
 .st-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:14px; }
 .st-k { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:12px 14px; }
 .st-k .n { font-size:22px; font-weight:800; font-family:var(--mono); line-height:1.1; }
@@ -1271,7 +1348,7 @@ async function renderToday() {
       '<a class="btn btn-primary btn-sm" href="' + ccTelHref(c.phone) + '">📞 撥號</a>');
   });
   if (ccDue.length) {
-    rowsF.push('<div class="td-row"><div class="td-main" onclick="navigate(\'coldcall\')"><div class="td-title" style="color:var(--accent)">▶ 進入開打模式（' + ccDue.length + ' 通）</div><div class="td-meta">' + (ccBack ? ccBack + ' 通是約好回電・' : '') + (ccPool ? ccPool + ' 通在公海' : '其餘為新名單') + '</div></div><div class="td-acts"></div></div>');
+    rowsF.push('<div class="td-row"><div class="td-main" onclick="navigate(\'ccboard\')"><div class="td-title" style="color:var(--accent)">→ 陌開進度（' + ccDue.length + ' 筆待打）</div><div class="td-meta">' + (ccBack ? ccBack + ' 通是約好回電・' : '') + (ccPool ? ccPool + ' 通在公海' : '其餘為新名單') + '</div></div><div class="td-acts"></div></div>');
   }
 
   // ⑦ 缺回簽（成交單沒附檔）
@@ -1722,71 +1799,142 @@ async function ccDoConvert(c) {
     const q = ccQueue.find(function (x) { return x.id === c.id; });
     if (q) { q.status = 'converted'; q.lead_id = lead.id; }
     closeModal();
-    ccPop('+' + CC_POINTS.converted, 'var(--green)');
-    toast('🎉 已轉成線索：' + name + '　+' + CC_POINTS.converted + ' 分', 'success');
+    ccPop('+' + CC_XP_CONVERT + ' XP', 'var(--green)');
+    toast('🎉 已轉成線索：' + name + '　+' + CC_XP_CONVERT + ' XP', 'success');
     openCompany(lead.id);
   } finally { ccBusy = false; }
 }
 
-// ── 陌開：公海 ──
-let ccpGrade = 'all', ccpQ = '', ccpSel = new Set();
+// ── 陌開：公海（可排序、拖欄、隱藏欄位、篩選）──
+let ccpSel = new Set(), ccpQ = '';
+const CCP_COLS = [
+  { k: 'grade', label: '級', w: 46, get: function (c) { return String(c.grade || '').toUpperCase(); }, html: function (c) { return ccGradeBadge(c.grade); }, sortv: function (c) { const i = 'ABC'.indexOf(String(c.grade || '').toUpperCase()); return i < 0 ? 9 : i; } },
+  { k: 'company', label: '公司', get: function (c) { return c.company || ''; }, bold: true },
+  { k: 'contact', label: '窗口', get: function (c) { return [c.contact_name, c.title].filter(Boolean).join(' '); } },
+  { k: 'phone', label: '電話', mono: true, get: function (c) { return c.phone || ''; }, html: function (c) { return c.phone ? '<a href="' + ccTelHref(c.phone) + '" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none">' + esc(c.phone) + '</a>' : ''; } },
+  { k: 'industry', label: '產業', get: function (c) { return c.industry || ''; }, filter: true },
+  { k: 'city', label: '地區', get: function (c) { return c.city || ''; }, filter: true },
+  { k: 'email', label: 'Email', get: function (c) { return c.email || ''; } },
+  { k: 'batch', label: '批次', get: function (c) { return c.batch || ''; }, filter: true },
+  { k: 'source', label: '來源', get: function (c) { return c.source || ''; }, filter: true },
+  { k: 'note', label: '備註', get: function (c) { return c.note || ''; }, clip: 260 },
+  { k: 'attempts', label: '撥過', get: function (c) { return c.attempts ? c.attempts + ' 次' : ''; }, sortv: function (c) { return c.attempts || 0; } },
+  { k: 'created_at', label: '加入日', get: function (c) { return fmtDate(c.created_at); }, sortv: function (c) { return c.created_at || ''; } }
+];
+const CCP_DEFAULT = { order: CCP_COLS.map(function (c) { return c.k; }), hidden: ['email', 'source', 'attempts'], sort: { k: 'grade', dir: 1 }, filters: {} };
+function ccpCfg() {
+  let c; try { c = JSON.parse(localStorage.getItem('sf_ccp_cfg') || 'null'); } catch (e) {}
+  c = Object.assign({}, CCP_DEFAULT, c || {});
+  const known = CCP_COLS.map(function (x) { return x.k; });
+  c.order = c.order.filter(function (k) { return known.indexOf(k) >= 0; }).concat(known.filter(function (k) { return c.order.indexOf(k) < 0; }));
+  c.filters = c.filters || {};
+  return c;
+}
+function ccpSave(c) { try { localStorage.setItem('sf_ccp_cfg', JSON.stringify(c)); } catch (e) {} }
+function ccpColOf(k) { return CCP_COLS.find(function (x) { return x.k === k; }); }
+function ccpFiltered() {
+  const cfg = ccpCfg(), q = ccpQ.trim().toLowerCase();
+  let list = (window._ccPool || []).filter(function (c) {
+    for (const k in cfg.filters) { const v = cfg.filters[k]; if (v && ccpColOf(k) && ccpColOf(k).get(c) !== v) return false; }
+    if (!q) return true;
+    return CCP_COLS.some(function (col) { return String(col.get(c) || '').toLowerCase().indexOf(q) >= 0; });
+  });
+  const col = ccpColOf(cfg.sort.k) || CCP_COLS[0], dir = cfg.sort.dir || 1;
+  const sv = col.sortv || function (c) { return String(col.get(c) || ''); };
+  list = list.slice().sort(function (a, b) {
+    const x = sv(a), y = sv(b);
+    if (x === y) return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+    if (x === '' || x == null) return 1; if (y === '' || y == null) return -1;
+    return (x > y ? 1 : -1) * dir;
+  });
+  return list;
+}
 async function renderCcPool() {
   if (!usersData.length) await loadGlobalData();
   const content = document.getElementById('content');
-  document.getElementById('topbarActions').innerHTML = '<div class="action-bar"><button class="btn btn-secondary btn-sm" onclick="navigate(\'cclist\')">全部名單</button><button class="btn btn-primary btn-sm" onclick="openCcImport()">＋ 加名單</button></div>';
-  const r = await db.from('cold_calls').select('*').is('owner_id', null).neq('status', 'converted').order('created_at', { ascending: false });
+  document.getElementById('topbarActions').innerHTML = '<div class="action-bar"><button class="btn btn-primary btn-sm" onclick="openCcImport()">＋ 加名單</button></div>';
+  const r = await db.from('cold_calls').select('*').is('owner_id', null).order('created_at', { ascending: false });
   if (currentPage !== 'ccpool') return;
   if (r.error) { content.innerHTML = '<div class="cp-card" style="color:var(--red)">讀取失敗：' + esc(r.error.message) + '</div>'; return; }
-  const all = (r.data || []).filter(function (c) { return c.status !== 'rejected' && c.status !== 'invalid'; });
-  window._ccPool = all;
-  ccpSel = new Set(Array.from(ccpSel).filter(function (id) { return all.some(function (c) { return c.id === id; }); }));
-  const q = ccpQ.trim().toLowerCase();
-  const list = all.filter(function (c) {
-    if (ccpGrade !== 'all' && String(c.grade || '').toUpperCase() !== ccpGrade) return false;
-    if (!q) return true;
-    return [c.company, c.contact_name, c.phone, c.industry, c.city, c.note].some(function (v) { return String(v || '').toLowerCase().indexOf(q) >= 0; });
-  }).sort(function (a, b) { const ga = 'ABC'.indexOf(String(a.grade || 'B').toUpperCase()), gb = 'ABC'.indexOf(String(b.grade || 'B').toUpperCase()); if (ga !== gb) return (ga < 0 ? 1 : ga) - (gb < 0 ? 1 : gb); return String(b.created_at || '').localeCompare(String(a.created_at || '')); });
-  const chip = function (g) { return '<button class="ml-chip' + (ccpGrade === g ? ' on' : '') + '" onclick="ccpGrade=\'' + g + '\';renderCcPool()">' + (g === 'all' ? '全部' : g + ' ' + CC_GRADES[g]) + '<b>' + (g === 'all' ? all.length : all.filter(function (c) { return String(c.grade || '').toUpperCase() === g; }).length) + '</b></button>'; };
+  window._ccPool = (r.data || []).filter(function (c) { return ['converted', 'rejected', 'invalid'].indexOf(c.status) < 0; });
+  ccpSel = new Set(Array.from(ccpSel).filter(function (id) { return window._ccPool.some(function (c) { return c.id === id; }); }));
+  content.style.padding = '16px'; content.style.overflowX = '';
+  ccpDraw();
+}
+function ccpDraw(keepFocus) {
+  const content = document.getElementById('content'); if (currentPage !== 'ccpool') return;
+  const cfg = ccpCfg(), all = window._ccPool || [], list = ccpFiltered();
+  const cols = cfg.order.filter(function (k) { return cfg.hidden.indexOf(k) < 0; }).map(ccpColOf).filter(Boolean);
+  const filterSels = CCP_COLS.filter(function (c) { return c.filter; }).map(function (col) {
+    const vals = []; all.forEach(function (c) { const v = col.get(c); if (v && vals.indexOf(v) < 0) vals.push(v); });
+    if (!vals.length) return '';
+    vals.sort();
+    const cur = cfg.filters[col.k] || '';
+    return '<select class="form-select ccp-f' + (cur ? ' on' : '') + '" onchange="ccpSetFilter(\'' + col.k + '\',this.value)"><option value="">' + col.label + '：全部</option>' + vals.map(function (v) { return '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(v) + '（' + all.filter(function (c) { return col.get(c) === v; }).length + '）</option>'; }).join('') + '</select>';
+  }).join('');
+  const gradeChips = ['', 'A', 'B', 'C'].map(function (g) { const on = (cfg.filters.grade || '') === g; return '<button class="ml-chip' + (on ? ' on' : '') + '" onclick="ccpSetFilter(\'grade\',\'' + g + '\')">' + (g || '全部') + '<b>' + (g ? all.filter(function (c) { return String(c.grade || '').toUpperCase() === g; }).length : all.length) + '</b></button>'; }).join('');
+  const anyFilter = Object.keys(cfg.filters).some(function (k) { return cfg.filters[k]; }) || ccpQ;
   const allOn = list.length && list.every(function (c) { return ccpSel.has(c.id); });
-  const rows = list.slice(0, 300).map(function (c) {
+  const th = cols.map(function (col) {
+    const s = cfg.sort.k === col.k ? (cfg.sort.dir > 0 ? ' ▲' : ' ▼') : '';
+    return '<th draggable="true" data-k="' + col.k + '" class="ccp-th" style="' + (col.w ? 'width:' + col.w + 'px' : '') + '" onclick="ccpSort(\'' + col.k + '\')">' + col.label + '<span class="ccp-s">' + s + '</span></th>';
+  }).join('');
+  const rows = list.slice(0, 400).map(function (c) {
     const on = ccpSel.has(c.id);
     return '<tr class="' + (on ? 'sel' : '') + '" onclick="openCcDetail(\'' + c.id + '\')">'
       + '<td onclick="event.stopPropagation()" style="width:34px;text-align:center"><input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="ccpToggle(\'' + c.id + '\',this.checked)" style="width:15px;height:15px;cursor:pointer"></td>'
-      + '<td>' + ccGradeBadge(c.grade) + '</td>'
-      + '<td style="font-weight:500">' + esc(c.company || '') + '</td>'
-      + '<td style="font-size:12.5px;color:var(--text2)">' + esc([c.contact_name, c.title].filter(Boolean).join(' ')) + '</td>'
-      + '<td style="font-size:12.5px;font-family:var(--mono)"><a href="' + ccTelHref(c.phone) + '" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none">' + esc(c.phone || '') + '</a></td>'
-      + '<td style="font-size:12.5px;color:var(--text3)">' + esc([c.industry, c.city].filter(Boolean).join('・')) + '</td>'
-      + '<td style="font-size:12px;color:var(--text3);max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(c.note || '') + '</td>'
-      + '<td style="font-size:11.5px;color:var(--text3);white-space:nowrap">' + (c.attempts ? '撥過 ' + c.attempts + ' 次' : fmtDate(c.created_at)) + '</td>'
-      + '</tr>';
+      + cols.map(function (col) {
+        const v = col.html ? col.html(c) : esc(col.get(c));
+        return '<td style="' + (col.bold ? 'font-weight:500;' : 'font-size:12.5px;color:var(--text2);') + (col.mono ? 'font-family:var(--mono);' : '') + (col.clip ? 'max-width:' + col.clip + 'px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' : 'white-space:nowrap;') + '"' + (col.clip ? ' title="' + esc(col.get(c)) + '"' : '') + '>' + v + '</td>';
+      }).join('') + '</tr>';
   }).join('');
   let assignTo = '';
   if (window.isAdmin) assignTo = '<select class="form-select" id="ccpAssignTo" style="width:auto;height:32px;font-size:12.5px"><option value="' + currentUser.id + '">我</option>' + usersData.filter(function (u) { return u.id !== currentUser.id; }).map(function (u) { return '<option value="' + u.id + '">' + esc(u.full_name || u.email || '') + '</option>'; }).join('') + '</select>';
-  content.style.padding = '16px'; content.style.overflowX = '';
-  content.innerHTML = '<div class="kanban-filters" style="gap:10px;align-items:center">'
-    + '<div class="ml-chips" style="margin:0">' + ['all', 'A', 'B', 'C'].map(chip).join('') + '</div>'
-    + '<input class="form-input" id="ccpQ" placeholder="🔍 公司、窗口、電話、產業" style="width:240px;padding:6px 10px;margin-left:auto" value="' + esc(ccpQ) + '" oninput="ccpQ=this.value;clearTimeout(window._ccpT);window._ccpT=setTimeout(renderCcPool,200)">'
+  content.innerHTML = '<div class="kanban-filters" style="gap:8px;align-items:center">'
+    + '<div class="ml-chips" style="margin:0">' + gradeChips + '</div>' + filterSels
+    + (anyFilter ? '<button class="btn btn-ghost btn-sm" onclick="ccpClear()">清除篩選</button>' : '')
+    + '<span style="flex:1"></span>'
+    + '<input class="form-input" id="ccpQ" placeholder="🔍 搜尋任何欄位" style="width:200px;padding:6px 10px" value="' + esc(ccpQ) + '" oninput="ccpQ=this.value;clearTimeout(window._ccpT);window._ccpT=setTimeout(function(){ccpDraw(true)},150)">'
+    + '<div style="position:relative"><button class="btn btn-secondary btn-sm" onclick="ccpColsMenu(event)">欄位 ▾</button></div>'
     + '</div>'
-    + (list.length ? '<div class="panel" style="overflow:auto"><table class="data-table pool-table" style="min-width:760px"><thead><tr>'
-      + '<th style="width:34px;text-align:center"><input type="checkbox" ' + (allOn ? 'checked' : '') + ' onchange="ccpSelectAll(this.checked)" style="width:15px;height:15px;cursor:pointer"></th><th>級</th><th>公司</th><th>窗口</th><th>電話</th><th>產業・地區</th><th>備註</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>'
-      + (list.length > 300 ? '<div style="font-size:12px;color:var(--text3);padding:8px 12px">只顯示前 300 筆，請用搜尋縮小</div>' : '') + '</div>'
-      : '<div class="empty-state" style="padding:40px"><div class="empty-icon">📭</div><div class="empty-text">公海沒有名單了</div><button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="openCcImport()">＋ 加名單</button></div>')
+    + '<div style="font-size:12px;color:var(--text3);margin:-4px 0 8px">' + list.length + ' 筆' + (list.length !== all.length ? '（共 ' + all.length + '）' : '') + '・點欄名排序，拖欄名換位置</div>'
+    + (list.length ? '<div class="panel" style="overflow:auto"><table class="data-table pool-table" style="min-width:' + (120 + cols.length * 110) + 'px"><thead><tr>'
+      + '<th style="width:34px;text-align:center"><input type="checkbox" ' + (allOn ? 'checked' : '') + ' onchange="ccpSelectAll(this.checked)" style="width:15px;height:15px;cursor:pointer"></th>' + th + '</tr></thead><tbody>' + rows + '</tbody></table>'
+      + (list.length > 400 ? '<div style="font-size:12px;color:var(--text3);padding:8px 12px">只顯示前 400 筆，請用篩選縮小</div>' : '') + '</div>'
+      : '<div class="empty-state" style="padding:40px"><div class="empty-icon">📭</div><div class="empty-text">' + (all.length ? '沒有符合的名單' : '公海沒有名單了') + '</div>' + (all.length ? '' : '<button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="openCcImport()">＋ 加名單</button>') + '</div>')
     + (ccpSel.size ? '<div class="pool-bar"><span style="font-weight:600">已選 ' + ccpSel.size + ' 筆</span><span style="flex:1"></span>' + assignTo
       + '<button class="btn btn-primary btn-sm" onclick="ccpAssign()">轉給' + (window.isAdmin ? '' : '我') + '</button>'
-      + '<button class="btn btn-ghost btn-sm" onclick="ccpSel.clear();renderCcPool()">取消</button></div>' : '');
-  const qi = document.getElementById('ccpQ'); if (qi && ccpQ) { qi.focus(); qi.setSelectionRange(qi.value.length, qi.value.length); }
-}
-function ccpToggle(id, on) { if (on) ccpSel.add(id); else ccpSel.delete(id); renderCcPool(); }
-function ccpSelectAll(on) {
-  const q = ccpQ.trim().toLowerCase();
-  (window._ccPool || []).forEach(function (c) {
-    if (ccpGrade !== 'all' && String(c.grade || '').toUpperCase() !== ccpGrade) return;
-    if (q && ![c.company, c.contact_name, c.phone, c.industry, c.city, c.note].some(function (v) { return String(v || '').toLowerCase().indexOf(q) >= 0; })) return;
-    if (on) ccpSel.add(c.id); else ccpSel.delete(c.id);
+      + '<button class="btn btn-ghost btn-sm" onclick="ccpSel.clear();ccpDraw()">取消</button></div>' : '');
+  content.querySelectorAll('.ccp-th').forEach(function (thEl) {
+    thEl.addEventListener('dragstart', function (e) { window._ccpDrag = thEl.dataset.k; e.dataTransfer.effectAllowed = 'move'; thEl.classList.add('dragging'); });
+    thEl.addEventListener('dragend', function () { thEl.classList.remove('dragging'); content.querySelectorAll('.ccp-th.over').forEach(function (x) { x.classList.remove('over'); }); });
+    thEl.addEventListener('dragover', function (e) { e.preventDefault(); thEl.classList.add('over'); });
+    thEl.addEventListener('dragleave', function () { thEl.classList.remove('over'); });
+    thEl.addEventListener('drop', function (e) {
+      e.preventDefault(); const from = window._ccpDrag, to = thEl.dataset.k; window._ccpDrag = null;
+      if (!from || from === to) return;
+      const c = ccpCfg(); const o = c.order.filter(function (k) { return k !== from; }); o.splice(o.indexOf(to), 0, from); c.order = o; ccpSave(c); ccpDraw();
+    });
   });
-  renderCcPool();
+  if (keepFocus) { const qi = document.getElementById('ccpQ'); if (qi) { qi.focus(); qi.setSelectionRange(qi.value.length, qi.value.length); } }
 }
+function ccpSort(k) { const c = ccpCfg(); if (c.sort.k === k) c.sort.dir = -(c.sort.dir || 1); else c.sort = { k: k, dir: 1 }; ccpSave(c); ccpDraw(); }
+function ccpSetFilter(k, v) { const c = ccpCfg(); if (v) c.filters[k] = v; else delete c.filters[k]; ccpSave(c); ccpDraw(); }
+function ccpClear() { const c = ccpCfg(); c.filters = {}; ccpSave(c); ccpQ = ''; ccpDraw(); }
+function ccpColsMenu(e) {
+  e.stopPropagation();
+  const old = document.getElementById('ccpMenu'); if (old) { old.remove(); return; }
+  const c = ccpCfg();
+  const m = document.createElement('div'); m.id = 'ccpMenu'; m.className = 'ccp-menu';
+  m.innerHTML = c.order.map(function (k) { const col = ccpColOf(k); return '<label><input type="checkbox" ' + (c.hidden.indexOf(k) < 0 ? 'checked' : '') + ' ' + (k === 'company' ? 'disabled' : '') + ' onchange="ccpToggleCol(\'' + k + '\',this.checked)">' + col.label + '</label>'; }).join('')
+    + '<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:4px" onclick="ccpResetCols()">恢復預設</button>';
+  e.currentTarget.parentElement.appendChild(m);
+  setTimeout(function () { document.addEventListener('click', function h(ev) { if (!m.contains(ev.target)) { m.remove(); document.removeEventListener('click', h); } }); }, 0);
+}
+function ccpToggleCol(k, on) { const c = ccpCfg(); c.hidden = c.hidden.filter(function (x) { return x !== k; }); if (!on) c.hidden.push(k); ccpSave(c); const m = document.getElementById('ccpMenu'); ccpDraw(); }
+function ccpResetCols() { const c = ccpCfg(); c.order = CCP_DEFAULT.order.slice(); c.hidden = CCP_DEFAULT.hidden.slice(); ccpSave(c); const m = document.getElementById('ccpMenu'); if (m) m.remove(); ccpDraw(); }
+function ccpToggle(id, on) { if (on) ccpSel.add(id); else ccpSel.delete(id); ccpDraw(); }
+function ccpSelectAll(on) { ccpFiltered().forEach(function (c) { if (on) ccpSel.add(c.id); else ccpSel.delete(c.id); }); ccpDraw(); }
 async function ccpAssign() {
   const ids = Array.from(ccpSel); if (!ids.length) return;
   const sel = document.getElementById('ccpAssignTo');
@@ -1798,6 +1946,180 @@ async function ccpAssign() {
   toast('已把 ' + ids.length + ' 筆轉給 ' + (uid === currentUser.id ? '你' : name), 'success');
   ccpSel.clear();
   if (uid === currentUser.id) navigate('ccboard'); else renderCcPool();
+}
+
+// ── 陌開：遊戲化（全部以看板動作為準）──
+const CC_XP = { callback: 10, reject: 10, no_answer: 10, gatekeeper: 10, invalid: 10, interested: 60 };
+const CC_XP_CONVERT = 100, CC_XP_QUEST = 50;
+const CC_TITLES = [[20, '傳說', '👑'], [15, '金牌', '🥇'], [10, '銀牌', '🥈'], [5, '銅牌', '🥉'], [1, '新手', '🌱']];
+function ccLvlNeed(L) { return 50 * L * (L - 1); }
+function ccLevelOf(xp) { let L = 1; while (ccLvlNeed(L + 1) <= xp) L++; return L; }
+function ccTitleOf(L) { return CC_TITLES.find(function (t) { return L >= t[0]; }) || CC_TITLES[CC_TITLES.length - 1]; }
+function ccGoal() { try { const v = parseInt(localStorage.getItem('ccGoal2_' + currentUser.id)); if (v > 0) return v; } catch (e) {} return 20; }
+function ccDayKey(iso) { const d = new Date(iso); return d.getFullYear() + '-' + _pad2(d.getMonth() + 1) + '-' + _pad2(d.getDate()); }
+// 算一個人的經驗值、等級、連續天數、今天任務
+function ccGameOf(uid, logs, convs, goal) {
+  const mine = logs.filter(function (l) { return l.user_id === uid; });
+  const byDay = {};
+  mine.forEach(function (l) { const k = ccDayKey(l.called_at); const d = byDay[k] = byDay[k] || { n: 0, dev: 0, xp: 0 }; d.n++; if (l.outcome === 'interested') d.dev++; d.xp += CC_XP[l.outcome] || 10; });
+  let xp = 0;
+  Object.keys(byDay).forEach(function (k) { const d = byDay[k]; xp += d.xp + (d.n >= goal ? CC_XP_QUEST : 0) + (d.dev >= 1 ? CC_XP_QUEST : 0); });
+  const myConv = convs.filter(function (c) { return c.owner_id === uid; });
+  xp += myConv.length * CC_XP_CONVERT;
+  // 連續達標（週末不算斷）
+  let streak = 0; const d0 = new Date();
+  const todayK = ccDayKey(d0.toISOString());
+  for (let i = 0; i < 120; i++) {
+    const d = new Date(d0); d.setDate(d0.getDate() - i);
+    const k = ccDayKey(d.toISOString()), wd = d.getDay();
+    const hit = byDay[k] && byDay[k].n >= goal;
+    if (hit) { streak++; continue; }
+    if (k === todayK) continue;            // 今天還沒達標不算斷
+    if (wd === 0 || wd === 6) continue;    // 週末不算斷
+    break;
+  }
+  const t = byDay[todayK] || { n: 0, dev: 0, xp: 0 };
+  // 本週經驗值（排行榜用）
+  const mon = new Date(d0); mon.setHours(0, 0, 0, 0); mon.setDate(d0.getDate() - ((d0.getDay() + 6) % 7));
+  let wk = 0;
+  Object.keys(byDay).forEach(function (k) { if (new Date(k + 'T00:00:00') >= mon) { const d = byDay[k]; wk += d.xp + (d.n >= goal ? CC_XP_QUEST : 0) + (d.dev >= 1 ? CC_XP_QUEST : 0); } });
+  wk += myConv.filter(function (c) { return new Date(c.updated_at || 0) >= mon; }).length * CC_XP_CONVERT;
+  const L = ccLevelOf(xp);
+  return { xp: xp, lvl: L, title: ccTitleOf(L), into: xp - ccLvlNeed(L), need: ccLvlNeed(L + 1) - ccLvlNeed(L), streak: streak, today: t, week: wk };
+}
+function ccHudHtml(g, overdue, todayDue, board, extra) {
+  const pct = Math.max(2, Math.min(100, Math.round(g.into / g.need * 100)));
+  const goal = ccGoal();
+  const q = function (done, label, prog) { return '<div class="gm-q' + (done ? ' done' : '') + '"><span class="gm-qi">' + (done ? '✓' : '') + '</span><span class="gm-ql">' + label + '</span><span class="gm-qp">' + prog + '</span><span class="gm-qx">+' + CC_XP_QUEST + '</span></div>'; };
+  const me = currentUser.id;
+  const lb = board.slice(0, 4).map(function (r, i) { return '<div class="gm-lb' + (r.uid === me ? ' me' : '') + '"><span class="gm-lbn">' + ['🥇', '🥈', '🥉', '4'][i] + '</span><span class="gm-lbname">' + esc(r.name) + '</span><span class="gm-lbx">' + r.week + '</span></div>'; }).join('');
+  const myRank = board.findIndex(function (r) { return r.uid === me; }) + 1;
+  return '<div class="gm">'
+    + '<div class="gm-me"><div class="gm-badge"><span>Lv</span><b>' + g.lvl + '</b></div>'
+    +   '<div style="flex:1;min-width:0"><div class="gm-title">' + g.title[2] + ' ' + g.title[1] + '獵人</div>'
+    +   '<div class="gm-bar"><div style="width:' + pct + '%"></div></div>'
+    +   '<div class="gm-xp">' + fmtNum(g.into) + ' / ' + fmtNum(g.need) + ' XP・再 ' + fmtNum(g.need - g.into) + ' 升級</div></div></div>'
+    + '<div class="gm-quests"><div class="gm-h">今日任務<button type="button" class="gm-edit" onclick="ccSetGoal2()" title="改每日目標">✎</button></div>'
+    +   q(g.today.n >= goal, '處理 ' + goal + ' 筆', Math.min(g.today.n, goal) + '/' + goal)
+    +   q(g.today.dev >= 1, '送 1 筆進開發', Math.min(g.today.dev, 1) + '/1')
+    +   q(todayDue === 0, '今日待打清空', todayDue ? '剩 ' + todayDue : '✓')
+    + '</div>'
+    + '<div class="gm-side"><div class="gm-streak' + (g.streak ? ' on' : '') + '"><b>🔥 ' + g.streak + '</b><span>天連續達標</span></div>'
+    +   '<div class="gm-board"><div class="gm-h">本週排行' + (myRank ? '<span style="margin-left:auto;opacity:.7">你第 ' + myRank + '</span>' : '') + '</div>' + (lb || '<div class="gm-lb" style="opacity:.6">還沒有人上榜</div>') + '</div></div>'
+    + (extra || '')
+    + '</div>';
+}
+function ccSetGoal2() {
+  openModal('🎯 每日處理目標', '<div class="form-group"><label class="form-label">每天想處理幾筆？（移到再聯絡、結案、進開發都算）</label><input class="form-input" id="ccGoalIn" type="number" min="1" max="200" value="' + ccGoal() + '"></div>', [
+    { label: '取消', cls: 'btn-secondary', action: closeModal },
+    { label: '儲存', cls: 'btn-primary', action: function () { const v = parseInt(document.getElementById('ccGoalIn').value); if (!(v > 0)) { toast('請填大於 0 的數字', 'error'); return; } try { localStorage.setItem('ccGoal2_' + currentUser.id, String(v)); } catch (e) {} closeModal(); renderCcBoard(); } }
+  ]);
+}
+function ccLevelUp(L) {
+  const t = ccTitleOf(L);
+  const el = document.createElement('div'); el.className = 'gm-lvup';
+  el.innerHTML = '<div class="a">LEVEL UP</div><div class="b">Lv ' + L + '</div><div class="c">' + t[2] + ' ' + t[1] + '獵人</div>';
+  document.body.appendChild(el);
+  requestAnimationFrame(function () { el.classList.add('on'); });
+  setTimeout(function () { el.classList.remove('on'); }, 1800);
+  setTimeout(function () { el.remove(); }, 2300);
+}
+function ccCheckLevel(L) {
+  const key = 'sf_cc_lvl_' + currentUser.id; let prev = 0;
+  try { prev = parseInt(localStorage.getItem(key)) || 0; localStorage.setItem(key, String(L)); } catch (e) {}
+  if (prev && L > prev) ccLevelUp(L);
+}
+
+// ── 陌開：每月 KPI（管理員設定，HUD 與統計顯示）──
+const CC_KPI_KINDS = { calls: '處理筆數', rate: '轉換率', conv: '轉線索' };
+function ccMonthKey(d) { d = d || new Date(); return d.getFullYear() + '-' + _pad2(d.getMonth() + 1); }
+async function ccLoadKpis(month) {
+  const r = await db.from('cc_kpis').select('*').eq('month', month || ccMonthKey());
+  return r.error ? [] : (r.data || []);
+}
+// 某人本月 KPI 進度
+function ccKpiProgress(uid, kpis, logs, convs, month) {
+  month = month || ccMonthKey();
+  const L = logs.filter(function (l) { return l.user_id === uid && String(l.called_at || '').slice(0, 7) === month; });
+  const touched = new Set(L.map(function (l) { return l.cold_call_id; })).size;
+  const dev = new Set(L.filter(function (l) { return l.outcome === 'interested'; }).map(function (l) { return l.cold_call_id; })).size;
+  const conv = convs.filter(function (c) { return c.owner_id === uid && String(c.updated_at || '').slice(0, 7) === month; }).length;
+  const mine = kpis.filter(function (k) { return !k.user_id || k.user_id === uid; });
+  return mine.map(function (k) {
+    const t = Number(k.target) || 0;
+    let cur, pct, done, label, sub = '';
+    if (k.kind === 'calls') { cur = L.length; pct = t ? cur / t : 0; done = cur >= t; label = '處理 ' + fmtNum(t) + ' 筆'; sub = fmtNum(cur) + '/' + fmtNum(t); }
+    else if (k.kind === 'conv') { cur = conv; pct = t ? cur / t : 0; done = cur >= t; label = '轉線索 ' + t + ' 筆'; sub = cur + '/' + t; }
+    else {
+      const rate = touched ? dev / touched * 100 : 0; const minC = Number(k.min_calls) || 0;
+      cur = Math.round(rate * 10) / 10; const okMin = L.length >= minC;
+      pct = Math.min(t ? rate / t : 0, minC ? L.length / minC : 1); done = rate >= t && okMin;
+      label = '轉換率 ' + t + '%' + (minC ? '（至少 ' + minC + ' 筆）' : ''); sub = cur + '%' + (minC ? '・' + L.length + '/' + minC + ' 筆' : '');
+    }
+    return { k: k, pct: Math.max(0, Math.min(1, pct)), done: done, label: label, sub: sub, bonus: Number(k.bonus) || 0 };
+  });
+}
+function ccKpiHudHtml(prog, canEdit) {
+  if (!prog.length && !canEdit) return '';
+  const d = new Date(), end = new Date(d.getFullYear(), d.getMonth() + 1, 0), left = end.getDate() - d.getDate();
+  const total = prog.reduce(function (s, p) { return s + p.bonus; }, 0), got = prog.filter(function (p) { return p.done; }).reduce(function (s, p) { return s + p.bonus; }, 0);
+  return '<div class="gm-kpi"><div class="gm-h">' + (d.getMonth() + 1) + ' 月 KPI・剩 ' + left + ' 天' + (total ? '<span style="margin-left:auto;color:#ffd76a;opacity:1">💰 ' + fmtNum(got) + ' / ' + fmtNum(total) + '</span>' : '') + (canEdit ? '<button type="button" class="gm-edit" onclick="ccOpenKpiEditor()" title="設定本月 KPI">✎</button>' : '') + '</div>'
+    + (prog.length ? prog.map(function (p) {
+      return '<div class="gm-boss' + (p.done ? ' done' : '') + '"><div class="gm-bt"><span>' + (p.done ? '🏆 ' : '⚔️ ') + esc(p.label) + '</span><span class="gm-bs">' + esc(p.sub) + '</span>' + (p.bonus ? '<span class="gm-bb">$' + fmtNum(p.bonus) + '</span>' : '') + '</div><div class="gm-bbar"><div style="width:' + Math.round(p.pct * 100) + '%"></div></div></div>';
+    }).join('') : '<div style="font-size:12.5px;opacity:.7">本月還沒設定 KPI</div>')
+    + '</div>';
+}
+function ccKpiCelebrate(prog) {
+  prog.forEach(function (p) {
+    if (!p.done) return;
+    const key = 'sf_kpi_done_' + currentUser.id + '_' + p.k.id;
+    let seen = false; try { seen = !!localStorage.getItem(key); localStorage.setItem(key, '1'); } catch (e) {}
+    if (seen) return;
+    const el = document.createElement('div'); el.className = 'gm-lvup';
+    el.innerHTML = '<div class="a">MISSION COMPLETE</div><div class="b" style="font-size:64px">🏆</div><div class="c">' + esc(p.label) + (p.bonus ? '・獎金 $' + fmtNum(p.bonus) : '') + '</div>';
+    document.body.appendChild(el); requestAnimationFrame(function () { el.classList.add('on'); });
+    setTimeout(function () { el.classList.remove('on'); }, 2200); setTimeout(function () { el.remove(); }, 2700);
+  });
+}
+let _kpiRows = [];
+async function ccOpenKpiEditor(month) {
+  if (!window.isAdmin) return;
+  month = month || ccMonthKey();
+  const rows = await ccLoadKpis(month);
+  _kpiRows = rows.map(function (r) { return { user_id: r.user_id || '', kind: r.kind, target: r.target, min_calls: r.min_calls || '', bonus: r.bonus || '' }; });
+  if (!_kpiRows.length) _kpiRows = [{ user_id: '', kind: 'calls', target: 400, min_calls: '', bonus: '' }];
+  window._kpiMonth = month;
+  openModal('陌開 KPI', '<div class="form-group"><label class="form-label">月份</label><input class="form-input" type="month" id="kpiMonth" value="' + month + '" onchange="ccOpenKpiEditor(this.value)" style="width:auto"></div><div id="kpiRows"></div>'
+    + '<button class="btn btn-secondary btn-sm" onclick="_kpiRows.push({user_id:\'\',kind:\'conv\',target:5,min_calls:\'\',bonus:\'\'});ccDrawKpiRows()">＋ 加一個目標</button>'
+    + '<div style="font-size:12px;color:var(--text3);margin-top:10px">對象選「全員」＝每個業務各自要達到。轉換率＝進開發 ÷ 處理過的名單。</div>', [
+    { label: '取消', cls: 'btn-secondary', action: closeModal },
+    { label: '儲存', cls: 'btn-primary', action: ccSaveKpis }
+  ]);
+  document.getElementById('modalBox').style.maxWidth = '720px';
+  ccDrawKpiRows();
+}
+function ccDrawKpiRows() {
+  const el = document.getElementById('kpiRows'); if (!el) return;
+  const who = '<option value="">全員</option>' + usersData.map(function (u) { return '<option value="' + u.id + '">' + esc(u.full_name || u.email || '') + '</option>'; }).join('');
+  el.innerHTML = _kpiRows.map(function (r, i) {
+    const set = function (k) { return 'oninput="_kpiRows[' + i + '].' + k + '=this.value"'; };
+    return '<div class="kpi-row">'
+      + '<select class="form-select" onchange="_kpiRows[' + i + '].user_id=this.value">' + who.replace('value="' + r.user_id + '"', 'value="' + r.user_id + '" selected') + '</select>'
+      + '<select class="form-select" onchange="_kpiRows[' + i + '].kind=this.value;ccDrawKpiRows()">' + Object.keys(CC_KPI_KINDS).map(function (k) { return '<option value="' + k + '"' + (r.kind === k ? ' selected' : '') + '>' + CC_KPI_KINDS[k] + '</option>'; }).join('') + '</select>'
+      + '<label class="kpi-in"><input class="form-input" type="number" min="0" value="' + esc(String(r.target)) + '" ' + set('target') + '><span>' + (r.kind === 'rate' ? '%' : '筆') + '</span></label>'
+      + (r.kind === 'rate' ? '<label class="kpi-in"><span>至少</span><input class="form-input" type="number" min="0" value="' + esc(String(r.min_calls)) + '" ' + set('min_calls') + '><span>筆</span></label>' : '<span></span>')
+      + '<label class="kpi-in"><span>獎金</span><input class="form-input" type="number" min="0" placeholder="選填" value="' + esc(String(r.bonus)) + '" ' + set('bonus') + '></label>'
+      + '<button class="btn btn-ghost btn-sm" onclick="_kpiRows.splice(' + i + ',1);ccDrawKpiRows()">🗑</button></div>';
+  }).join('');
+}
+async function ccSaveKpis() {
+  const month = window._kpiMonth || ccMonthKey();
+  const rows = _kpiRows.filter(function (r) { return Number(r.target) > 0; }).map(function (r) { return { month: month, user_id: r.user_id || null, kind: r.kind, target: Number(r.target), min_calls: r.kind === 'rate' && r.min_calls !== '' ? parseInt(r.min_calls) : null, bonus: r.bonus !== '' ? Number(r.bonus) : null }; });
+  const d = await db.from('cc_kpis').delete().eq('month', month);
+  if (d.error) { toast('儲存失敗：' + d.error.message, 'error'); return; }
+  if (rows.length) { const ins = await db.from('cc_kpis').insert(rows); if (ins.error) { toast('儲存失敗：' + ins.error.message, 'error'); return; } }
+  closeModal(); toast(month + ' KPI 已設定', 'success');
+  if (currentPage === 'ccboard') renderCcBoard(); else if (currentPage === 'ccstats') renderCcStats2();
 }
 
 // ── 陌開：進度看板（我的名單池 / 今日待打 / 再聯絡 / 結案 / 進開發）──
@@ -1823,25 +2145,30 @@ function ccbColOf(c) {
 async function renderCcBoard() {
   if (!usersData.length) await loadGlobalData();
   const content = document.getElementById('content');
-  document.getElementById('topbarActions').innerHTML = '<div class="action-bar"><button class="btn btn-primary btn-sm" onclick="navigate(\'coldcall\')">▶ 開打</button></div>';
+  document.getElementById('topbarActions').innerHTML = '';
   if (ccbScope === null) ccbScope = currentUser.id;
-  const [r, sc] = await Promise.all([db.from('cold_calls').select('*').eq('owner_id', ccbScope).order('updated_at', { ascending: false }), ccTodayScore()]);
+  const [r, lr, cvr, kpiRows] = await Promise.all([
+    db.from('cold_calls').select('*').eq('owner_id', ccbScope).order('updated_at', { ascending: false }),
+    db.from('call_logs').select('cold_call_id,outcome,called_at,user_id,user_name'),
+    db.from('cold_calls').select('id,owner_id,owner_name,updated_at').eq('status', 'converted'),
+    ccLoadKpis()
+  ]);
+
   if (currentPage !== 'ccboard') return;
   if (r.error) { content.innerHTML = '<div class="cp-card" style="color:var(--red)">讀取失敗：' + esc(r.error.message) + '</div>'; return; }
   const all = r.data || [];
   window._ccBoard = all;
   const list = all.filter(function (c) { return ccbGrade === 'all' || String(c.grade || '').toUpperCase() === ccbGrade; });
   const dueOf = function (c) { if (!c.next_call_at) return null; return daysUntil(String(c.next_call_at).slice(0, 10)); };
-  const rank = ccRankOf(sc.pts);
-  const goalPct = Math.min(100, Math.round(sc.calls / sc.goal * 100));
-  const hud = '<div class="cc-hud" style="margin:0;flex:1;min-width:260px">'
-    + '<div style="cursor:pointer" onclick="ccSetDailyGoal()" title="點我改每日目標"><div class="cc-hud-n">' + sc.calls + '<span style="font-size:12px;color:var(--text3);font-weight:500"> / ' + sc.goal + '</span></div><div class="cc-hud-l">今天撥打</div></div>'
-    + '<div class="cc-hud-bar"><div style="width:' + goalPct + '%"></div></div>'
-    + '<div style="text-align:center"><div class="cc-hud-n" style="color:var(--green)">' + sc.conn + '</div><div class="cc-hud-l">接通</div></div>'
-    + '<div style="text-align:center"><div class="cc-hud-n" style="color:var(--yellow)">' + sc.hot + '</div><div class="cc-hud-l">有興趣</div></div>'
-    + '<div style="text-align:center"><div class="cc-hud-n" style="color:var(--accent)">' + sc.pts + '</div><div class="cc-hud-l">' + rank[2] + ' ' + rank[1] + '</div></div>'
-    + '</div>';
-  const todayN = list.filter(function (c) { return ccbColOf(c) === 'today'; }).length;
+  const logsAll = lr.data || [], convs = cvr.data || [];
+  const goal = ccGoal();
+  const g = ccGameOf(ccbScope, logsAll, convs, goal);
+  const names = {}; logsAll.forEach(function (l) { names[l.user_id] = l.user_name || names[l.user_id]; }); convs.forEach(function (c) { names[c.owner_id] = names[c.owner_id] || c.owner_name; });
+  const board = Object.keys(names).filter(Boolean).map(function (u) { return { uid: u, name: userNameById(u, names[u] || ''), week: ccGameOf(u, logsAll, convs, goal).week }; }).filter(function (x) { return x.week > 0; }).sort(function (a, b) { return b.week - a.week; });
+  const todayN = all.filter(function (c) { return ccbColOf(c) === 'today'; }).length;
+  const kprog = ccKpiProgress(ccbScope, kpiRows || [], logsAll, convs);
+  const hud = ccHudHtml(g, 0, todayN, board, ccKpiHudHtml(kprog, window.isAdmin));
+  if (ccbScope === currentUser.id) { ccCheckLevel(g.lvl); setTimeout(function () { ccKpiCelebrate(kprog); }, 300); }
   let scopeSel = '';
   if (window.isAdmin) scopeSel = '<select class="form-select" style="width:auto;height:30px;font-size:12.5px;padding:0 24px 0 8px" onchange="ccbScope=this.value;renderCcBoard()">' + usersData.map(function (u) { return '<option value="' + u.id + '"' + (u.id === ccbScope ? ' selected' : '') + '>' + esc(u.full_name || u.email || '') + '</option>'; }).join('') + '</select>';
   const gradeChips = ['all', 'A', 'B', 'C'].map(function (g) { return '<button class="ml-chip' + (ccbGrade === g ? ' on' : '') + '" onclick="ccbGrade=\'' + g + '\';renderCcBoard()">' + (g === 'all' ? '全部等級' : g + ' ' + CC_GRADES[g]) + '</button>'; }).join('');
@@ -1881,7 +2208,7 @@ async function renderCcBoard() {
       + '<div class="kanban-cards">' + (items.slice(0, 80).map(function (c) { return card(c, k[0]); }).join('') || '<div style="height:30px"></div>') + '</div></div>';
   }).join('');
   content.style.padding = '16px'; content.style.overflowX = 'auto';
-  content.innerHTML = '<div class="ccb-head">' + hud + '<button class="ccb-go" onclick="navigate(\'coldcall\')">▶ 開打' + (todayN ? '（' + todayN + ' 通）' : '') + '</button></div>'
+  content.innerHTML = hud
     + '<div class="kanban-filters" style="gap:10px">' + scopeSel + '<div class="ml-chips" style="margin:0">' + gradeChips + '</div><span style="flex:1"></span><a href="#" onclick="event.preventDefault();navigate(\'ccpool\')" style="font-size:12.5px">公海拿名單 →</a></div>'
     + '<div class="ccb-board">' + cols + '</div>';
   content.querySelectorAll('.ccb-card').forEach(function (el) {
@@ -1970,18 +2297,17 @@ async function ccbCommit(c, outcome, upd, note, keepModal) {
     const { error } = await db.from('cold_calls').update(upd).eq('id', c.id);
     if (error) { toast('儲存失敗：' + error.message + (/close_reason/.test(error.message) ? '（請先執行 v10 SQL）' : ''), 'error'); return false; }
     Object.assign(c, upd);
-    const gained = ccLogPoints({ outcome: outcome }); ccPop('+' + gained, (CC_OUTCOMES[outcome] || {}).color);
-    if (!keepModal) { closeModal(); toast('已記錄　+' + gained + ' 分', 'success'); renderCcBoard(); }
+    const gained = CC_XP[outcome] || 10; ccPop('+' + gained + ' XP', outcome === 'interested' ? 'var(--green)' : 'var(--accent)');
+    if (!keepModal) { closeModal(); toast('已記錄　+' + gained + ' XP', 'success'); renderCcBoard(); }
     else closeModal();
     return true;
   } finally { ccBusy = false; }
 }
 
 // ── 陌開：統計 ──
-let ccsScope = 'all';
-function svgBars(series, labels, opts) {
-  // series: [{vals, color, line}] ; 簡單雙軸：bars 用左軸，line 用右軸（百分比或次數）
-  const W = 600, H = 180, padL = 30, padR = 30, padT = 10, padB = 24;
+let ccsScope = 'all', ccsPeriod = 'month';
+function svgBars(series, labels) {
+  const W = 600, H = 180, padL = 24, padR = 24, padT = 14, padB = 24;
   const n = labels.length; const bw = (W - padL - padR) / n;
   const bars = series.filter(function (x) { return !x.line; }), lines = series.filter(function (x) { return x.line; });
   const maxB = Math.max(1, ...bars.flatMap(function (x) { return x.vals; }));
@@ -1989,15 +2315,15 @@ function svgBars(series, labels, opts) {
   let g = '';
   bars.forEach(function (sr, si) {
     sr.vals.forEach(function (v, i) {
-      const h = (H - padT - padB) * v / maxB, x = padL + i * bw + bw * 0.15 + si * (bw * 0.7 / bars.length), w = bw * 0.7 / bars.length;
-      g += '<rect x="' + x + '" y="' + (H - padB - h) + '" width="' + w + '" height="' + h + '" rx="2" fill="' + sr.color + '"></rect>';
-      if (v) g += '<text x="' + (x + w / 2) + '" y="' + (H - padB - h - 3) + '" font-size="9" text-anchor="middle" fill="var(--text3)">' + v + '</text>';
+      const h = (H - padT - padB) * v / maxB, x = padL + i * bw + bw * 0.18 + si * (bw * 0.64 / bars.length), w = bw * 0.64 / bars.length;
+      g += '<rect x="' + x + '" y="' + (H - padB - h) + '" width="' + w + '" height="' + h + '" rx="3" fill="' + sr.color + '" opacity=".85"></rect>';
+      if (v) g += '<text x="' + (x + w / 2) + '" y="' + (H - padB - h - 4) + '" font-size="10" text-anchor="middle" fill="var(--text3)">' + v + '</text>';
     });
   });
   lines.forEach(function (sr) {
     const pts = sr.vals.map(function (v, i) { return [padL + i * bw + bw / 2, H - padB - (H - padT - padB) * v / maxL]; });
-    g += '<polyline points="' + pts.map(function (p) { return p.join(','); }).join(' ') + '" fill="none" stroke="' + sr.color + '" stroke-width="2"></polyline>';
-    pts.forEach(function (p, i) { g += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3" fill="' + sr.color + '"></circle>' + (sr.vals[i] ? '<text x="' + p[0] + '" y="' + (p[1] - 6) + '" font-size="9" text-anchor="middle" fill="' + sr.color + '">' + sr.vals[i] + (sr.pct ? '%' : '') + '</text>' : ''); });
+    g += '<polyline points="' + pts.map(function (p) { return p.join(','); }).join(' ') + '" fill="none" stroke="' + sr.color + '" stroke-width="2.2"></polyline>';
+    pts.forEach(function (p, i) { g += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3.5" fill="' + sr.color + '"></circle>' + (sr.vals[i] ? '<text x="' + p[0] + '" y="' + (p[1] - 8) + '" font-size="10" font-weight="700" text-anchor="middle" fill="' + sr.color + '">' + sr.vals[i] + (sr.pct ? '%' : '') + '</text>' : ''); });
   });
   labels.forEach(function (l, i) { g += '<text x="' + (padL + i * bw + bw / 2) + '" y="' + (H - 6) + '" font-size="10" text-anchor="middle" fill="var(--text3)">' + esc(l) + '</text>'; });
   return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">' + g + '</svg>';
@@ -2005,61 +2331,124 @@ function svgBars(series, labels, opts) {
 async function renderCcStats2() {
   if (!usersData.length) await loadGlobalData();
   const content = document.getElementById('content');
-  document.getElementById('topbarActions').innerHTML = '<div class="action-bar"><button class="btn btn-secondary btn-sm" onclick="navigate(\'cclist\')">全部名單</button></div>';
-  const [cr, lr] = await Promise.all([db.from('cold_calls').select('id,status,owner_id,owner_name,attempts,next_call_at,created_at,updated_at,lead_id'), db.from('call_logs').select('cold_call_id,outcome,called_at,user_id,user_name')]);
+  document.getElementById('topbarActions').innerHTML = window.isAdmin ? '<div class="action-bar"><button class="btn btn-primary btn-sm" onclick="ccOpenKpiEditor()">🎯 設定本月 KPI</button></div>' : '';
+  const kpiRows = await ccLoadKpis();
+  const [cr, lr] = await Promise.all([db.from('cold_calls').select('id,status,owner_id,owner_name,attempts,next_call_at,created_at,updated_at,lead_id,batch,source,close_reason'), db.from('call_logs').select('cold_call_id,outcome,called_at,user_id,user_name')]);
   if (currentPage !== 'ccstats') return;
   if (cr.error || lr.error) { content.innerHTML = '<div class="cp-card" style="color:var(--red)">讀取失敗</div>'; return; }
   const cc = cr.data || [], logs = lr.data || [];
+  // 陌開帶來的成交
+  const leadIds = cc.filter(function (c) { return c.lead_id; }).map(function (c) { return c.lead_id; });
+  let deals = [];
+  if (leadIds.length) {
+    const ar = await db.from('accounts').select('id,lead_id').in('lead_id', leadIds);
+    const accs = ar.data || [];
+    if (accs.length) {
+      const ctr = await db.from('contracts').select('account_id,amount,signed_date').in('account_id', accs.map(function (a) { return a.id; }));
+      (ctr.data || []).forEach(function (ct) { const a = accs.find(function (x) { return x.id === ct.account_id; }); const c = a && cc.find(function (x) { return x.lead_id === a.lead_id; }); if (c) deals.push({ cc: c, amount: Number(ct.amount) || 0, date: ct.signed_date }); });
+    }
+  }
+  if (currentPage !== 'ccstats') return;
   if (!window.isAdmin) ccsScope = currentUser.id;
-  const mine = function (uid) { return ccsScope === 'all' || uid === ccsScope; };
-  const C = cc.filter(function (c) { return c.owner_id ? mine(c.owner_id) : ccsScope === 'all'; });
-  const L = logs.filter(function (l) { return mine(l.user_id); });
-  const pool = cc.filter(function (c) { return !c.owner_id && c.status !== 'converted' && c.status !== 'rejected' && c.status !== 'invalid'; }).length;
+  const inScopeUser = function (uid) { return ccsScope === 'all' || uid === ccsScope; };
+  const C = cc.filter(function (c) { return ccsScope === 'all' ? true : c.owner_id === ccsScope; });
+  const L = logs.filter(function (l) { return inScopeUser(l.user_id); });
+  const D = deals.filter(function (d) { return ccsScope === 'all' || d.cc.owner_id === ccsScope; });
   // 期間
   const now = new Date(); const ymd = function (d) { return d.getFullYear() + '-' + _pad2(d.getMonth() + 1) + '-' + _pad2(d.getDate()); };
-  const monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay() + 6) % 7)); const wk0 = ymd(monday);
-  const mo0 = now.getFullYear() + '-' + _pad2(now.getMonth() + 1) + '-01';
-  const inP = function (iso, from) { return String(iso || '').slice(0, 10) >= from; };
-  const rate = function (from) {
-    const Ls = L.filter(function (l) { return inP(l.called_at, from); });
-    const called = new Set(Ls.map(function (l) { return l.cold_call_id; })).size;
-    const conv = Ls.filter(function (l) { return l.outcome === 'interested'; }).length;
-    return { calls: Ls.length, called: called, conv: conv, pct: called ? Math.round(conv / called * 1000) / 10 : 0 };
-  };
-  const wk = rate(wk0), mo = rate(mo0);
-  const touched = C.filter(function (c) { return (c.attempts || 0) > 0 || c.status === 'converted'; }).length;
+  const monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const P = { week: [ymd(monday), '本週'], month: [now.getFullYear() + '-' + _pad2(now.getMonth() + 1) + '-01', '本月'], q: [ymd(new Date(now.getTime() - 89 * 86400000)), '近 90 天'], all: ['0000', '全部'] };
+  const from = P[ccsPeriod][0];
+  const inP = function (iso) { return String(iso || '').slice(0, 10) >= from; };
+  const Lp = L.filter(function (l) { return inP(l.called_at); });
+  const touchedIds = new Set(Lp.map(function (l) { return l.cold_call_id; }));
+  const devIds = new Set(Lp.filter(function (l) { return l.outcome === 'interested'; }).map(function (l) { return l.cold_call_id; }));
+  const convP = C.filter(function (c) { return c.status === 'converted' && inP(c.updated_at); });
+  const dealsP = D.filter(function (d) { return inP(d.date); });
+  const dealAmt = dealsP.reduce(function (s, d) { return s + d.amount; }, 0);
+  const dealCos = new Set(dealsP.map(function (d) { return d.cc.id; })).size;
+  const rate = touchedIds.size ? Math.round(devIds.size / touchedIds.size * 1000) / 10 : 0;
+  // 公海可撐幾天：近 14 天每天「第一次被處理」的名單數
+  const pool = cc.filter(function (c) { return !c.owner_id && ['converted', 'rejected', 'invalid'].indexOf(c.status) < 0; }).length;
+  const firstTouch = {}; logs.forEach(function (l) { if (!firstTouch[l.cold_call_id] || l.called_at < firstTouch[l.cold_call_id]) firstTouch[l.cold_call_id] = l.called_at; });
+  const since14 = ymd(new Date(now.getTime() - 13 * 86400000));
+  const newPerDay = Object.values(firstTouch).filter(function (t) { return String(t).slice(0, 10) >= since14; }).length / 10;
+  const lastDays = newPerDay > 0 ? Math.round(pool / newPerDay) : null;
+  // KPI
+  const k = function (n, l, sub, color) { return '<div class="st-k"><div class="n"' + (color ? ' style="color:' + color + '"' : '') + '>' + n + '</div><div class="l">' + l + '</div>' + (sub ? '<div class="l" style="margin-top:2px;opacity:.85">' + sub + '</div>' : '') + '</div>'; };
+  const kpis = k(pool, '公海名單', lastDays != null ? '約可撐 ' + lastDays + ' 個工作天' : '', lastDays != null && lastDays < 10 ? 'var(--red)' : '')
+    + k(Lp.length, P[ccsPeriod][1] + '處理', touchedIds.size + ' 家名單')
+    + k(devIds.size, P[ccsPeriod][1] + '進開發', '轉換率 ' + rate + '%', 'var(--accent)')
+    + k(convP.length, '轉成線索')
+    + k(dealCos, '陌開成交', dealCos ? '$' + fmtNum(dealAmt) : '', dealCos ? 'var(--green)' : '');
+  // 漏斗（全部期間：以名單為單位）
+  const everTouched = new Set(L.map(function (l) { return l.cold_call_id; }));
+  const everDev = new Set(L.filter(function (l) { return l.outcome === 'interested'; }).map(function (l) { return l.cold_call_id; }));
+  const claimed = C.filter(function (c) { return c.owner_id || everTouched.has(c.id); }).length;
   const conv = C.filter(function (c) { return c.status === 'converted'; }).length;
-  const cum = touched ? Math.round(conv / touched * 1000) / 10 : 0;
+  const won = new Set(D.map(function (d) { return d.cc.id; })).size;
+  const steps = [['認領', claimed], ['處理過', everTouched.size], ['進開發', everDev.size], ['轉線索', conv], ['成交', won]];
+  const maxS = Math.max(1, steps[0][1]);
+  const funnel = steps.map(function (st, i) {
+    const pr = i ? (steps[i - 1][1] ? Math.round(st[1] / steps[i - 1][1] * 1000) / 10 + '%' : '—') : '';
+    return '<div class="fn-row"><span class="fn-l">' + st[0] + '</span><div class="fn-bar"><div style="width:' + Math.max(2, Math.round(st[1] / maxS * 100)) + '%"></div></div><span class="fn-n">' + st[1] + '</span><span class="fn-p">' + pr + '</span></div>';
+  }).join('');
+  // 週趨勢
+  const weeks = [], wl = [];
+  for (let i = 7; i >= 0; i--) { const d = new Date(monday); d.setDate(monday.getDate() - i * 7); const e = new Date(d); e.setDate(d.getDate() + 6); weeks.push([ymd(d), ymd(e)]); wl.push(_pad2(d.getMonth() + 1) + '/' + _pad2(d.getDate())); }
+  const wb = weeks.map(function (rg) { const Ls = L.filter(function (l) { const d = String(l.called_at || '').slice(0, 10); return d >= rg[0] && d <= rg[1]; }); return { n: Ls.length, dev: Ls.filter(function (l) { return l.outcome === 'interested'; }).length }; });
+  const chart = '<div class="st-chart"><div class="t">每週處理與進開發<span class="lg"><span style="color:var(--accent)">■</span> 處理　<span style="color:var(--green)">●</span> 進開發</span></div>'
+    + svgBars([{ vals: wb.map(function (x) { return x.n; }), color: 'var(--accent)' }, { vals: wb.map(function (x) { return x.dev; }), color: 'var(--green)', line: true }], wl) + '</div>';
+  // 結案原因
+  const closed = C.filter(function (c) { return (c.status === 'rejected' || c.status === 'invalid') && inP(c.updated_at); });
+  const reasons = {}; closed.forEach(function (c) { const r = c.close_reason || '未填原因'; reasons[r] = (reasons[r] || 0) + 1; });
+  const rk = Object.keys(reasons).sort(function (a, b) { return reasons[b] - reasons[a]; });
+  const reasonHtml = rk.length ? rk.map(function (r) { const pct = Math.round(reasons[r] / closed.length * 100); return '<div class="fn-row"><span class="fn-l" style="width:72px">' + esc(r) + '</span><div class="fn-bar red"><div style="width:' + Math.max(2, pct) + '%"></div></div><span class="fn-n">' + reasons[r] + '</span><span class="fn-p">' + pct + '%</span></div>'; }).join('') : '<div style="font-size:12.5px;color:var(--text3)">這段期間沒有結案</div>';
+  // 名單批次品質（全部期間）
+  const groups = {};
+  C.forEach(function (c) { const g = c.batch || c.source || '未標示'; const x = groups[g] = groups[g] || { n: 0, t: 0, dev: 0, conv: 0, won: 0, amt: 0, rs: {} }; x.n++; if (everTouched.has(c.id)) x.t++; if (everDev.has(c.id)) x.dev++; if (c.status === 'converted') x.conv++; if (c.close_reason) x.rs[c.close_reason] = (x.rs[c.close_reason] || 0) + 1; });
+  D.forEach(function (d) { const g = d.cc.batch || d.cc.source || '未標示'; if (groups[g]) { groups[g].amt += d.amount; } });
+  new Set(D.map(function (d) { return d.cc.id; })).forEach(function (id) { const c = C.find(function (x) { return x.id === id; }); const g = c && (c.batch || c.source || '未標示'); if (g && groups[g]) groups[g].won++; });
+  const gk = Object.keys(groups).sort(function (a, b) { const ra = groups[a].t ? groups[a].dev / groups[a].t : -1, rb = groups[b].t ? groups[b].dev / groups[b].t : -1; return rb - ra; });
+  const batchRows = gk.map(function (g) { const x = groups[g]; const top = Object.keys(x.rs).sort(function (a, b) { return x.rs[b] - x.rs[a]; })[0]; return '<tr><td style="font-weight:500">' + esc(g) + '</td><td>' + x.n + '</td><td>' + x.t + '<span style="color:var(--text3);font-size:11px"> （' + (x.n ? Math.round(x.t / x.n * 100) : 0) + '%）</span></td><td>' + x.dev + '</td><td style="font-family:var(--mono);font-weight:600;color:var(--accent)">' + (x.t ? Math.round(x.dev / x.t * 1000) / 10 : 0) + '%</td><td>' + x.won + (x.amt ? '<span style="color:var(--green);font-size:11.5px"> $' + fmtNum(x.amt) + '</span>' : '') + '</td><td style="font-size:12px;color:var(--text3)">' + esc(top || '—') + '</td></tr>'; }).join('');
   // 每人
   const reps = {};
-  cc.forEach(function (c) { if (!c.owner_id) return; const k = c.owner_id; reps[k] = reps[k] || { name: c.owner_name || userNameById(k, ''), pool: 0, today: 0, callback: 0, closed: 0, dev: 0, conv: 0, touched: 0 }; const col = ccbColOf(c); reps[k][col] += 1; if (c.status === 'converted') reps[k].conv += 1; if ((c.attempts || 0) > 0 || c.status === 'converted') reps[k].touched += 1; });
-  const repRows = Object.keys(reps).map(function (k) { const r = reps[k]; const tot = r.pool + r.today + r.callback; return '<tr' + (window.isAdmin ? ' style="cursor:pointer" onclick="ccsScope=\'' + k + '\';renderCcStats2()"' : '') + '><td style="font-weight:500">' + esc(r.name) + '</td><td>' + tot + '</td><td>' + r.pool + '</td><td style="color:' + (r.today ? 'var(--yellow)' : 'inherit') + '">' + r.today + '</td><td>' + r.callback + '</td><td>' + r.closed + '</td><td>' + r.dev + '</td><td style="font-family:var(--mono)">' + (r.touched ? Math.round(r.conv / r.touched * 1000) / 10 : 0) + '%</td></tr>'; }).join('');
-  // 週曲線（8 週）與月曲線（6 月）
-  const weeks = [], wl = [];
-  for (let i = 7; i >= 0; i--) { const d = new Date(monday); d.setDate(monday.getDate() - i * 7); const a = ymd(d); const e = new Date(d); e.setDate(d.getDate() + 6); weeks.push([a, ymd(e)]); wl.push(_pad2(d.getMonth() + 1) + '/' + _pad2(d.getDate())); }
-  const months = [], ml = [];
-  for (let i = 5; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); const a = ymd(d); const e = new Date(d.getFullYear(), d.getMonth() + 1, 0); months.push([a, ymd(e)]); ml.push((d.getMonth() + 1) + '月'); }
-  const bucket = function (ranges) {
-    return ranges.map(function (rg) {
-      const Ls = L.filter(function (l) { const d = String(l.called_at || '').slice(0, 10); return d >= rg[0] && d <= rg[1]; });
-      const called = new Set(Ls.map(function (l) { return l.cold_call_id; })).size;
-      const cv = Ls.filter(function (l) { return l.outcome === 'interested'; }).length;
-      return { calls: Ls.length, conv: cv, pct: called ? Math.round(cv / called * 1000) / 10 : 0 };
-    });
-  };
-  const wb = bucket(weeks), mb = bucket(months);
-  const chart = function (title, b, labels) {
-    return '<div class="st-chart"><div class="t">' + title + '<span class="lg"><span style="color:var(--accent)">■</span> 撥打　<span style="color:var(--green)">●</span> 轉換率 %</span></div>'
-      + svgBars([{ vals: b.map(function (x) { return x.calls; }), color: 'var(--accent)' }, { vals: b.map(function (x) { return x.pct; }), color: 'var(--green)', line: true, pct: true }], labels) + '</div>';
-  };
-  const k = function (n, l, color) { return '<div class="st-k"><div class="n"' + (color ? ' style="color:' + color + '"' : '') + '>' + n + '</div><div class="l">' + l + '</div></div>'; };
-  let scopeSel = '';
-  if (window.isAdmin) scopeSel = '<div class="ml-chips ml-seg" style="margin:0 0 12px"><button class="ml-chip' + (ccsScope === 'all' ? ' on' : '') + '" onclick="ccsScope=\'all\';renderCcStats2()">全公司</button>' + usersData.filter(function (u) { return reps[u.id]; }).map(function (u) { return '<button class="ml-chip' + (ccsScope === u.id ? ' on' : '') + '" onclick="ccsScope=\'' + u.id + '\';renderCcStats2()">' + esc(u.full_name || u.email || '') + '</button>'; }).join('') + '</div>';
+  cc.forEach(function (c) { if (!c.owner_id) return; const r = reps[c.owner_id] = reps[c.owner_id] || { name: c.owner_name || userNameById(c.owner_id, ''), hold: 0, due: 0, n: 0, t: new Set(), dev: new Set(), won: 0, amt: 0 }; if (['converted', 'rejected', 'invalid', 'interested'].indexOf(c.status) < 0) { r.hold++; if (c.next_call_at && String(c.next_call_at).slice(0, 10) <= ymd(now)) r.due++; } });
+  logs.forEach(function (l) { if (!inP(l.called_at)) return; const r = reps[l.user_id] = reps[l.user_id] || { name: l.user_name || userNameById(l.user_id, ''), hold: 0, due: 0, n: 0, t: new Set(), dev: new Set(), won: 0, amt: 0 }; r.n++; r.t.add(l.cold_call_id); if (l.outcome === 'interested') r.dev.add(l.cold_call_id); });
+  deals.forEach(function (d) { if (!inP(d.date)) return; const r = reps[d.cc.owner_id]; if (r) { r.won++; r.amt += d.amount; } });
+  const goal = ccGoal();
+  const convs = cc.filter(function (c) { return c.status === 'converted'; });
+  const repRows = Object.keys(reps).filter(function (u) { return window.isAdmin || u === currentUser.id; }).map(function (u) {
+    const r = reps[u]; const g = ccGameOf(u, logs, convs, goal); const rt = r.t.size ? Math.round(r.dev.size / r.t.size * 1000) / 10 : 0;
+    return '<tr' + (window.isAdmin ? ' style="cursor:pointer" onclick="ccsScope=\'' + u + '\';renderCcStats2()"' : '') + '><td style="font-weight:500">' + g.title[2] + ' ' + esc(r.name) + ' <span style="font-size:11px;color:var(--text3)">Lv' + g.lvl + '</span></td><td>' + r.hold + '</td><td style="color:' + (r.due ? 'var(--yellow)' : 'inherit') + '">' + r.due + '</td><td>' + r.n + '</td><td>' + r.dev.size + '</td><td style="font-family:var(--mono);font-weight:600">' + rt + '%</td><td>' + (r.won ? r.won + ' 家 <span style="color:var(--green)">$' + fmtNum(r.amt) + '</span>' : '—') + '</td><td>🔥 ' + g.streak + '</td></tr>';
+  }).join('');
+  const chip = function (v, l, cur, js) { return '<button class="ml-chip' + (cur === v ? ' on' : '') + '" onclick="' + js + '=\'' + v + '\';renderCcStats2()">' + l + '</button>'; };
+  let scopeSel = window.isAdmin ? '<div class="ml-chips ml-seg" style="margin:0">' + chip('all', '全公司', ccsScope, 'ccsScope') + usersData.filter(function (u) { return reps[u.id]; }).map(function (u) { return chip(u.id, esc(u.full_name || u.email || ''), ccsScope, 'ccsScope'); }).join('') + '</div>' : '';
+  const periodSel = '<div class="ml-chips ml-seg" style="margin:0">' + ['week', 'month', 'q', 'all'].map(function (p) { return chip(p, P[p][1], ccsPeriod, 'ccsPeriod'); }).join('') + '</div>';
   content.style.padding = '16px'; content.style.overflowX = '';
-  content.innerHTML = scopeSel
-    + '<div class="st-grid">' + k(pool, '公海名單', pool ? 'var(--accent)' : '') + k(wk.calls, '本週撥打') + k(mo.calls, '本月撥打') + k(wk.pct + '%', '本週轉換率（' + wk.conv + '／' + wk.called + ' 家）') + k(mo.pct + '%', '本月轉換率（' + mo.conv + '／' + mo.called + ' 家）') + k(cum + '%', '累積轉換率（' + conv + '／' + touched + ' 家）', 'var(--green)') + '</div>'
-    + chart('每週', wb, wl) + chart('每月', mb, ml)
-    + '<div class="panel" style="overflow:auto"><table class="data-table" style="min-width:640px"><thead><tr><th>業務</th><th>手上名單</th><th>名單池</th><th>今日待打</th><th>再聯絡</th><th>結案</th><th>進開發</th><th>累積轉換率</th></tr></thead><tbody>' + (repRows || '<tr><td colspan="8" style="color:var(--text3)">還沒有人認領名單</td></tr>') + '</tbody></table></div>';
+  const convAll = cc.filter(function (c) { return c.status === 'converted'; }).map(function (c) { return { id: c.id, owner_id: c.owner_id, updated_at: c.updated_at }; });
+  const kpiUsers = Object.keys(reps).filter(function (u) { return window.isAdmin || u === currentUser.id; });
+  let kpiTable = '';
+  if (kpiRows.length) {
+    const rowsK = kpiUsers.map(function (u) {
+      const pr = ccKpiProgress(u, kpiRows, logs, convAll); if (!pr.length) return '';
+      const got = pr.filter(function (p) { return p.done; }).reduce(function (s, p) { return s + p.bonus; }, 0);
+      return '<tr><td style="font-weight:500">' + esc(reps[u].name) + '</td><td>' + pr.map(function (p) { return '<div class="kpi-cell' + (p.done ? ' done' : '') + '"><span>' + (p.done ? '🏆' : '⚔️') + ' ' + esc(p.label) + '</span><div class="fn-bar" style="height:8px"><div style="width:' + Math.round(p.pct * 100) + '%"></div></div><span class="kpi-sub">' + esc(p.sub) + '</span></div>'; }).join('') + '</td><td style="font-family:var(--mono);font-weight:700;color:' + (got ? 'var(--green)' : 'var(--text3)') + '">' + (got ? '$' + fmtNum(got) : '—') + '</td></tr>';
+    }).join('');
+    kpiTable = '<div class="st-chart" style="padding:0;overflow:auto"><div class="t" style="padding:12px 14px 4px">' + (new Date().getMonth() + 1) + ' 月 KPI<span class="lg">達成即得獎金</span></div><table class="data-table" style="min-width:600px"><thead><tr><th style="width:120px">業務</th><th>目標進度</th><th style="width:110px">已達獎金</th></tr></thead><tbody>' + (rowsK || '<tr><td colspan="3" style="color:var(--text3)">還沒有人認領名單</td></tr>') + '</tbody></table></div>';
+  } else if (window.isAdmin) {
+    kpiTable = '<div class="st-chart" style="display:flex;align-items:center;gap:10px"><span style="font-size:13px">本月還沒設定 KPI</span><button class="btn btn-primary btn-sm" onclick="ccOpenKpiEditor()">🎯 設定</button></div>';
+  }
+  content.innerHTML = '<div class="kanban-filters" style="gap:10px">' + periodSel + scopeSel + '</div>'
+    + kpiTable
+    + '<div class="st-grid">' + kpis + '</div>'
+    + '<div class="st-two">'
+    +   '<div class="st-chart"><div class="t">名單漏斗<span class="lg">累計・括號外為筆數，右側為上一步轉換率</span></div>' + funnel + '</div>'
+    +   '<div class="st-chart"><div class="t">結案原因<span class="lg">' + P[ccsPeriod][1] + '・' + closed.length + ' 筆</span></div>' + reasonHtml + '</div>'
+    + '</div>'
+    + chart
+    + '<div class="st-chart" style="padding:0;overflow:auto"><div class="t" style="padding:12px 14px 4px">業務<span class="lg">' + P[ccsPeriod][1] + '</span></div><table class="data-table" style="min-width:720px"><thead><tr><th>業務</th><th>手上名單</th><th>今日待打</th><th>處理</th><th>進開發</th><th>轉換率</th><th>帶來成交</th><th>連續</th></tr></thead><tbody>' + (repRows || '<tr><td colspan="8" style="color:var(--text3)">還沒有人認領名單</td></tr>') + '</tbody></table></div>'
+    + '<div class="st-chart" style="padding:0;overflow:auto"><div class="t" style="padding:12px 14px 4px">名單來源品質<span class="lg">全部期間・依轉換率排序，決定下一批名單要從哪裡來</span></div><table class="data-table" style="min-width:720px"><thead><tr><th>批次／來源</th><th>筆數</th><th>處理過</th><th>進開發</th><th>轉換率</th><th>成交</th><th>最常見結案</th></tr></thead><tbody>' + (batchRows || '<tr><td colspan="7" style="color:var(--text3)">還沒有資料</td></tr>') + '</tbody></table></div>';
 }
 
 // ── ② 名單 ──
