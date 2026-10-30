@@ -36,6 +36,41 @@
   --shadow: 0 4px 24px rgba(0,0,0,0.4);
   --font: 'DM Sans', sans-serif;
   --mono: 'DM Mono', monospace;
+  color-scheme: dark;
+}
+html[data-theme="light"] {
+  --bg: #F3F4F7;
+  --bg2: #FFFFFF;
+  --bg3: #EEF0F4;
+  --bg4: #E4E7EC;
+  --border: #E3E6EB;
+  --border2: #CBD0D9;
+  --text: #15171A;
+  --text2: #3D434E;
+  --text3: #6B7280;
+  --accent: #2F5BEA;
+  --accent2: #1E40B8;
+  --accent-glow: rgba(47,91,234,0.12);
+  --green: #1E7F4F;
+  --green-bg: rgba(30,127,79,0.12);
+  --yellow: #9A5B00;
+  --yellow-bg: rgba(217,160,0,0.16);
+  --red: #C62828;
+  --red-bg: rgba(198,40,40,0.1);
+  --purple: #6D3FC0;
+  --purple-bg: rgba(109,63,192,0.1);
+  --cyan: #0E7490;
+  --shadow: 0 4px 24px rgba(20,23,26,0.12);
+  color-scheme: light;
+}
+html[data-theme="light"] .kanban-card:hover { box-shadow: 0 2px 10px rgba(20,23,26,0.08); }
+html[data-theme="light"] .modal-overlay { background: rgba(20,23,26,0.35); }
+html[data-theme="light"] .cc-grade.A { color: #9A5B00; }
+html[data-theme="light"] .td-kind { background: rgba(217,160,0,.18); }
+html[data-theme="light"] .exp-chip.empty { background: rgba(217,160,0,.18); }
+html[data-theme="light"] #fab { box-shadow: 0 6px 18px rgba(47,91,234,.35); }
+html[data-theme="light"] .ctag-pop { box-shadow: 0 8px 24px rgba(20,23,26,.18); }
+:root {
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; overflow: hidden; }
@@ -75,6 +110,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .nav-text { overflow: hidden; text-overflow: ellipsis; }
 .sidebar-footer { padding: 12px 8px; border-top: 1px solid var(--border); }
 .user-card { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; }
+.theme-btn { margin-left: auto; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg2); cursor: pointer; font-size: 14px; flex-shrink: 0; }
 .user-card:hover { background: var(--bg3); }
 .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
 .user-info { overflow: hidden; }
@@ -227,6 +263,15 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .td-empty { font-size:12.5px; color:var(--text3); padding:6px 0; }
 .cp-grid { display:grid; grid-template-columns:minmax(0,1.55fr) minmax(0,1fr); gap:14px; align-items:start; }
 .cp-card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:14px; }
+.td-kind { display:inline-block; font-size:10.5px; padding:1px 7px; border-radius:999px; background:rgba(245,196,0,.14); color:var(--yellow); margin-right:6px; vertical-align:1px; font-weight:500; }
+.td-kind.red { background:rgba(229,72,77,.14); color:var(--red); }
+.cp-head-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.cp-name { font-size:19px; font-weight:700; line-height:1.3; }
+.cp-stage { font:inherit; font-size:12.5px; font-weight:600; height:28px; padding:0 26px 0 10px; border-radius:999px; border:1px solid var(--accent); background:var(--accent-glow); color:var(--accent); cursor:pointer; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236c8cff' stroke-width='1.6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 9px center; }
+.cp-meta { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:8px; font-size:12.5px; color:var(--text3); }
+.cp-meta a { text-decoration:none; }
+.cp-meta-btn { font:inherit; font-size:12.5px; background:none; border:0; padding:0; cursor:pointer; }
+@media (max-width:768px){ .cp-head-row .cp-actions { width:100%; } .cp-head-row .cp-actions .btn-primary { flex:1; } }
 .cp-card-h { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
 .cp-card-t { font-weight:600; font-size:13.5px; }
 .cp-actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:12px; }
@@ -322,6 +367,13 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 @media (max-width:768px){ .onb-board .kanban-col { width:78vw; max-height:none; } .hide-mobile { display:none; } }
 .kc-name { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
 .kc-company { font-size: 11.5px; color: var(--text3); margin-bottom: 6px; }
+.kc-foot { display:flex; align-items:center; gap:6px; margin-top:6px; padding-right:26px; flex-wrap:wrap; row-gap:4px; }
+.kc-foot .exp-chip { order:3; width:100%; justify-content:flex-start; }
+.kc-due { font-size:11.5px; color:var(--text3); }
+.kc-due.today { color:var(--yellow); }
+.kc-due.late { color:var(--red); }
+.kc-owner { font-size:10.5px; color:var(--text3); max-width:60px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kc-owner.none { color:var(--yellow); }
 .kc-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .kc-tag { font-size: 10.5px; color: var(--text3); background: var(--bg4); padding: 1px 6px; border-radius: 4px; }
 .kc-prio { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
@@ -631,6 +683,11 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .tb-log{display:inline-flex}
 @media (max-width:768px){.tb-log{display:none}}
 </style>
+<script>
+(function(){var t;try{t=localStorage.getItem('sf_theme')}catch(e){}if(!t)t='light';document.documentElement.setAttribute('data-theme',t);})();
+function toggleTheme(){var h=document.documentElement;var t=h.getAttribute('data-theme')==='light'?'dark':'light';h.setAttribute('data-theme',t);try{localStorage.setItem('sf_theme',t)}catch(e){}var b=document.getElementById('themeBtn');if(b)b.textContent=t==='light'?'🌙':'☀️';}
+document.addEventListener('DOMContentLoaded',function(){var b=document.getElementById('themeBtn');if(b)b.textContent=document.documentElement.getAttribute('data-theme')==='light'?'🌙':'☀️';});
+</script>
 </head>
 <body>
 
@@ -702,6 +759,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
           <div class="user-name" id="sidebarName">User</div>
           <div class="user-email" id="sidebarEmail">-</div>
         </div>
+        <button class="theme-btn" id="themeBtn" onclick="event.stopPropagation();toggleTheme()" aria-label="切換深淺色">🌙</button>
       </div>
     </div>
   </div>
@@ -784,7 +842,7 @@ let leadsViewMode = 'kanban';
 let kanbanFilterPrio = 'all';
 let kanbanFilterSrc = 'all';
 let kanbanFilterStage = 'all';
-let kanbanFilterUser = 'all';
+let kanbanFilterUser = 'init';
 let listFilterSrc = 'all';
 let listFilterStage = 'all';
 let listFilterUser = 'all';
@@ -1039,6 +1097,7 @@ function tdSection(icon, title, rows, emptyText, red) {
     + (rows.length ? rows.slice(0, 12).join('') + (rows.length > 12 ? '<div class="td-empty">還有 ' + (rows.length - 12) + ' 筆…</div>' : '') : '<div class="td-empty">✓ ' + emptyText + '</div>') + '</div>';
 }
 function tdRow(onclick, title, meta, acts) {
+  if (!acts) acts = '';
   return '<div class="td-row"><div class="td-main" onclick="' + onclick + '"><div class="td-title">' + title + '</div><div class="td-meta">' + meta + '</div></div><div class="td-acts">' + acts + '</div></div>';
 }
 async function renderToday() {
@@ -1064,6 +1123,7 @@ async function renderToday() {
   const Q = function (s) { return String(s).replace(/'/g, ''); };
   const go = function (id) { return "openCompany('" + Q(id) + "')"; };
   const logBtn = function (id) { return '<button class="btn btn-primary btn-sm" onclick="openQuickLog(\'' + Q(id) + '\')">📝 記錄</button>'; };
+  const chip = function (t, red) { return '<span class="td-kind' + (red ? ' red' : '') + '">' + t + '</span>'; };
 
   // ① 要聯絡
   const contact = leads.filter(function (l) { return l.next_contact_date && String(l.next_contact_date).slice(0, 10) <= today && mine(l.user_id); })
@@ -1087,7 +1147,7 @@ async function renderToday() {
   pay.sort(function (a, b) { return a.d - b.d; });
   const rowsB = pay.map(function (r) {
     const a = accMap[r.c.account_id] || {};
-    return tdRow("goToAccount('" + r.c.account_id + "')", esc(a.name || '') + '・' + esc(r.p.label || ''),
+    return tdRow("goToAccount('" + r.c.account_id + "')", chip('該收款', r.d < 0) + esc(a.name || '') + '・' + esc(r.p.label || ''),
       '<span style="font-family:var(--mono)">$' + fmtNum(r.p.amount) + '</span>・' + (r.d < 0 ? '<span style="color:var(--red)">逾期 ' + (-r.d) + ' 天</span>' : r.d === 0 ? '今天到期' : r.d + ' 天後到期'),
       window.isAdmin ? '<button class="btn btn-primary btn-sm" onclick="confirmPayment(\'' + r.c.id + '\',' + r.i + ',null)">確認收款</button>' : '');
   });
@@ -1102,7 +1162,7 @@ async function renderToday() {
   });
   const rowsC = Object.values(renBy).sort(function (a, b) { return a.d - b.d; }).map(function (r) {
     const a = accMap[r.c.account_id] || {};
-    return tdRow("goToAccount('" + r.c.account_id + "')", esc(a.name || ''), '續約日 ' + r.c.end_date + '・<span style="color:' + (r.d <= 7 ? 'var(--red)' : 'var(--yellow)') + '">剩 ' + r.d + ' 天</span>',
+    return tdRow("goToAccount('" + r.c.account_id + "')", chip('要續約', r.d <= 7) + esc(a.name || ''), '續約日 ' + r.c.end_date + '・<span style="color:' + (r.d <= 7 ? 'var(--red)' : 'var(--yellow)') + '">剩 ' + r.d + ' 天</span>',
       a.lead_id ? '<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openRenewalQuote(\'' + a.lead_id + '\')">🔄 續約報價</button>' : '');
   });
   // ④ 報價送出後沒回音（≥7 天、未成交）
@@ -1111,7 +1171,7 @@ async function renderToday() {
     .sort(function (a, b) { return new Date(a.created_at) - new Date(b.created_at); })
     .map(function (n) {
       const l = leadMap[n.lead_id], rec = parseQuoteNote(n) || {}, sm = rec.summary || {};
-      return tdRow(go(l.id), esc(l.name), esc(sm.quoteNo || '報價') + '・$' + fmtNum(sm.subtotal || 0) + '・已 ' + daysSince(n.created_at) + ' 天',
+      return tdRow(go(l.id), chip('報價沒回') + esc(l.name), esc(sm.quoteNo || '報價') + '・$' + fmtNum(sm.subtotal || 0) + '・已 ' + daysSince(n.created_at) + ' 天',
         logBtn(l.id) + '<button class="btn btn-ghost btn-sm" onclick="setQuoteStatus(\'' + n.id + '\',\'void\',\'' + l.id + '\')" title="標為作廢">作廢</button>');
     });
   // ⑤ 冷線索（開發中、沒排下次聯絡、30 天沒活動）
@@ -1152,10 +1212,19 @@ async function renderToday() {
     rowsF.push('<div class="td-row"><div class="td-main" onclick="navigate(\'coldcall\')"><div class="td-title" style="color:var(--accent)">▶ 進入開打模式（' + ccDue.length + ' 通）</div><div class="td-meta">' + (ccBack ? ccBack + ' 通是約好回電・' : '') + (ccPool ? ccPool + ' 通在公海' : '其餘為新名單') + '</div></div><div class="td-acts"></div></div>');
   }
 
+  // ⑦ 缺回簽（成交單沒附檔）
+  await loadDealFiles(cts.map(function (c) { return c.id; }));
+  const rowsG = cts.filter(function (c) { return mine(c.sales_user_id || c.user_id) && dealFilesCache[c.id] && !dealFilesCache[c.id].length; })
+    .sort(function (a, b) { return dealDate(b).localeCompare(dealDate(a)); }).map(function (c) {
+      const a = accMap[c.account_id] || {};
+      return tdRow("goToAccount('" + c.account_id + "')", chip('缺回簽') + esc(a.name || ''), esc(c.name || '成交') + '・' + esc(dealDate(c)),
+        '<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();pickDealFiles(\'' + c.id + '\',\'' + c.account_id + '\')">📎 上傳</button>');
+    });
+  const rowsP = rowsB.concat(rowsG, rowsC, rowsD);
   const me = userNameById(currentUser.id, currentUser.user_metadata?.full_name || '');
   const h = new Date().getHours();
   const hi = h < 11 ? '早安' : h < 18 ? '午安' : '晚安';
-  const total = rowsA.length + rowsB.length + rowsC.length + rowsD.length + ccDue.length;
+  const total = rowsA.length + rowsP.length + ccDue.length;
   let userSel = '';
   if (window.isAdmin) {
     userSel = '<select class="form-select" style="width:auto;height:32px;font-size:13px" onchange="todayUser=this.value;renderToday()"><option value="all"' + (todayUser === 'all' ? ' selected' : '') + '>全部業務</option>'
@@ -1166,11 +1235,9 @@ async function renderToday() {
     + '<div style="font-size:13px;color:var(--text3);margin-top:2px">' + (total ? '今天有 <b style="color:var(--text)">' + total + '</b> 件事要處理' : '今天的待辦都清空了 🎉') + (rowsE.length ? '，另有 ' + rowsE.length + ' 個冷掉的線索' : '') + '</div></div></div>'
     + '<div class="td-grid">'
     +   tdSection('📞', '要聯絡', rowsA, '今天沒有待聯絡的公司', rowsA.some(function (r) { return r.indexOf('逾期') >= 0; }))
-    +   tdSection('💵', '待收款', rowsB, '沒有逾期或 7 天內到期的款項', pay.some(function (r) { return r.d < 0; }))
-    +   tdSection('🔄', '即將續約', rowsC, '近期沒有要續約的客戶')
+    +   tdSection('📌', '待處理', rowsP, '收款、回簽、續約、報價都沒有卡住的', pay.some(function (r) { return r.d < 0; }))
     +   tdSection('📞', '陌開電話', rowsF, '目前沒有要打的陌開名單', ccDue.some(function (c) { return c.next_call_at && daysUntil(String(c.next_call_at).slice(0, 10)) < 0; }))
-    +   tdSection('🧾', '報價沒回音（7 天以上）', rowsD, '送出的報價都有進展')
-    +   tdSection('🧊', '冷線索（30 天沒動靜）', rowsE, '沒有冷掉的線索')
+    +   tdSection('🧊', '冷線索', rowsE, '沒有冷掉的線索')
     + '</div>';
 }
 
@@ -2407,7 +2474,7 @@ function renderLeadsMobile() {
       + '<div class="ml-bot"><span class="ml-due ' + x.due.cls + '">' + x.due.txt + '</span>'
       + (phone ? '<a class="ml-tel" href="tel:' + esc(phone) + '" onclick="event.stopPropagation()" aria-label="撥打">📞</a>' : '')
       + '<button type="button" class="ml-log" onclick="event.stopPropagation();openQuickLog(\'' + l.id + '\')" aria-label="記錄聯絡">＋</button>'
-      + ownerSelectHtml(l) + '</div></div>';
+      + (window.isAdmin ? ownerSelectHtml(l) : '<span style="font-size:12px;color:var(--text3)">' + esc(l.user_name || '未指派') + '</span>') + '</div></div>';
   }).join('');
   const more = list.length > mlLimit ? '<button class="btn btn-secondary" style="width:100%;margin-top:4px" onclick="mlLimit+=60;renderLeadsMobile()">再顯示 ' + Math.min(60, list.length - mlLimit) + ' 筆（共 ' + list.length + '）</button>' : '';
   const hadFocus = document.activeElement && document.activeElement.id === 'mlSearch';
@@ -2417,7 +2484,7 @@ function renderLeadsMobile() {
     + (mlQuery ? '<div style="font-size:12px;color:var(--text3);margin-top:8px">搜尋全部名單：' + list.length + ' 筆</div>'
       : '<div class="ml-chips ml-seg">' + seg + '</div><div class="ml-chips">' + stageChips + '</div><div class="ml-chips">' + ctagFilterHtml() + '</div>')
     + '</div>'
-    + (cards || '<div class="ml-empty">' + (mlQuery ? '找不到「' + esc(mlQuery) + '」<br><button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="openNewLeadModal()">＋ 新增這家</button>' : '這裡沒有名單') + '</div>')
+    + (cards || '<div class="ml-empty">' + (mlQuery ? '找不到「' + esc(mlQuery) + '」<br><button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="openNewLeadModal(null,{name:mlQuery})">＋ 新增這家</button>' : '這裡沒有名單') + '</div>')
     + more + '<div style="height:70px"></div></div>';
   if (hadFocus) { const i = document.getElementById('mlSearch'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
 }
@@ -3065,20 +3132,15 @@ function renderKanban(searchStr = '') {
   leadsData.forEach(l => { if (l.user_id && l.user_name) userMap[l.user_id] = l.user_name; });
   const userOptions = [{val:'all', label:'全部業務'}, ...Object.entries(userMap).map(([id,name])=>({val:id, label:name}))];
 
-  content.innerHTML = `
-    <div class="kanban-filters">
-      <select class="form-select" style="width:auto;padding:3px 8px;font-size:12px;height:28px" onchange="setKanbanFilter('stage',this.value)">
-        ${stageOptions.map(o=>`<option value="${o.val}"${kanbanFilterStage===o.val?' selected':''}>${o.label}</option>`).join('')}
-      </select>
-      <select class="form-select" style="width:auto;padding:3px 8px;font-size:12px;height:28px" onchange="setKanbanFilter('user',this.value)">
-        ${userOptions.map(o=>`<option value="${o.val}"${kanbanFilterUser===o.val?' selected':''}>${o.label}</option>`).join('')}
-      </select>
-      <select class="form-select" style="width:auto;padding:3px 8px;font-size:12px;height:28px" onchange="setKanbanFilter('src',this.value)">
-        ${srcOptions.map(o=>`<option value="${o.val}"${kanbanFilterSrc===o.val?' selected':''}>${o.label}</option>`).join('')}
-      </select>
-      ${ctagFilterHtml()}
-    </div>
-    <div id="kanban-board"></div>`;
+  if (kanbanFilterUser === 'init') kanbanFilterUser = (!window.isAdmin && leadsData.some(function (l) { return l.user_id === currentUser.id; })) ? currentUser.id : 'all';
+  const mineN = leadsData.filter(function (l) { return l.user_id === currentUser.id && !convertedLeadIds.has(l.id); }).length;
+  const allN = leadsData.filter(function (l) { return !convertedLeadIds.has(l.id); }).length;
+  const seg = '<div class="ml-chips ml-seg" style="margin:0">'
+    + '<button class="ml-chip' + (kanbanFilterUser === currentUser.id ? ' on' : '') + '" onclick="setKanbanFilter(\'user\',currentUser.id)">我的<b>' + mineN + '</b></button>'
+    + '<button class="ml-chip' + (kanbanFilterUser === 'all' ? ' on' : '') + '" onclick="setKanbanFilter(\'user\',\'all\')">全部<b>' + allN + '</b></button>'
+    + (window.isAdmin ? '<select class="form-select" style="width:auto;padding:0 24px 0 8px;font-size:12px;height:28px" onchange="setKanbanFilter(\'user\',this.value)">' + userOptions.map(function (o) { return '<option value="' + o.val + '"' + (kanbanFilterUser === o.val ? ' selected' : '') + '>' + esc(o.label) + '</option>'; }).join('') + '</select>' : '')
+    + '</div>';
+  content.innerHTML = '<div class="kanban-filters">' + seg + ctagFilterHtml() + '</div><div id="kanban-board"></div>';
 
   const board = document.getElementById('kanban-board');
   if (stagesData.length === 0) {
@@ -3146,20 +3208,13 @@ function createKanbanCard(lead) {
   card.className = 'kanban-card';
   card.dataset.id = lead.id;
   card.draggable = true;
-  const src = sourcesData.find(s => s.id === lead.source_id);
-  card.innerHTML = `
-    <div class="kc-name">${ctagHtml(lead)}${esc(lead.name)}${convertedLeadIds.has(lead.id) ? ' <span class="badge badge-green" style="font-size:10px;padding:1px 6px">已成交</span>' : ''}</div>
-    ${lead.company ? `<div class="kc-company">👤 ${esc(lead.company)}</div>` : ''}
-    ${isExpStage(lead) ? `<div style="margin-bottom:5px">${expChipHtml(lead)}</div>` : ''}
-    ${lead.tax_id ? `<div style="font-size:10.5px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">🏷 ${esc(lead.tax_id)}</div>` : ''}
-    <div class="kc-meta">
-      ${src ? `<div class="kc-tag">${esc(src.name)}</div>` : ''}
-    </div>
-    <div style="margin-top:6px;display:flex;align-items:center;justify-content:space-between;gap:4px">
-      ${ownerSelectHtml(lead)}
-      <span style="font-size:10.5px;color:var(--text3)">${fmtDate(lead.created_at)}</span>
-    </div>
-  `;
+  const due = mlDue(lead);
+  const idle = Math.max(0, -daysUntil(String(lead.updated_at || lead.created_at).slice(0, 10)));
+  const dueHtml = due.txt ? '<span class="kc-due ' + due.cls + '">' + due.txt.replace('📅 ', '') + '</span>'
+    : (idle >= 14 && !convertedLeadIds.has(lead.id) ? '<span class="kc-due late">' + idle + ' 天沒動</span>' : '<span class="kc-due">未排</span>');
+  const owner = lead.user_name ? '<span class="kc-owner" title="' + esc(lead.user_name) + '">' + esc(String(lead.user_name).split(/\s+/)[0].slice(0, 6)) + '</span>' : '<span class="kc-owner none">未指派</span>';
+  card.innerHTML = '<div class="kc-name">' + ctagHtml(lead) + esc(lead.name) + (convertedLeadIds.has(lead.id) ? ' <span class="badge badge-green" style="font-size:10px;padding:1px 6px">已成交</span>' : '') + '</div>'
+    + '<div class="kc-foot">' + dueHtml + '<span style="flex:1"></span>' + (isExpStage(lead) ? expChipHtml(lead) : '') + owner + '</div>';
   const logB = document.createElement('button');
   logB.className = 'kc-log'; logB.type = 'button'; logB.textContent = '＋'; logB.title = '記錄聯絡'; logB.setAttribute('aria-label', '記錄聯絡');
   logB.draggable = false;
@@ -3320,24 +3375,15 @@ function renderLeadsList(searchStr) {
         <input type="checkbox" ${checked} onchange="toggleListSelect('${l.id}',this.checked)" style="width:15px;height:15px;cursor:pointer">
       </td>
       <td style="cursor:pointer;font-weight:500" onclick="openLeadDrawer('${l.id}')"><span onclick="event.stopPropagation()" style="margin-right:7px">${ctagHtml(l)}</span>${esc(l.name)}${convertedLeadIds.has(l.id) ? ' <span class="badge badge-green" style="font-size:10px;padding:1px 6px">已成交</span>' : ''}</td>
-      <td style="font-size:12px;color:var(--text3)">${esc(l.company||'—')}</td>
-      <td style="font-size:12px;font-family:var(--mono);color:var(--text3)">${esc(l.tax_id||'—')}</td>
       <td onclick="event.stopPropagation()">
         <select class="form-select" style="padding:2px 4px;height:26px;font-size:11.5px;width:auto;max-width:120px" onchange="inlineUpdateLead('${l.id}','stage_id',this.value)">
           ${stagesData.map(s=>`<option value="${s.id}"${s.id===l.stage_id?' selected':''}>${esc(s.name)}</option>`).join('')}
         </select>
       </td>
+      <td style="font-size:12px;cursor:pointer" onclick="openSetNextContact('${l.id}','${l.next_contact_date||''}')">${(function(){const d=mlDue(l);return d.txt?'<span class="kc-due '+d.cls+'">'+d.txt.replace('📅 ','')+'</span>':'<span style=\'color:var(--text3);font-size:11px\'>設定</span>'})()}</td>
       <td onclick="event.stopPropagation()">${expChipHtml(l) || '<span style="color:var(--text3)">—</span>'}</td>
-      <td onclick="event.stopPropagation()">
-        <select class="form-select" style="padding:2px 4px;height:26px;font-size:11.5px;width:auto;max-width:100px" onchange="inlineUpdateLead('${l.id}','source_id',this.value)">
-          <option value="">—</option>
-          ${sourcesData.map(s=>`<option value="${s.id}"${s.id===l.source_id?' selected':''}>${esc(s.name)}</option>`).join('')}
-        </select>
-      </td>
       <td onclick="event.stopPropagation()">${ownerSelectHtml(l)}</td>
-      <td style="font-size:12px;color:var(--text3);cursor:pointer" onclick="openSetNextContact('${l.id}','${l.next_contact_date||''}')">${l.next_contact_date?new Date(l.next_contact_date).toLocaleDateString('zh-TW'):'<span style=\'color:var(--text3);font-size:11px\'>設定</span>'}</td>
       <td style="font-size:11px;color:var(--text3)">${fmtDate(l.updated_at || l.created_at)}</td>
-      <td style="font-size:11px;color:var(--text3)">${fmtDate(l.created_at)}</td>
     </tr>`;
   });
 
@@ -3357,12 +3403,12 @@ function renderLeadsList(searchStr) {
       <button class="btn btn-secondary btn-sm" onclick="listSelectedIds.clear();renderLeadsList(document.getElementById('leadSearch')?.value||'')">取消</button>
     </div>` : '';
 
-  const filterBar = '<div class="kanban-filters" style="margin-bottom:10px">' + stageSelectHtml + userSelectHtml + srcSelectHtml + sortSelectHtml + ctagFilterHtml() + '</div>';
+  const filterBar = '<div class="kanban-filters" style="margin-bottom:10px">' + stageSelectHtml + userSelectHtml + sortSelectHtml + ctagFilterHtml() + '</div>';
   if (filtered.length === 0) {
     content.innerHTML = filterBar + '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-text">沒有符合的 Lead</div></div>';
     return;
   }
-  content.innerHTML = filterBar + batchBar + '<div class="panel" style="overflow:auto"><table class="leads-list-table" style="min-width:860px"><thead><tr><th style="width:36px"><input type="checkbox" onchange="toggleSelectAll(this)" style="width:15px;height:15px;cursor:pointer"></th><th>公司名稱</th><th>聯絡人</th><th>統編</th><th>階段</th><th>預計</th><th>來源</th><th>業務</th><th>下次聯絡</th><th>最後更新</th><th>建立時間</th></tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
+  content.innerHTML = filterBar + batchBar + '<div class="panel" style="overflow:auto"><table class="leads-list-table" style="min-width:680px"><thead><tr><th style="width:36px"><input type="checkbox" onchange="toggleSelectAll(this)" style="width:15px;height:15px;cursor:pointer"></th><th>公司名稱</th><th>階段</th><th>下次聯絡</th><th>預計</th><th>業務</th><th>最後更新</th></tr></thead><tbody>' + rows.join('') + '</tbody></table></div>';
 }
 
 function setListFilter(type, val) {
@@ -4038,70 +4084,32 @@ function checkNameDuplicate() {
   }, 350);
 }
 // ── LEAD MODAL ──
-function openNewLeadModal(stageId = null) {
+function openNewLeadModal(stageId = null, opt) {
+  opt = opt || {};
   const defaultStage = stageId || stagesData[0]?.id || '';
-  const myName = window.userProfile?.full_name || currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '';
-  openModal('新增 Lead', `
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">公司名稱 *</label><input class="form-input" id="lName" placeholder="公司名稱" oninput="checkNameDuplicate()"><div id="lNameHint" style="font-size:11px;margin-top:3px;min-height:14px"></div></div>
-      <div class="form-group"><label class="form-label">統一編號</label><input class="form-input" id="lTaxId" placeholder="8碼數字（選填）" maxlength="8" oninput="this.value=this.value.replace(/[^0-9]/g,'')"><div id="lTaxIdHint" style="font-size:11px;margin-top:3px;min-height:14px"></div></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">客戶產品類型</label><input class="form-input" id="lProductType" placeholder="例：餐飲、電商、製造業..."></div>
-      <div></div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">負責業務</label>
-      ${window.isAdmin && usersData.length > 0
-        ? '<select class="form-select" id="lUserSelect"><option value="">-- 選擇業務 --</option>' +
-          usersData.map(u=>{const label=u.full_name||u.email||u.id;return '<option value="'+u.id+'|'+esc(u.full_name||u.email||'')+'"'+(u.full_name===myName||u.id===currentUser.id?' selected':'')+'>'+esc(label)+'</option>';}).join('') +
-          '</select>'
-        : '<input class="form-input" id="lUserName" value="'+myName+'" readonly style="opacity:0.6" placeholder="業務姓名">'
-      }
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">階段</label>
-        <select class="form-select" id="lStage">
-          ${stagesData.map(s=>`<option value="${s.id}"${s.id===defaultStage?' selected':''}>${esc(s.name)}</option>`).join('')}
-        </select>
-      </div>
-      <div class="form-group"><label class="form-label">來源</label>
-        <select class="form-select" id="lSource">
-          <option value="">-- 選擇來源 --</option>
-          ${sourcesData.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}
-        </select>
-      </div>
-    </div>
-
-    ${needTypesData.length ? `<div class="form-group">
-      <label class="form-label">需求類型（可複選）</label>
-      <div id="lNeedTypes" style="display:flex;flex-wrap:wrap;gap:4px">
-        ${needTypesData.map(t=>`<span class="need-tag" data-id="${t.id}" onclick="toggleNeedTag(this)">${esc(t.name)}</span>`).join('')}
-      </div>
-    </div>` : ''}
-    <div class="form-group">
-      <label class="form-label">預計成交方案</label>
-      <select class="form-select" id="lDealType">
-        <option value="">— 未選擇 —</option>
-        ${dealTypesData.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join('')}
-      </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">聯絡人（可貼多筆，每行一人，逗號分隔：姓名,職稱,Email,電話）</label>
-      <textarea class="form-textarea" id="lContactsText" style="min-height:80px;font-family:var(--mono);font-size:12px" placeholder="王小明,採購經理,wang@company.com,0912-345-678,@linehandle&#10;李大華,CEO,li@company.com"></textarea>
-      <div id="lContactsPreview" style="font-size:11.5px;color:var(--text3);margin-top:4px"></div>
-    </div>
-    <div class="form-group"><label class="form-label">備註</label><textarea class="form-textarea" id="lNote" placeholder="初始備註..."></textarea></div>
-  `, [
+  const srcChips = sourcesData.map(function (sc) { return '<button type="button" class="df-chip" data-v="' + sc.id + '" onclick="nlPickSrc(this)">' + esc(sc.name) + '</button>'; }).join('');
+  const ownerSel = window.isAdmin && usersData.length > 1
+    ? '<select class="form-select" id="lUserSelect" style="width:auto;height:34px;padding:0 28px 0 10px;font-size:12.5px">' + usersData.map(function (u) { return '<option value="' + u.id + '|' + esc(u.full_name || u.email || '') + '"' + (u.id === currentUser.id ? ' selected' : '') + '>' + esc(u.full_name || u.email || u.id) + '</option>'; }).join('') + '</select>'
+    : '';
+  openModal('新增名單', ''
+    + '<div class="form-group"><input class="form-input" id="lName" placeholder="公司名稱" style="font-size:16px;height:44px" oninput="checkNameDuplicate()" value="' + esc(opt.name || '') + '"><div id="lNameHint" style="font-size:11.5px;margin-top:3px;min-height:14px"></div></div>'
+    + '<div class="form-group"><input class="form-input" id="lPhone" type="tel" placeholder="聯絡人電話" style="font-size:16px;height:44px" inputmode="tel"></div>'
+    + '<div class="form-group"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center" id="lSrcChips"><span style="font-size:12px;color:var(--text3);margin-right:2px">來源</span>' + srcChips + '</div><input type="hidden" id="lSource" value=""></div>'
+    + (ownerSel ? '<div class="form-group" style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text3)">負責 ' + ownerSel + '</div>' : '')
+    + '<input type="hidden" id="lStage" value="' + esc(defaultStage) + '">'
+    + '<div style="font-size:11.5px;color:var(--text3)">統編、聯絡人、需求之後在公司頁補</div>', [
     { label: '取消', cls: 'btn-secondary', action: closeModal },
-    { label: '建立 Lead', cls: 'btn-primary', action: saveLead }
+    { label: '建立並記錄', cls: 'btn-secondary', action: function () { saveLead(true); } },
+    { label: '建立', cls: 'btn-primary', action: function () { saveLead(false); } }
   ]);
-  setTimeout(() => {
-    const ta = document.getElementById('lContactsText');
-    if (ta) ta.addEventListener('input', previewNewLeadContacts);
-    const taxEl = document.getElementById('lTaxId');
-    if (taxEl) taxEl.addEventListener('input', checkTaxIdDuplicate);
-  }, 100);
+  document.getElementById('modalBox').style.maxWidth = '420px';
+  setTimeout(function () { const i = document.getElementById('lName'); if (i && window.innerWidth > 768) i.focus(); }, 30);
+}
+function nlPickSrc(btn) {
+  const on = btn.classList.contains('on');
+  document.querySelectorAll('#lSrcChips .df-chip').forEach(function (b) { b.classList.remove('on'); });
+  if (!on) btn.classList.add('on');
+  document.getElementById('lSource').value = on ? '' : btn.dataset.v;
 }
 
 function parseContactsText(text) {
@@ -4158,9 +4166,9 @@ async function checkEditTaxIdDuplicate(leadId) {
   }
 }
 
-async function saveLead() {
+async function saveLead(andLog) {
   const name = document.getElementById('lName').value.trim();
-  if (!name) { toast('請填寫名稱', 'error'); return; }
+  if (!name) { toast('先填公司名稱', 'error'); return; }
   const taxId = document.getElementById('lTaxId')?.value.trim() || null;
   // 統編唯一性驗證（只在有填寫時才檢查）
   if (taxId) {
@@ -4168,7 +4176,7 @@ async function saveLead() {
     const { data: dup } = await db.from('leads').select('id,name').eq('tax_id', taxId).limit(1);
     if (dup && dup.length > 0) { toast(`統編 ${taxId} 已存在於「${dup[0].name}」`, 'error'); return; }
   }
-  const selectedNeedTypes = getSelectedNeedTypes('lNeedTypes');
+  const selectedNeedTypes = document.getElementById('lNeedTypes') ? getSelectedNeedTypes('lNeedTypes') : [];
   let userId = currentUser.id;
   let userName = currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || '';
   const userSelect = document.getElementById('lUserSelect');
@@ -4181,15 +4189,15 @@ async function saveLead() {
   }
   const payload = {
     name,
-    stage_id: document.getElementById('lStage').value || stagesData[0]?.id,
-    source_id: document.getElementById('lSource').value || null,
+    stage_id: document.getElementById('lStage')?.value || stagesData[0]?.id,
+    source_id: document.getElementById('lSource')?.value || null,
     tax_id: taxId || null,
     need_types: selectedNeedTypes.length ? selectedNeedTypes : null,
     product_type: document.getElementById('lProductType')?.value.trim() || null,
     deal_type_id: document.getElementById('lDealType')?.value || null,
     user_id: userId, user_name: userName, created_at: new Date().toISOString()
   };
-  const note = document.getElementById('lNote').value.trim();
+  const note = document.getElementById('lNote')?.value.trim() || '';
   const { data: lead, error } = await db.from('leads').insert(payload).select().single();
   if (error) {
     toast('建立失敗：' + error.message, 'error');
@@ -4199,13 +4207,18 @@ async function saveLead() {
   if (note) await db.from('notes').insert({ content: note, lead_id: lead.id, user_id: currentUser.id, created_at: new Date().toISOString() });
   const contactsText = document.getElementById('lContactsText')?.value || '';
   const contacts = parseContactsText(contactsText);
+  const phone = document.getElementById('lPhone')?.value.trim() || '';
+  if (phone && !contacts.length) contacts.push({ name: '聯絡人', role: '', email: '', phone: phone });
   for (const c of contacts) {
     await db.from('contacts').insert({ name: c.name, role: c.role, email: c.email, phone: c.phone, lead_id: lead.id, user_id: currentUser.id, created_at: new Date().toISOString() });
   }
+  lead.contacts = contacts.map(function (c) { return { name: c.name, phone: c.phone }; });
+  leadsData.push(lead);
   closeModal();
-  toast('Lead 建立成功' + (contacts.length ? '，已新增 ' + contacts.length + ' 位聯絡人' : ''), 'success');
+  toast('已建立 ' + name, 'success');
   if (userId && userId !== currentUser.id) crmApi('POST', '/api/leads/' + lead.id + '/announce').catch(function () {});
-  navigate('leads');
+  if (andLog) { openQuickLog(lead.id); return; }
+  if (isLeadsPage()) { if (window.innerWidth <= 768) renderLeadsMobile(); else renderLeads(); } else navigate('leads');
 }
 
 
@@ -4260,14 +4273,16 @@ async function refreshCompany() {
   }
   const li = leadsData.findIndex(l => l.id === leadId);
   if (li >= 0) leadsData[li] = Object.assign(leadsData[li], lead);
-  const [qcR, ccR] = await Promise.all([
-    db.from('notes').select('id').eq('lead_id', leadId).like('content', QUOTE_NOTE_PREFIX + '%'),
-    db.from('contacts').select('id').eq('lead_id', leadId)
+  const [quotes, ccR] = await Promise.all([
+    loadQuoteNotesForLead(leadId),
+    db.from('contacts').select('id,name,phone,role').eq('lead_id', leadId).order('created_at', { ascending: true })
   ]);
-  window._cp = { lead: lead, acc: acc, contracts: contracts };
+  const seenQ = {};
+  const openQ = quotes.filter(function (r) { const no = (r.summary && r.summary.quoteNo) || r.noteId; if (r.wonContractId || r.quoteStatus === 'void' || seenQ[no]) return false; seenQ[no] = 1; return true; });
+  window._cp = { lead: lead, acc: acc, contracts: contracts, openQ: openQ, contacts: ccR.data || [] };
   if (currentPage !== 'company' || currentLeadId !== leadId) return;
   if (_cpTab === 'deals' && !acc) _cpTab = 'timeline';
-  const tabs = [['timeline', '時間軸', ''], acc ? ['deals', '合約', contracts.length] : null, ['quotes', '報價', (qcR.data || []).length], ['contacts', '聯絡人', (ccR.data || []).length], ['info', '基本資料', '']].filter(Boolean);
+  const tabs = [['timeline', '時間軸', ''], acc ? ['deals', '合約', contracts.length] : null, ['quotes', '報價', quotes.length], ['contacts', '聯絡人', (ccR.data || []).length], ['info', '基本資料', '']].filter(Boolean);
   const pane = function (k, html) { return '<div class="cp-pane' + (_cpTab === k ? ' on' : '') + '" data-pane="' + k + '">' + html + '</div>'; };
   document.getElementById('content').innerHTML = companyHeaderHtml(lead, acc)
     + '<div class="cp-tabs" role="tablist">' + tabs.map(function (t) {
@@ -4291,7 +4306,9 @@ function setCpTab(k) {
 function openCpMore(leadId) {
   const cp = window._cp || {}, acc = cp.acc;
   const b = function (label, js, danger) { return '<button class="btn btn-secondary" style="width:100%;justify-content:flex-start;margin-bottom:8px' + (danger ? ';color:var(--red)' : '') + '" onclick="closeModal();' + js + '">' + label + '</button>'; };
-  openModal('更多', b('✏️ 編輯公司資料', 'openEditLeadModal(\'' + leadId + '\')')
+  openModal('更多', (acc ? b('✅ 報價成交', 'startDealFromQuote(\'' + leadId + '\')') + b('📎 上傳回簽', 'pickDealFilesForAccount(\'' + acc.id + '\')') + b('🔄 續約報價', 'openRenewalQuote(\'' + leadId + '\')') : '')
+    + b('📋 完整活動表單', 'openAddActivity(\'' + leadId + '\')')
+    + b('✏️ 編輯公司資料', 'openEditLeadModal(\'' + leadId + '\')')
     + b('🔗 複製連結', 'copyLeadLink(\'' + leadId + '\')')
     + (acc ? b(acc.status === 'terminated' ? '✅ 恢復合作' : '🚫 終止合作', 'toggleAccountStatus(\'' + acc.id + '\',\'' + (acc.status === 'terminated' ? 'active' : 'terminated') + '\')') : '')
     + (window.isAdmin ? b('🔀 合併重複', 'openMergeLead(\'' + leadId + '\')') : '')
@@ -4299,61 +4316,75 @@ function openCpMore(leadId) {
     [{ label: '關閉', cls: 'btn-secondary', action: closeModal }]);
 }
 function companyHeaderHtml(lead, acc) {
-  const stage = stagesData.find(s => s.id === lead.stage_id);
+  const cp = window._cp || {};
   const src = sourcesData.find(s => s.id === lead.source_id);
-  let status;
-  if (acc) status = acc.status === 'terminated' ? '<span class="badge badge-red">終止合作</span>' : '<span class="badge badge-green">✅ 成交客戶</span>';
-  else status = '<span class="badge badge-blue">開發中・' + esc(stage?.name || '—') + '</span>';
+  const id = lead.id;
   const nd = lead.next_contact_date ? String(lead.next_contact_date).slice(0, 10) : '';
   const ndd = nd ? daysUntil(nd) : null;
-  const nextHtml = nd
-    ? '<span style="color:' + (ndd < 0 ? 'var(--red)' : ndd === 0 ? 'var(--yellow)' : 'var(--text2)') + '">📅 下次聯絡 ' + nd + (ndd < 0 ? '（逾期 ' + (-ndd) + ' 天）' : ndd === 0 ? '（今天）' : '') + '</span>'
-    : '<span style="color:var(--text3)">📅 尚未設定下次聯絡</span>';
-  const id = lead.id;
-  let stageBar = '';
+  const nextHtml = '<button type="button" class="cp-meta-btn" onclick="openSetNextContact(\'' + id + '\',\'' + (lead.next_contact_date || '') + '\')" style="color:' + (nd ? (ndd < 0 ? 'var(--red)' : ndd === 0 ? 'var(--yellow)' : 'var(--text2)') : 'var(--text3)') + '">📅 '
+    + (nd ? nd.slice(5).replace('-', '/') + (ndd < 0 ? '・逾期 ' + (-ndd) + ' 天' : ndd === 0 ? '・今天' : '') : '下次聯絡') + '</button>';
+  // 狀態列：開發中＝階段下拉；成交客戶＝導入七段
+  let stageHtml;
   if (!acc) {
-    stageBar = '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:12px">' + stagesData.map(function (s) {
-      const on = s.id === lead.stage_id;
-      return '<button class="btn btn-sm ' + (on ? 'btn-primary' : 'btn-secondary') + '" style="' + (on ? '' : 'opacity:.75') + '" onclick="companyStage(\'' + id + '\',\'' + s.id + '\')">' + esc(s.name) + '</button>';
-    }).join('') + '</div>';
+    stageHtml = '<select class="cp-stage" aria-label="階段" onchange="companyStage(\'' + id + '\',this.value)">' + stagesData.map(function (st) {
+      return '<option value="' + st.id + '"' + (st.id === lead.stage_id ? ' selected' : '') + '>' + esc(st.name) + '</option>';
+    }).join('') + '</select>';
+  } else {
+    stageHtml = acc.status === 'terminated' ? '<span class="badge badge-red">終止合作</span>' : '<span class="badge badge-green">成交客戶</span>';
   }
+  let onbBar = '';
   if (acc) {
     const oi = onbIdx(acc), od = onbDays(acc), can = canEditAcc(acc);
     const onbMeta = oi < 0 ? '<span style="color:var(--yellow)">還沒設定導入階段</span>'
       : (oi === ONB_STAGES.length - 1 ? '維運中' + (acc.go_live_date ? '・' + acc.go_live_date + ' 上線' : '')
-        : (od != null ? '這個階段第 ' + (od + 1) + ' 天' + (od >= ONB_STUCK_DAYS ? '・<span style="color:var(--red)">停太久了</span>' : '') : ''));
-    stageBar = '<div style="margin-top:12px"><div class="onb-steps">' + ONB_STAGES.map(function (s, k) {
-      return '<button class="' + (k === oi ? 'cur' : k < oi ? 'done' : '') + '"' + (can ? ' onclick="setOnboarding(\'' + acc.id + '\',\'' + s + '\')"' : ' disabled') + '>' + s + '</button>';
-    }).join('') + '</div><div class="onb-meta" style="margin-bottom:0">導入・' + onbMeta + '</div></div>';
+        : (od != null ? '第 ' + (od + 1) + ' 天' + (od >= ONB_STUCK_DAYS ? '・<span style="color:var(--red)">停太久了</span>' : '') : ''));
+    onbBar = '<div style="margin-top:12px"><div class="onb-steps">' + ONB_STAGES.map(function (st, k) {
+      return '<button class="' + (k === oi ? 'cur' : k < oi ? 'done' : '') + '"' + (can ? ' onclick="setOnboarding(\'' + acc.id + '\',\'' + st + '\')"' : ' disabled') + '>' + st + '</button>';
+    }).join('') + '</div><div class="onb-meta" style="margin-bottom:0">' + onbMeta + '</div></div>';
   }
-  const mainBtn = acc
-    ? '<button class="btn btn-secondary btn-sm" onclick="openRenewalQuote(\'' + id + '\')">🔄 續約報價</button>'
-      + '<button class="btn btn-secondary btn-sm" onclick="pickDealFilesForAccount(\'' + acc.id + '\')">📎 上傳回簽</button>'
-      + '<button class="btn btn-secondary btn-sm" onclick="startDealFromQuote(\'' + id + '\')">✅ 報價成交</button>'
-    : '<button class="btn btn-secondary btn-sm" onclick="startDealFromQuote(\'' + id + '\')">✅ 報價成交</button>';
-  return '<div class="cp-card">'
-    + '<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">'
-    +   '<div style="flex:1;min-width:220px">'
-    +     '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' + ctagHtml(lead) + '<div style="font-size:19px;font-weight:700">' + esc(lead.name) + '</div>' + status + (acc ? '' : expChipHtml(lead)) + '</div>'
-    +     '<div style="font-size:12.5px;color:var(--text3);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap">'
-    +       (lead.company ? '<span>👤 ' + esc(lead.company) + '</span>' : '')
-    +       (lead.tax_id ? '<span style="font-family:var(--mono)">🏷 ' + esc(lead.tax_id) + '</span>' : '')
-    +       (src ? '<span>來源：' + esc(src.name) + '</span>' : '')
-    +       '<span style="display:inline-flex;align-items:center;gap:5px">負責 ' + ownerSelectHtml(lead) + '</span>'
-    +     '</div>'
-    +     '<div style="font-size:12.5px;margin-top:6px">' + nextHtml + '</div>'
-    +     (lead.lost_reason && !acc ? '<div style="font-size:12px;color:var(--red);margin-top:4px">📉 結案原因：' + esc(lead.lost_reason) + '</div>' : '')
-    +   '</div>'
-    + '</div>'
-    + '<div class="cp-actions">'
-    +   '<button class="btn btn-primary btn-sm" onclick="openQuickLog(\'' + id + '\')">📝 記錄</button>'
-    +   '<button class="btn btn-secondary btn-sm" onclick="openSetNextContact(\'' + id + '\',\'' + (lead.next_contact_date || '') + '\')">📅 下次聯絡</button>'
-    +   '<button class="btn btn-secondary btn-sm" onclick="openQuoteForLead(\'' + id + '\')">🧾 ' + (acc ? '加購報價' : '建立報價') + '</button>'
-    +   mainBtn
+  // 主按鈕隨狀態變
+  const openQ = cp.openQ || [];
+  const nr = acc ? pickNextRenewal(cp.contracts || []) : null;
+  const renewSoon = nr && nr.end_date && daysUntil(nr.end_date) <= 90;
+  const missingSigned = acc && accMissingSigned({ contracts: cp.contracts || [] });
+  let primary, secondary = [];
+  const btn = function (cls, js, label) { return '<button class="btn ' + cls + ' btn-sm" onclick="' + js + '">' + label + '</button>'; };
+  const B = {
+    log: ['openQuickLog(\'' + id + '\')', '📝 記錄'],
+    quote: ['openQuoteForLead(\'' + id + '\')', '🧾 報價'],
+    deal: ['startDealFromQuote(\'' + id + '\')', '✅ 成交'],
+    sign: ['pickDealFilesForAccount(\'' + (acc ? acc.id : '') + '\')', '📎 上傳回簽'],
+    renew: ['openRenewalQuote(\'' + id + '\')', '🔄 續約報價']
+  };
+  if (acc) {
+    if (missingSigned) { primary = 'sign'; secondary = ['log', 'renew']; }
+    else if (renewSoon) { primary = 'renew'; secondary = ['log', 'quote']; }
+    else { primary = 'log'; secondary = ['quote']; }
+  } else {
+    if (openQ.length) { primary = 'deal'; secondary = ['log', 'quote']; }
+    else if (/議價/.test(getStageName(lead.stage_id) || '')) { primary = 'quote'; secondary = ['log']; }
+    else { primary = 'log'; secondary = ['quote']; }
+  }
+  const actions = btn('btn-primary', B[primary][0], B[primary][1]) + secondary.map(function (k) { return btn('btn-secondary', B[k][0], B[k][1]); }).join('')
+    + '<button class="btn btn-ghost btn-sm" onclick="openCpMore(\'' + id + '\')" aria-label="更多">⋯</button>';
+  const c0 = (cp.contacts || [])[0];
+  const phone = c0 && c0.phone ? String(c0.phone).replace(/[^\d+#,]/g, '') : '';
+  const meta = []
+    .concat(c0 ? ['<span>' + esc(c0.name) + (c0.role ? ' ' + esc(c0.role) : '') + (c0.phone ? '・' + (phone ? '<a href="tel:' + esc(phone) + '" style="color:inherit">' : '') + esc(c0.phone) + (phone ? '</a>' : '') : '') + '</span>'] : (lead.company ? ['<span>' + esc(lead.company) + '</span>'] : []))
+    .concat(lead.tax_id ? ['<span style="font-family:var(--mono)">' + esc(lead.tax_id) + '</span>'] : [])
+    .concat(src ? ['<span>' + esc(src.name) + '</span>'] : [])
+    .concat([nextHtml])
+    .concat(acc ? [] : [expChipHtml(lead)].filter(Boolean));
+  return '<div class="cp-card cp-head">'
+    + '<div class="cp-head-row">'
+    +   ctagHtml(lead) + '<div class="cp-name">' + esc(lead.name) + '</div>' + stageHtml
+    +   '<span style="display:inline-flex;align-items:center">' + ownerSelectHtml(lead) + '</span>'
     +   '<span style="flex:1"></span>'
-    +   '<button class="btn btn-ghost btn-sm" onclick="openCpMore(\'' + id + '\')" aria-label="更多">⋯ 更多</button>'
+    +   '<div class="cp-actions" style="margin:0">' + actions + '</div>'
     + '</div>'
-    + stageBar
+    + '<div class="cp-meta">' + meta.join('') + '</div>'
+    + (lead.lost_reason && !acc ? '<div style="font-size:12px;color:var(--red);margin-top:6px">📉 ' + esc(lead.lost_reason) + '</div>' : '')
+    + onbBar
     + '</div>';
 }
 
@@ -5845,25 +5876,45 @@ function renderAccountsList(accs, keepSearch) {
     if (keepSearch) { const el = document.getElementById('accSearch'); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }
     return;
   }
+  const dim = '<span style="color:var(--text3)">—</span>';
   const payCell = function (f) {
-    if (!f.count) return '<span style="color:var(--text3)">—</span>';
+    if (!f.count) return dim;
     if (!f.unpaid) return '<span style="color:var(--green)">已收齊</span>';
-    return '<span style="font-family:var(--mono)">$' + fmtNum(f.unpaid) + '</span><div style="font-size:11px">' + finNextPayHtml(f.nextPay) + '</div>';
+    const np = f.nextPay; if (!np) return '<span style="font-family:var(--mono)">$' + fmtNum(f.unpaid) + '</span>';
+    const d = daysUntil(np.due_date);
+    return d != null && d < 0 ? '<span style="color:var(--red)">逾期 ' + (-d) + ' 天 $' + fmtNum(np.amount) + '</span>' : '<span>' + esc((np.due_date || '').slice(5).replace('-', '/')) + ' $' + fmtNum(np.amount) + '</span>';
   };
-  const quoteCell = function (r) {
-    return r.qn ? '<span class="badge badge-yellow">待回 ' + r.qn + ' 張</span><div style="font-size:11px;color:var(--text3);font-family:var(--mono)">$' + fmtNum(r.qsum) + '</div>' : '<span style="color:var(--text3)">—</span>';
+  const renewCell = function (f) {
+    if (!f.count || !f.renewDate) return dim;
+    const d = f.renewDays;
+    const c = d < 0 ? 'var(--red)' : d <= f.renewWarn ? 'var(--yellow)' : d <= 90 ? 'var(--text2)' : 'var(--text3)';
+    return '<span style="color:' + c + '">' + esc(f.renewDate.slice(0, 7).replace('-', '/')) + (d < 0 ? '・過期 ' + (-d) + ' 天' : d <= 90 ? '・剩 ' + d + ' 天' : '') + '</span>';
   };
+  const quoteCell = function (r) { return r.qn ? '<span style="color:var(--yellow)">待回 ' + r.qn + ' 張</span>' : dim; };
+  const onbWord = function (a) {
+    const i = onbIdx(a), d = onbDays(a);
+    if (i < 0) return '<span style="color:var(--yellow)">未設定</span>';
+    if (i === ONB_STAGES.length - 1) return '<span style="color:var(--green)">維運中</span>';
+    const stuck = d != null && d >= ONB_STUCK_DAYS;
+    return '<span style="color:' + (stuck ? 'var(--red)' : 'var(--text)') + '">' + esc(ONB_STAGES[i]) + (d != null ? '・第 ' + (d + 1) + ' 天' : '') + '</span>';
+  };
+  const onbCell = function (a) {
+    return canEditAcc(a)
+      ? '<button type="button" class="cp-meta-btn" style="font-size:12.5px;text-align:left" onclick="event.stopPropagation();this.parentElement.innerHTML=onbCellHtml(\'' + a.id + '\')">' + onbWord(a) + '</button>'
+      : onbWord(a);
+  };
+  const missChip = function (a) { return accMissingSigned(a) ? ' <button type="button" class="td-kind" style="border:0;cursor:pointer" onclick="event.stopPropagation();pickDealFilesForAccount(\'' + a.id + '\')">缺回簽</button>' : ''; };
   html += '<div class="panel acc-table-wrap"><table class="data-table"><thead><tr>'
     + '<th>客戶</th><th>導入</th><th>收款</th><th>續約</th><th>報價</th><th style="text-align:right">月費</th>'
     + '</tr></thead><tbody>';
   shown.forEach(function (r) {
     const a = r.a, f = r.f;
     html += '<tr onclick="openAccountDetail(\'' + a.id + '\')" style="cursor:pointer;' + (r.off ? 'opacity:0.55' : '') + '">'
-      + '<td><div style="font-weight:500">' + esc(a.name) + '</div><div style="font-size:11px;color:var(--text3)">' + (r.off ? '<span style="color:var(--red)">終止合作</span>・' : '') + esc(a.user_name || '—') + '</div>' + signedLinkHtml(a) + '</td>'
-      + '<td onclick="event.stopPropagation()">' + onbCellHtml(a) + '</td>'
+      + '<td><div style="font-weight:500">' + esc(a.name) + missChip(a) + '</div><div style="font-size:11px;color:var(--text3)">' + (r.off ? '<span style="color:var(--red)">終止合作</span>・' : '') + esc(a.user_name || '—') + '</div></td>'
+      + '<td style="font-size:12.5px">' + onbCell(a) + '</td>'
       + '<td style="font-size:12.5px">' + payCell(f) + '</td>'
-      + '<td style="font-size:12px">' + (f.count ? finRenewHtml(f) : '<span style="color:var(--text3)">—</span>') + renewBtnHtml(a, f) + '</td>'
-      + '<td>' + quoteCell(r) + '</td>'
+      + '<td style="font-size:12.5px">' + renewCell(f) + '</td>'
+      + '<td style="font-size:12.5px">' + quoteCell(r) + '</td>'
       + '<td style="text-align:right;font-family:var(--mono);font-weight:600">' + (f.monthly ? '$' + fmtNum(f.monthly) : '—') + '</td>'
       + '</tr>';
   });
@@ -5872,13 +5923,12 @@ function renderAccountsList(accs, keepSearch) {
     const a = r.a, f = r.f;
     html += '<div class="acc-card" onclick="openAccountDetail(\'' + a.id + '\')"' + (r.off ? ' style="opacity:0.55"' : '') + '>'
       + '<div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b>' + esc(a.name) + '</b><span style="font-family:var(--mono);font-weight:600">' + (f.monthly ? '$' + fmtNum(f.monthly) + '<span style="font-size:11px;color:var(--text3);font-weight:400">/月</span>' : '') + '</span></div>'
-      + signedLinkHtml(a)
-      + '<div style="margin:6px 0" onclick="event.stopPropagation()">' + onbCellHtml(a) + '</div>'
+      + '<div style="margin:6px 0;font-size:12.5px">' + onbCell(a) + missChip(a) + '</div>'
       + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">'
       +   '<div><div style="color:var(--text3);font-size:11px">收款</div>' + payCell(f) + '</div>'
-      +   '<div><div style="color:var(--text3);font-size:11px">續約</div>' + (f.count ? finRenewHtml(f, true) : '—') + renewBtnHtml(a, f) + '</div>'
+      +   '<div><div style="color:var(--text3);font-size:11px">續約</div>' + renewCell(f) + '</div>'
       + '</div>'
-      + (r.qn ? '<div style="margin-top:6px">' + quoteCell(r) + '</div>' : '')
+      + (r.qn ? '<div style="margin-top:6px;font-size:12px">' + quoteCell(r) + '</div>' : '')
       + '</div>';
   });
   html += '</div>';
@@ -6075,6 +6125,7 @@ function onbMiniHtml(i) {
   return s + '</span>';
 }
 function onbCellHtml(a) {
+  if (typeof a === 'string') a = accountsData.find(function (x) { return x.id === a; }) || {};
   const i = onbIdx(a), d = onbDays(a);
   const stuck = i >= 0 && i < ONB_STAGES.length - 1 && d != null && d >= ONB_STUCK_DAYS;
   let opts = '<option value=""' + (i < 0 ? ' selected' : '') + '>未設定</option>';
