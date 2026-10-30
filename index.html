@@ -617,6 +617,19 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .qd-file{border:1.5px dashed var(--border2,var(--border));border-radius:10px;padding:14px;text-align:center;cursor:pointer;font-size:13px}
 .qd-file.ok{border-style:solid;border-color:var(--green);text-align:left}
 .qd-file.err{border-color:var(--red)}
+.ql-res{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:10px}
+.ql-res .df-chip{height:42px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.ql-ta{width:100%;box-sizing:border-box;min-height:74px;font-size:15px;line-height:1.55}
+.ql-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px}
+.ql-row .df-chip{height:34px;display:inline-flex;align-items:center}
+.ql-stage{font-size:12.5px;color:var(--text2);margin-top:10px;display:flex;align-items:center;gap:6px}
+.kc-log{position:absolute;right:8px;bottom:6px;width:26px;height:26px;border-radius:50%;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-size:15px;line-height:1;cursor:pointer;opacity:.55}
+.kanban-card{position:relative}
+.kanban-card:hover .kc-log{opacity:1}
+.kc-log:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.ml-log{width:38px;height:38px;border-radius:50%;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center}
+.tb-log{display:inline-flex}
+@media (max-width:768px){.tb-log{display:none}}
 </style>
 </head>
 <body>
@@ -699,6 +712,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
       <button class="btn btn-ghost btn-sm tb-back" onclick="goBack()" aria-label="返回">←</button>
       <div class="topbar-title" id="topbarTitle">今天</div>
       <button class="btn btn-ghost btn-sm" onclick="openGlobalSearch()" title="搜尋（⌘K）" style="margin-left:auto">🔍</button>
+      <button class="btn btn-primary btn-sm tb-log" onclick="openQuickLogPicker()" title="記錄聯絡（N）">＋ 記錄</button>
       <div id="topbarActions"></div>
     </div>
     <div id="sectionTabs"></div>
@@ -982,12 +996,10 @@ function openMoreMenu() {
 }
 
 function onFabClick() {
-  if (currentPage === 'company' && currentLeadId) openAddActivity(currentLeadId);
-  else if (isLeadsPage() || currentPage === 'today') openNewLeadModal();
-  else if (currentPage === 'accounts') openNewAccountModal();
+  if (currentPage === 'company' && currentLeadId) openQuickLog(currentLeadId);
   else if (currentPage === 'coldcall') openCcImport();
   else if (currentPage === 'quotes') saveCurrentQuote();
-  else navigate('leads');
+  else openQuickLogPicker();
 }
 
 async function renderPage(page) {
@@ -1051,7 +1063,7 @@ async function renderToday() {
   const today = nowDateStr();
   const Q = function (s) { return String(s).replace(/'/g, ''); };
   const go = function (id) { return "openCompany('" + Q(id) + "')"; };
-  const logBtn = function (id) { return '<button class="btn btn-primary btn-sm" onclick="openAddActivity(\'' + Q(id) + '\')">📝 記錄</button>'; };
+  const logBtn = function (id) { return '<button class="btn btn-primary btn-sm" onclick="openQuickLog(\'' + Q(id) + '\')">📝 記錄</button>'; };
 
   // ① 要聯絡
   const contact = leads.filter(function (l) { return l.next_contact_date && String(l.next_contact_date).slice(0, 10) <= today && mine(l.user_id); })
@@ -2394,6 +2406,7 @@ function renderLeadsMobile() {
       + (isExpStage(l) ? '<div style="margin-top:6px">' + expChipHtml(l) + '</div>' : '')
       + '<div class="ml-bot"><span class="ml-due ' + x.due.cls + '">' + x.due.txt + '</span>'
       + (phone ? '<a class="ml-tel" href="tel:' + esc(phone) + '" onclick="event.stopPropagation()" aria-label="撥打">📞</a>' : '')
+      + '<button type="button" class="ml-log" onclick="event.stopPropagation();openQuickLog(\'' + l.id + '\')" aria-label="記錄聯絡">＋</button>'
       + ownerSelectHtml(l) + '</div></div>';
   }).join('');
   const more = list.length > mlLimit ? '<button class="btn btn-secondary" style="width:100%;margin-top:4px" onclick="mlLimit+=60;renderLeadsMobile()">再顯示 ' + Math.min(60, list.length - mlLimit) + ' 筆（共 ' + list.length + '）</button>' : '';
@@ -2581,9 +2594,12 @@ async function renderDecks() {
 
 // ── 全域搜尋 ──
 let _gsTimer = null, _gsResults = [], _gsSel = 0;
-function openGlobalSearch() {
-  openModal('🔍 搜尋', '<input class="form-input" id="gsInput" placeholder="公司、聯絡人、電話、Email、統編…" autocomplete="off" oninput="gsQueue()" onkeydown="gsKey(event)">'
-    + '<div id="gsResults" style="margin-top:8px;max-height:60vh;overflow:auto"><div class="td-empty">輸入至少 1 個字開始搜尋。快捷鍵：⌘K / Ctrl+K</div></div>', []);
+let _gsMode = '';
+function openQuickLogPicker() { openGlobalSearch('log'); }
+function openGlobalSearch(mode) {
+  _gsMode = mode === 'log' ? 'log' : '';
+  openModal(_gsMode ? '記錄聯絡：哪一家？' : '🔍 搜尋', '<input class="form-input" id="gsInput" placeholder="' + (_gsMode ? '打公司名或電話' : '公司、聯絡人、電話、Email、統編…') + '" autocomplete="off" oninput="gsQueue()" onkeydown="gsKey(event)">'
+    + '<div id="gsResults" style="margin-top:8px;max-height:60vh;overflow:auto">' + (_gsMode ? gsRecentHtml() : '<div class="td-empty">輸入至少 1 個字開始搜尋。快捷鍵：⌘K / Ctrl+K</div>') + '</div>', []);
   document.getElementById('modalFooter').style.display = 'none';
   setTimeout(function () { const i = document.getElementById('gsInput'); if (i) i.focus(); }, 30);
 }
@@ -2599,12 +2615,31 @@ function gsKey(e) {
 function gsOpen(i) {
   const r = _gsResults[i]; if (!r) return;
   closeModal();
+  if (_gsMode === 'log') { if (r.leadId) openQuickLog(r.leadId); else toast('這家沒有名單資料', 'error'); return; }
   if (r.leadId) openCompany(r.leadId); else if (r.accId) openAccountDetail(r.accId);
+}
+// 記錄聯絡的選公司：先列今天該聯絡的和最近碰過的，通常不用打字
+function gsRecentHtml() {
+  const today = nowDateStr();
+  const mine = leadsData.filter(function (l) { return l.user_id === currentUser.id || window.isAdmin; });
+  const due = mine.filter(function (l) { return l.next_contact_date && String(l.next_contact_date).slice(0, 10) <= today; })
+    .sort(function (a, b) { return String(a.next_contact_date).localeCompare(String(b.next_contact_date)); });
+  const recent = mine.filter(function (l) { return due.indexOf(l) < 0; })
+    .sort(function (a, b) { return String(b.updated_at || '').localeCompare(String(a.updated_at || '')); }).slice(0, 5);
+  _gsResults = []; _gsSel = 0;
+  let h = '';
+  const item = function (l, sub) {
+    const i = _gsResults.length; _gsResults.push({ leadId: l.id });
+    return '<div class="gs-item' + (i === 0 ? ' on' : '') + '" onclick="gsOpen(' + i + ')"><div style="font-size:16px">🏢</div><div style="min-width:0"><div style="font-size:13px;font-weight:500">' + esc(l.name) + '</div><div style="font-size:11.5px;color:var(--text3)">' + sub + '</div></div></div>';
+  };
+  if (due.length) { h += '<div class="gs-group">今天要聯絡</div>'; due.slice(0, 8).forEach(function (l) { const d = -daysUntil(String(l.next_contact_date).slice(0, 10)); h += item(l, (d > 0 ? '<span style="color:var(--red)">逾期 ' + d + ' 天</span>' : '今天') + '・' + esc(getStageName(l.stage_id) || '')); }); }
+  if (recent.length) { h += '<div class="gs-group">最近</div>'; recent.forEach(function (l) { h += item(l, esc(getStageName(l.stage_id) || '')); }); }
+  return h || '<div class="td-empty">打公司名開始</div>';
 }
 async function runGlobalSearch() {
   const el = document.getElementById('gsResults'); if (!el) return;
   const q = (document.getElementById('gsInput')?.value || '').trim().replace(/[,()*'"\\%]/g, ' ').trim();
-  if (!q) { el.innerHTML = '<div class="td-empty">輸入至少 1 個字開始搜尋。</div>'; _gsResults = []; return; }
+  if (!q) { el.innerHTML = _gsMode === 'log' ? gsRecentHtml() : '<div class="td-empty">輸入至少 1 個字開始搜尋。</div>'; if (_gsMode !== 'log') _gsResults = []; return; }
   const p = '*' + q + '*';
   const [lR, cR, aR] = await Promise.all([
     db.from('leads').select('id,name,company,tax_id,user_name,stage_id').or('name.ilike.' + p + ',company.ilike.' + p + ',tax_id.ilike.' + p).limit(10),
@@ -3125,6 +3160,12 @@ function createKanbanCard(lead) {
       <span style="font-size:10.5px;color:var(--text3)">${fmtDate(lead.created_at)}</span>
     </div>
   `;
+  const logB = document.createElement('button');
+  logB.className = 'kc-log'; logB.type = 'button'; logB.textContent = '＋'; logB.title = '記錄聯絡'; logB.setAttribute('aria-label', '記錄聯絡');
+  logB.draggable = false;
+  logB.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+  logB.addEventListener('click', function (e) { e.stopPropagation(); openQuickLog(lead.id); });
+  card.appendChild(logB);
   const ownSel = card.querySelector('.owner-sel');
   if (ownSel) { ownSel.draggable = false; ownSel.addEventListener('dragstart', e => { e.preventDefault(); e.stopPropagation(); }); }
   card.addEventListener('dragstart', e => {
@@ -4305,7 +4346,7 @@ function companyHeaderHtml(lead, acc) {
     +   '</div>'
     + '</div>'
     + '<div class="cp-actions">'
-    +   '<button class="btn btn-primary btn-sm" onclick="openAddActivity(\'' + id + '\')">📝 記錄活動</button>'
+    +   '<button class="btn btn-primary btn-sm" onclick="openQuickLog(\'' + id + '\')">📝 記錄</button>'
     +   '<button class="btn btn-secondary btn-sm" onclick="openSetNextContact(\'' + id + '\',\'' + (lead.next_contact_date || '') + '\')">📅 下次聯絡</button>'
     +   '<button class="btn btn-secondary btn-sm" onclick="openQuoteForLead(\'' + id + '\')">🧾 ' + (acc ? '加購報價' : '建立報價') + '</button>'
     +   mainBtn
@@ -4373,7 +4414,7 @@ function companyTimelineCardHtml(lead) {
     + '</div>'
     + '<div style="display:flex;gap:6px;margin-bottom:10px">'
     +   '<button class="btn btn-secondary btn-sm" onclick="addNote(\'' + lead.id + '\',\'lead\')">💬 加備註</button>'
-    +   '<button class="btn btn-primary btn-sm" onclick="openAddActivity(\'' + lead.id + '\')">📝 記錄活動</button>'
+    +   '<button class="btn btn-primary btn-sm" onclick="openQuickLog(\'' + lead.id + '\')">📝 記錄</button>' + '<button class="btn btn-ghost btn-sm" onclick="openAddActivity(\'' + lead.id + '\')" title="完整表單">⋯</button>'
     + '</div>'
     + '<div id="drawerPanel-activities"><div class="loading" style="height:80px"><span class="dot-pulse">載入中</span></div></div>'
     + '</div>';
@@ -4764,6 +4805,98 @@ async function renderDrawerActivities(leadId) {
   if (currentPage === 'company' && leadId === currentLeadId) return renderCompanyTimeline(leadId);
   if (currentPage === 'today') return renderToday();
 }
+
+// ════════ 記錄聯絡（三下完成：結果、一句話、下次） ════════
+const QL_RESULTS = [['call', '接通'], ['missed', '沒接'], ['visit', '拜訪'], ['msg', '訊息']];
+const QL_NEXT = [[1, '明天'], [3, '3 天'], [7, '下週'], [14, '2 週'], ['pick', '選日期'], [null, '不用']];
+let _ql = null;
+function qlStageAfter(lead, result) {
+  const order = stagesData.map(function (s) { return s.name; });
+  const cur = getStageName(lead.stage_id) || '';
+  const idx = function (n) { return order.indexOf(n); };
+  const re = (result === 'call' || result === 'msg') ? /聯繫/ : result === 'visit' ? /拜訪/ : null;
+  if (!re) return null;
+  const target = order.find(function (n) { return re.test(n); });
+  if (!target || idx(cur) < 0) return null;
+  return idx(target) > idx(cur) ? stagesData[idx(target)] : null;
+}
+async function openQuickLog(leadId) {
+  let lead = leadsData.find(function (l) { return l.id === leadId; });
+  if (!lead) { const r = await db.from('leads').select('*').eq('id', leadId).maybeSingle(); lead = r.data; if (lead) leadsData.push(lead); }
+  if (!lead) { toast('找不到這家', 'error'); return; }
+  if (!stagesData.length) await loadGlobalData();
+  const curNext = lead.next_contact_date ? String(lead.next_contact_date).slice(0, 10) : '';
+  const keepNext = curNext && curNext > nowDateStr() ? curNext : '';
+  _ql = { lead: lead, result: 'call', next: keepNext ? 'keep' : 7, nextDate: keepNext || addDaysStr(nowDateStr(), 7), stage: true };
+  const resBtns = QL_RESULTS.map(function (r) { return '<button type="button" class="df-chip' + (r[0] === 'call' ? ' on' : '') + '" data-v="' + r[0] + '" onclick="qlSet(\'result\',\'' + r[0] + '\')">' + r[1] + '</button>'; }).join('');
+  const nextBtns = QL_NEXT.map(function (n) { return '<button type="button" class="df-chip' + (String(n[0]) === String(_ql.next) ? ' on' : '') + '" data-v="' + n[0] + '" onclick="qlSet(\'next\',\'' + n[0] + '\')">' + n[1] + '</button>'; }).join('');
+  const st = getStageName(lead.stage_id) || '';
+  openModal(lead.name, ''
+    + '<div style="font-size:12px;color:var(--text3);margin:-6px 0 10px">' + esc(st) + (lead.user_name ? '・' + esc(lead.user_name) : '') + '</div>'
+    + '<div class="ql-res" id="qlRes">' + resBtns + '</div>'
+    + '<div style="position:relative"><textarea class="form-textarea ql-ta" id="qlText" placeholder="一句話就好" onkeydown="qlKey(event)"></textarea>'
+    + '<button type="button" class="btn btn-ghost btn-sm" style="position:absolute;right:6px;bottom:6px;padding:2px 8px" onclick="startVoiceInput(\'qlText\', this)">🎤</button></div>'
+    + '<div class="ql-row"><span style="font-size:12.5px;color:var(--text3);margin-right:2px">下次</span><span id="qlNext">' + (keepNext ? '<button type="button" class="df-chip on" data-v="keep" onclick="qlSet(\'next\',\'keep\')">' + keepNext.slice(5).replace('-', '/') + '</button>' : '') + nextBtns + '</span>'
+    + '<input type="date" class="form-input" id="qlDate" style="display:none;width:auto;height:34px;padding:2px 8px" value="' + _ql.nextDate + '" onchange="_ql.nextDate=this.value"></div>'
+    + '<div class="ql-stage" id="qlStage"></div>', [
+    { label: '取消', cls: 'btn-secondary', action: closeModal },
+    { label: '儲存', cls: 'btn-primary', action: saveQuickLog }
+  ]);
+  document.getElementById('modalBox').style.maxWidth = '480px';
+  qlRenderStage();
+  setTimeout(function () { const t = document.getElementById('qlText'); if (t && window.innerWidth > 768) t.focus(); }, 30);
+}
+function qlSet(k, v) {
+  if (!_ql) return;
+  if (k === 'result') { _ql.result = v; document.querySelectorAll('#qlRes .df-chip').forEach(function (b) { b.classList.toggle('on', b.dataset.v === v); }); qlRenderStage(); return; }
+  _ql.next = v === 'null' ? null : v;
+  const dateEl = document.getElementById('qlDate');
+  if (v === 'pick') { dateEl.style.display = ''; dateEl.focus(); }
+  else { dateEl.style.display = 'none'; if (v === 'keep') _ql.nextDate = String(_ql.lead.next_contact_date).slice(0, 10); else if (v !== 'null') _ql.nextDate = addDaysStr(nowDateStr(), parseInt(v, 10)); }
+  document.querySelectorAll('#qlNext .df-chip').forEach(function (b) { b.classList.toggle('on', b.dataset.v === v); });
+}
+function qlRenderStage() {
+  const el = document.getElementById('qlStage'); if (!el || !_ql) return;
+  const ns = qlStageAfter(_ql.lead, _ql.result);
+  if (!ns) { el.innerHTML = ''; _ql.stageTo = null; return; }
+  _ql.stageTo = ns;
+  el.innerHTML = '<label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" ' + (_ql.stage ? 'checked' : '') + ' onchange="_ql.stage=this.checked">階段改成「' + esc(ns.name) + '」</label>';
+}
+function qlKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey && (e.metaKey || e.ctrlKey || window.innerWidth > 768)) { e.preventDefault(); saveQuickLog(); }
+}
+async function saveQuickLog() {
+  if (!_ql || _ql.busy) return;
+  const q = _ql, lead = q.lead;
+  let content = (document.getElementById('qlText').value || '').trim();
+  if (!content) { if (q.result === 'missed') content = '沒接通'; else { toast('寫一句就好', 'error'); document.getElementById('qlText').focus(); return; } }
+  if (q.next === 'pick' && !q.nextDate) { toast('選個日期', 'error'); return; }
+  q.busy = true;
+  try {
+    const type = q.result === 'visit' ? 'visit' : q.result === 'msg' ? 'email' : 'call';
+    const r1 = await db.from('activities').insert({ type: type, content: content, lead_id: lead.id, user_id: currentUser.id, created_at: new Date().toISOString() });
+    if (r1.error) { toast('存不進去：' + r1.error.message, 'error'); return; }
+    const upd = { updated_at: new Date().toISOString() };
+    const nx = q.next === null ? null : q.nextDate;
+    if (q.next !== 'keep') upd.next_contact_date = nx;
+    let stageMsg = '';
+    if (q.stage && q.stageTo) { upd.stage_id = q.stageTo.id; stageMsg = '・' + q.stageTo.name; }
+    await db.from('leads').update(upd).eq('id', lead.id);
+    Object.assign(lead, upd);
+    const cp = window._cp && window._cp.lead && window._cp.lead.id === lead.id ? window._cp.lead : null; if (cp) Object.assign(cp, upd);
+    closeModal(); _ql = null;
+    toast('已記錄' + (nx && q.next !== 'keep' ? '・下次 ' + nx.slice(5).replace('-', '/') : '') + stageMsg, 'success');
+    if (currentPage === 'company' && currentLeadId === lead.id) refreshCompany();
+    else if (currentPage === 'today') renderToday();
+    else if (isLeadsPage()) { if (window.innerWidth <= 768) renderLeadsMobile(); else filterLeads(); }
+  } finally { if (_ql) _ql.busy = false; }
+}
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'n' || e.metaKey || e.ctrlKey || e.altKey) return;
+  const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+  if (document.getElementById('modalOverlay').style.display === 'flex') return;
+  e.preventDefault(); openQuickLogPicker();
+});
 
 function setActNext(days, btn) {
   const inp = document.getElementById('actNext'); if (!inp) return;
