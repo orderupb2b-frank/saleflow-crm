@@ -591,6 +591,21 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
   .quote-frame-wrap { min-height:0; }
 }
 
+.ctag{width:14px;height:14px;border-radius:50%;border:1.5px dashed var(--border2,#c9cdd6);background:transparent;padding:0;cursor:pointer;flex-shrink:0;display:inline-block;vertical-align:middle}
+.ctag.on{border:0}
+.ctag:hover{transform:scale(1.15)}
+.ctag-red{background:#E5484D}.ctag-orange{background:#F76B15}.ctag-yellow{background:#F5C400}.ctag-green{background:#30A46C}.ctag-blue{background:#3E63DD}.ctag-purple{background:#8E4EC6}.ctag-gray{background:#8B8D98}
+.ctag-pop{position:fixed;z-index:9999;background:var(--bg2,#fff);border:1px solid var(--border,#e3e6eb);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:8px;display:flex;gap:6px;align-items:center}
+.ctag-pop .ctag{width:22px;height:22px}
+.ctag-pop .ctag.sel{box-shadow:0 0 0 2px var(--bg2,#fff),0 0 0 4px var(--text,#15171a)}
+.ctag-pop .ctag-x{width:22px;height:22px;border-radius:50%;border:1px solid var(--border,#e3e6eb);background:transparent;color:var(--text3);font-size:12px;cursor:pointer;padding:0;line-height:20px}
+.ctag-filter{display:inline-flex;gap:5px;align-items:center;padding:0 4px}
+.ctag-filter .ctag{width:16px;height:16px;opacity:.35}
+.ctag-filter .ctag.act{opacity:1;box-shadow:0 0 0 2px var(--bg,#fff),0 0 0 3.5px var(--text,#15171a)}
+.ctag-filter .ctag-clr{font-size:11px;color:var(--text3);background:none;border:0;cursor:pointer;padding:0 2px}
+.kc-name .ctag{margin-right:5px;margin-top:-2px}
+.ml-name .ctag{margin-right:6px;margin-top:-2px}
+.ml-chips .ctag-filter .ctag{width:20px;height:20px}
 </style>
 </head>
 <body>
@@ -2210,6 +2225,66 @@ function leadMatches(l, q) {
   });
 }
 
+// ════════════════════════ 顏色標記 ════════════════════════
+const CTAGS = ['red','orange','yellow','green','blue','purple','gray'];
+let ctagFilter = new Set();
+try { (JSON.parse(localStorage.getItem('sf_ctagFilter') || '[]') || []).forEach(function (c) { if (CTAGS.indexOf(c) >= 0) ctagFilter.add(c); }); } catch (e) {}
+function ctagSaveFilter() { try { localStorage.setItem('sf_ctagFilter', JSON.stringify(Array.from(ctagFilter))); } catch (e) {} }
+function ctagPass(l) { return !ctagFilter.size || ctagFilter.has(l.color_tag || ''); }
+function ctagHtml(l) {
+  const c = CTAGS.indexOf(l.color_tag) >= 0 ? l.color_tag : '';
+  return '<button type="button" class="ctag' + (c ? ' on ctag-' + c : '') + '" data-ctag="' + l.id + '" draggable="false" aria-label="標顏色"'
+    + ' onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openCtagPop(event,\'' + l.id + '\')"></button>';
+}
+function ctagFilterHtml(fn) {
+  return '<span class="ctag-filter">' + CTAGS.map(function (c) {
+    return '<button type="button" class="ctag on ctag-' + c + (ctagFilter.has(c) ? ' act' : '') + '" onclick="toggleCtagFilter(\'' + c + '\')" aria-label="篩選顏色"></button>';
+  }).join('') + (ctagFilter.size ? '<button type="button" class="ctag-clr" onclick="toggleCtagFilter(\'\')">清除</button>' : '') + '</span>';
+}
+function toggleCtagFilter(c) {
+  if (!c) ctagFilter.clear(); else if (ctagFilter.has(c)) ctagFilter.delete(c); else ctagFilter.add(c);
+  ctagSaveFilter();
+  if (window.innerWidth <= 768) { mlLimit = 40; renderLeadsMobile(); }
+  else filterLeads();
+}
+function closeCtagPop() { const p = document.getElementById('ctagPop'); if (p) p.remove(); }
+function openCtagPop(ev, id) {
+  ev.stopPropagation(); ev.preventDefault();
+  const was = document.getElementById('ctagPop');
+  closeCtagPop();
+  if (was && was.dataset.lead === id) return;
+  const l = leadsData.find(function (x) { return x.id === id; }) || (window._cp && window._cp.lead && window._cp.lead.id === id ? window._cp.lead : {});
+  const pop = document.createElement('div');
+  pop.id = 'ctagPop'; pop.className = 'ctag-pop'; pop.dataset.lead = id;
+  pop.innerHTML = CTAGS.map(function (c) {
+    return '<button type="button" class="ctag on ctag-' + c + (l.color_tag === c ? ' sel' : '') + '" onclick="setLeadColor(\'' + id + '\',\'' + c + '\')"></button>';
+  }).join('') + '<button type="button" class="ctag-x" onclick="setLeadColor(\'' + id + '\',\'\')" aria-label="取消">✕</button>';
+  document.body.appendChild(pop);
+  const r = ev.currentTarget.getBoundingClientRect();
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  let x = Math.min(Math.max(8, r.left - 8), window.innerWidth - w - 8);
+  let y = r.bottom + 6; if (y + h > window.innerHeight - 8) y = r.top - h - 6;
+  pop.style.left = x + 'px'; pop.style.top = y + 'px';
+}
+document.addEventListener('click', function (e) { if (!e.target.closest('#ctagPop')) closeCtagPop(); });
+window.addEventListener('scroll', closeCtagPop, true);
+async function setLeadColor(id, c) {
+  closeCtagPop();
+  const targets = [leadsData.find(function (l) { return l.id === id; }), window._cp && window._cp.lead && window._cp.lead.id === id ? window._cp.lead : null].filter(Boolean);
+  const prev = targets.length ? (targets[0].color_tag || '') : '';
+  if (prev === c) return;
+  const paint = function (v) {
+    targets.forEach(function (l) { l.color_tag = v || null; });
+    document.querySelectorAll('.ctag[data-ctag="' + id + '"]').forEach(function (b) {
+      b.className = 'ctag' + (v ? ' on ctag-' + v : '');
+    });
+  };
+  paint(c);
+  const r = await db.from('leads').update({ color_tag: c || null }).eq('id', id).select('id');
+  if (r.error || !r.data || !r.data.length) { paint(prev); toast('標顏色失敗' + (r.error ? '：' + r.error.message : '（沒有權限）'), 'error'); return; }
+  if (ctagFilter.size && isLeadsPage()) { if (window.innerWidth <= 768) renderLeadsMobile(); else filterLeads(); }
+}
+
 // ════════════════════════ 手機版名單 ════════════════════════
 let mlScope = null, mlStage = 'open', mlQuery = '', mlLimit = 40;
 function mlDue(l) {
@@ -2233,6 +2308,7 @@ function renderLeadsMobile() {
   else if (mlStage === 'open') list = scoped.filter(isOpen);
   else if (mlStage === 'won') list = scoped.filter(function (l) { return convertedLeadIds.has(l.id); });
   else list = scoped.filter(function (l) { return l.stage_id === mlStage && !convertedLeadIds.has(l.id); });
+  list = list.filter(ctagPass);
   list = list.map(function (l) { return { l: l, due: mlDue(l) }; }).sort(function (a, b) {
     if (a.due.rank !== b.due.rank) return a.due.rank - b.due.rank;
     if (a.due.rank < 2 && a.due.d !== b.due.d) return a.due.d - b.due.d;
@@ -2253,7 +2329,7 @@ function renderLeadsMobile() {
     const sub = [l.company || (c0 && c0.name) || '', l.tax_id || ''].filter(Boolean).join('・');
     const phone = c0 && c0.phone ? String(c0.phone).replace(/[^\d+#,]/g, '') : '';
     return '<div class="ml-card" onclick="openCompany(\'' + l.id + '\')">'
-      + '<div class="ml-top"><div class="ml-name">' + esc(l.name) + '</div><span class="ml-stage">' + esc(st) + '</span></div>'
+      + '<div class="ml-top"><div class="ml-name">' + ctagHtml(l) + esc(l.name) + '</div><span class="ml-stage">' + esc(st) + '</span></div>'
       + (sub ? '<div class="ml-sub">' + esc(sub) + '</div>' : '')
       + '<div class="ml-bot"><span class="ml-due ' + x.due.cls + '">' + x.due.txt + '</span>'
       + (phone ? '<a class="ml-tel" href="tel:' + esc(phone) + '" onclick="event.stopPropagation()" aria-label="撥打">📞</a>' : '')
@@ -2265,7 +2341,7 @@ function renderLeadsMobile() {
     + '<div class="ml-sbox"><span>🔍</span><input id="mlSearch" class="ml-search" type="search" enterkeyhint="search" placeholder="公司、聯絡人、電話、統編" value="' + esc(mlQuery) + '" oninput="mlSearchInput(this.value)">'
     + (mlQuery ? '<button class="ml-clear" onclick="mlSearchInput(\'\')" aria-label="清除">✕</button>' : '') + '</div>'
     + (mlQuery ? '<div style="font-size:12px;color:var(--text3);margin-top:8px">搜尋全部名單：' + list.length + ' 筆</div>'
-      : '<div class="ml-chips ml-seg">' + seg + '</div><div class="ml-chips">' + stageChips + '</div>')
+      : '<div class="ml-chips ml-seg">' + seg + '</div><div class="ml-chips">' + stageChips + '</div><div class="ml-chips">' + ctagFilterHtml() + '</div>')
     + '</div>'
     + (cards || '<div class="ml-empty">' + (mlQuery ? '找不到「' + esc(mlQuery) + '」<br><button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="openNewLeadModal()">＋ 新增這家</button>' : '這裡沒有名單') + '</div>')
     + more + '<div style="height:70px"></div></div>';
@@ -2902,6 +2978,7 @@ function renderKanban(searchStr = '') {
       <select class="form-select" style="width:auto;padding:3px 8px;font-size:12px;height:28px" onchange="setKanbanFilter('src',this.value)">
         ${srcOptions.map(o=>`<option value="${o.val}"${kanbanFilterSrc===o.val?' selected':''}>${o.label}</option>`).join('')}
       </select>
+      ${ctagFilterHtml()}
     </div>
     <div id="kanban-board"></div>`;
 
@@ -2920,6 +2997,7 @@ function renderKanban(searchStr = '') {
       if (searchStr && !leadMatches(l, searchStr)) return false;
       if (kanbanFilterSrc !== 'all' && (l.source_id||'') !== kanbanFilterSrc) return false;
       if (kanbanFilterUser !== 'all' && (l.user_id||'') !== kanbanFilterUser) return false;
+      if (!ctagPass(l)) return false;
       return true;
     }).sort((a,b) => (a.sort_order||0) - (b.sort_order||0));
     si = stageIdx;
@@ -2971,7 +3049,7 @@ function createKanbanCard(lead) {
   card.draggable = true;
   const src = sourcesData.find(s => s.id === lead.source_id);
   card.innerHTML = `
-    <div class="kc-name">${esc(lead.name)}${convertedLeadIds.has(lead.id) ? ' <span class="badge badge-green" style="font-size:10px;padding:1px 6px">已成交</span>' : ''}</div>
+    <div class="kc-name">${ctagHtml(lead)}${esc(lead.name)}${convertedLeadIds.has(lead.id) ? ' <span class="badge badge-green" style="font-size:10px;padding:1px 6px">已成交</span>' : ''}</div>
     ${lead.company ? `<div class="kc-company">👤 ${esc(lead.company)}</div>` : ''}
     ${lead.tax_id ? `<div style="font-size:10.5px;color:var(--text3);font-family:var(--mono);margin-bottom:4px">🏷 ${esc(lead.tax_id)}</div>` : ''}
     <div class="kc-meta">
@@ -3106,6 +3184,7 @@ function renderLeadsList(searchStr) {
     {val:'updated_desc', label:'最近更新（新→舊）'},
     {val:'created_desc', label:'建立日（新→舊）'},
     {val:'created_asc',  label:'建立日（舊→新）'},
+    {val:'color',        label:'依顏色'},
   ];
   const stageSelectHtml = buildSelectHtml(stageOpts, listFilterStage, "setListFilter('stage',this.value)");
   const userSelectHtml  = buildSelectHtml(userOpts,  listFilterUser,  "setListFilter('user',this.value)");
@@ -3117,12 +3196,14 @@ function renderLeadsList(searchStr) {
     if (listFilterStage !== 'all' && l.stage_id !== listFilterStage) return false;
     if (listFilterSrc   !== 'all' && (l.source_id||'') !== listFilterSrc) return false;
     if (listFilterUser  !== 'all' && (l.user_id||'')   !== listFilterUser) return false;
+    if (!ctagPass(l)) return false;
     if (searchStr) return leadMatches(l, searchStr);
     return true;
   });
   if (listSortMode === 'updated_desc') filtered.sort(function(a,b){ return new Date(b.updated_at||b.created_at) - new Date(a.updated_at||a.created_at); });
   else if (listSortMode === 'created_desc') filtered.sort(function(a,b){ return new Date(b.created_at) - new Date(a.created_at); });
   else if (listSortMode === 'created_asc') filtered.sort(function(a,b){ return new Date(a.created_at) - new Date(b.created_at); });
+  else if (listSortMode === 'color') filtered.sort(function(a,b){ const ia = CTAGS.indexOf(a.color_tag), ib = CTAGS.indexOf(b.color_tag); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib); });
   window._listFiltered = filtered;
   const rows = filtered.map(l => {
     const stage = stagesData.find(s => s.id === l.stage_id);
@@ -3132,7 +3213,7 @@ function renderLeadsList(searchStr) {
       <td onclick="event.stopPropagation()" style="width:36px;text-align:center;padding:0 8px">
         <input type="checkbox" ${checked} onchange="toggleListSelect('${l.id}',this.checked)" style="width:15px;height:15px;cursor:pointer">
       </td>
-      <td style="cursor:pointer;font-weight:500" onclick="openLeadDrawer('${l.id}')">${esc(l.name)}${convertedLeadIds.has(l.id) ? ' <span class="badge badge-green" style="font-size:10px;padding:1px 6px">已成交</span>' : ''}</td>
+      <td style="cursor:pointer;font-weight:500" onclick="openLeadDrawer('${l.id}')"><span onclick="event.stopPropagation()" style="margin-right:7px">${ctagHtml(l)}</span>${esc(l.name)}${convertedLeadIds.has(l.id) ? ' <span class="badge badge-green" style="font-size:10px;padding:1px 6px">已成交</span>' : ''}</td>
       <td style="font-size:12px;color:var(--text3)">${esc(l.company||'—')}</td>
       <td style="font-size:12px;font-family:var(--mono);color:var(--text3)">${esc(l.tax_id||'—')}</td>
       <td onclick="event.stopPropagation()">
@@ -3169,7 +3250,7 @@ function renderLeadsList(searchStr) {
       <button class="btn btn-secondary btn-sm" onclick="listSelectedIds.clear();renderLeadsList(document.getElementById('leadSearch')?.value||'')">取消</button>
     </div>` : '';
 
-  const filterBar = '<div class="kanban-filters" style="margin-bottom:10px">' + stageSelectHtml + userSelectHtml + srcSelectHtml + sortSelectHtml + '</div>';
+  const filterBar = '<div class="kanban-filters" style="margin-bottom:10px">' + stageSelectHtml + userSelectHtml + srcSelectHtml + sortSelectHtml + ctagFilterHtml() + '</div>';
   if (filtered.length === 0) {
     content.innerHTML = filterBar + '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-text">沒有符合的 Lead</div></div>';
     return;
@@ -4124,7 +4205,7 @@ function companyHeaderHtml(lead, acc) {
   return '<div class="cp-card">'
     + '<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">'
     +   '<div style="flex:1;min-width:220px">'
-    +     '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><div style="font-size:19px;font-weight:700">' + esc(lead.name) + '</div>' + status + '</div>'
+    +     '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' + ctagHtml(lead) + '<div style="font-size:19px;font-weight:700">' + esc(lead.name) + '</div>' + status + '</div>'
     +     '<div style="font-size:12.5px;color:var(--text3);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap">'
     +       (lead.company ? '<span>👤 ' + esc(lead.company) + '</span>' : '')
     +       (lead.tax_id ? '<span style="font-family:var(--mono)">🏷 ' + esc(lead.tax_id) + '</span>' : '')
