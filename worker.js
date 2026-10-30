@@ -670,20 +670,26 @@ async function getDeals({ db, url }, leadId) {
   const deals = cts.map(c => ({ ...dealView(c), files: files.filter(f => f.contract_id === c.id).map(f => `${f.kind}：${f.file_name}`) }));
   return { lead: lead.name, is_customer: true, status: acc.status === 'terminated' ? '終止合作' : '合作中', onboarding: onbView(acc), summary: finSummary(cts), deals, crm_link: url.origin + '/#lead=' + leadId };
 }
-async function recordDeal({ db, me, url }, leadId, b) {
+async function recordDeal({ db, me, url, env: ctxEnv, tk: ctxTk }, leadId, b) {
   const lead = await loadLead({ db }, leadId);
   if (me.role !== 'admin' && lead.user_id && lead.user_id !== me.id) throw new HttpError(403, `這家的負責業務是 ${lead.user_name || '其他同事'}，只有負責業務或管理員能建立成交單`);
-  const cat = DEAL_CATS.includes(b.category) ? b.category : '主約';
   if (!isDate(b.signed_date)) throw new HttpError(400, 'signed_date（簽約日）必填，格式 YYYY-MM-DD');
   for (const k of ['start_date', 'end_date']) if (b[k] && !isDate(b[k])) throw new HttpError(400, `${k} 格式要是 YYYY-MM-DD`);
-  const items = normItems(b.items, cat);
-  const total = items.reduce((s, it) => s + it.amount, 0);
-  const notes = [];
-  const inst = normInst(b.installments, total, b.signed_date, me.role === 'admin', notes);
+  const hasFile = !!((b.file && b.file.download_url) || (Array.isArray(b.files) && b.files.some(f => f && f.download_url)) || (Array.isArray(b.openaiFileIdRefs) && b.openaiFileIdRefs.length));
+  if (!hasFile) throw new HttpError(400, '成交一定要附客戶簽回的報價單：請使用者把回簽檔（PDF 或照片）傳到對話裡，再用 file 一起帶進 record_deal');
   const quoteNoteId = await matchQuote(db, leadId, b.quote_no);
   if (!quoteNoteId) throw new HttpError(400, b.quote_no
     ? `CRM 裡找不到報價編號 ${b.quote_no}（或已成交）。成交要從 CRM 的報價單轉，請確認編號，或先在 CRM 建立報價：${url.origin}/#lead=${leadId}`
     : `成交要從 CRM 的報價單轉：這家沒有可成交的報價，或有好幾張。請帶 quote_no，或先在 CRM 建立報價：${url.origin}/#lead=${leadId}`);
+  // 沒給明細就直接用報價單算：初次簽約／續約／客製案各自對應成交類型與獎金類別
+  const q = await quoteDeal(db, quoteNoteId);
+  const hadDeals = !!(await accountForLead(db, leadId).then(a => a && db.get(`contracts?account_id=eq.${a.id}&select=id&limit=1`).then(x => x.length)).catch(() => 0));
+  const cat = DEAL_CATS.includes(b.category) ? b.category : (q ? (q.kind === 'renewal' ? '續約' : q.kind === 'custom' ? '客製案件' : hadDeals ? '加購專案' : '主約') : '主約');
+  const items = Array.isArray(b.items) && b.items.length ? normItems(b.items, cat) : (q && q.items.length ? q.items : normItems(b.items, cat));
+  const total = items.reduce((s, it) => s + it.amount, 0);
+  const notes = [];
+  const inst = normInst(b.installments, total, b.signed_date, me.role === 'admin', notes);
+  if (q) { if (!b.plan_name) b.plan_name = q.name; if (b.monthly_fee == null && q.monthly) b.monthly_fee = q.monthly; if (!b.start_date && q.start) b.start_date = q.start; if (!b.end_date && q.end) b.end_date = q.end; }
   let acc = await accountForLead(db, leadId);
   if (acc && !b.confirm_not_duplicate) {
     const same = (await db.get(`contracts?account_id=eq.${acc.id}&select=id,name,amount,signed_date`)).filter(c => c.signed_date === b.signed_date && Math.abs((Number(c.amount) || 0) - total) <= 1);
@@ -702,7 +708,30 @@ async function recordDeal({ db, me, url }, leadId, b) {
   const L = await lookups(db);
   const won = L.stageByName('簽約進件');
   if (won && lead.stage_id !== won.id) await db.update('leads', `id=eq.${leadId}`, { stage_id: won.id, updated_at: new Date().toISOString() });
-  return { ok: true, lead: lead.name, deal: dealView(ct), notes: notes.length ? notes : undefined, crm_link: url.origin + '/#lead=' + leadId };
+  let files;
+  try { files = (await attachFile({ db, me, url, env: ctxEnv, tk: ctxTk }, leadId, { file: b.file, files: b.files, openaiFileIdRefs: b.openaiFileIdRefs, deal_id: ct.id, kind: '回簽報價單' })).files; }
+  catch (e) { notes.push('成交單已建立，但回簽檔沒存成功：' + (e.message || e) + '。請再用 attach_deal_file 補附'); }
+  return { ok: true, lead: lead.name, deal: dealView(ct), files, notes: notes.length ? notes : undefined, crm_link: url.origin + '/#lead=' + leadId };
+}
+// 從報價單快照算成交明細（和 CRM 畫面「報價成交」同一套規則）
+async function quoteDeal(db, noteId) {
+  try {
+    const n = (await db.get(`notes?id=eq.${noteId}&select=content`))?.[0];
+    const rec = JSON.parse(n.content.slice(QUOTE_PREFIX.length));
+    const S = rec.snapshot || {}, sm = rec.summary || {};
+    const kind = ['renewal', 'custom'].includes(S.quote?.kind || sm.kind) ? (S.quote?.kind || sm.kind) : 'new';
+    const items = [];
+    for (const p of (S.prices || [])) {
+      const a = num(p.amount), s = num(p.sale), qn = num(p.qty), qty = Math.max(0, qn == null ? 1 : qn);
+      const fin = (a != null && s != null && s < a) ? s : (a != null ? a : s);
+      if (fin == null) continue;
+      const total = Math.round(fin * qty);
+      items.push({ name: p.item || '項目', amount: total, bonus_type: total === 0 ? 'none' : kind === 'custom' ? 'custom' : (p.preset === 'sub' && kind === 'renewal') ? 'renewal' : 'standard' });
+    }
+    let monthly = kind === 'custom' ? null : (num(sm.monthly) || null);
+    if (!monthly && kind !== 'custom') { const sp = (S.prices || []).find(x => x.preset === 'sub'); if (sp) { const a = num(sp.amount), s = num(sp.sale); monthly = (a != null && s != null && s < a) ? s : (a != null ? a : s); } }
+    return { kind, items, name: kind === 'custom' ? (sm.planName || items[0]?.name || '客製案') : (S.plan?.name || sm.planName || '訂閱方案'), monthly, start: kind === 'custom' ? null : (S.plan?.start || null), end: kind === 'custom' ? null : (S.plan?.end || null) };
+  } catch { return null; }
 }
 // 成交單對回報價：指定報價編號就用它；沒指定時，如果這家只有一個還沒成交的報價編號，就自動對上
 const QUOTE_PREFIX = '__ORDERUP_QUOTE_V1__';
