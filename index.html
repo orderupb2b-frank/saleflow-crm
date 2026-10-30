@@ -1139,7 +1139,7 @@ async function renderToday() {
   cts.forEach(function (c) {
     if (!mine(c.sales_user_id || c.user_id)) return;
     dealInstallments(c).forEach(function (p, i) {
-      if (p.paid_date) return;
+      if (p.paid_date || !(Number(p.amount) > 0)) return;
       const d = daysUntil(p.due_date || dealDate(c));
       if (d != null && d <= 7) pay.push({ c: c, p: p, i: i, d: d });
     });
@@ -1214,7 +1214,7 @@ async function renderToday() {
 
   // ⑦ 缺回簽（成交單沒附檔）
   await loadDealFiles(cts.map(function (c) { return c.id; }));
-  const rowsG = cts.filter(function (c) { return mine(c.sales_user_id || c.user_id) && dealFilesCache[c.id] && !dealFilesCache[c.id].length; })
+  const rowsG = cts.filter(function (c) { return mine(c.sales_user_id || c.user_id) && dealFilesCache[c.id] && !dealFilesCache[c.id].length && daysSince(dealDate(c)) <= 60; })
     .sort(function (a, b) { return dealDate(b).localeCompare(dealDate(a)); }).map(function (c) {
       const a = accMap[c.account_id] || {};
       return tdRow("goToAccount('" + c.account_id + "')", chip('缺回簽') + esc(a.name || ''), esc(c.name || '成交') + '・' + esc(dealDate(c)),
