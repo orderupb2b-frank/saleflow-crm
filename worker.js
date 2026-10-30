@@ -680,6 +680,10 @@ async function recordDeal({ db, me, url }, leadId, b) {
   const total = items.reduce((s, it) => s + it.amount, 0);
   const notes = [];
   const inst = normInst(b.installments, total, b.signed_date, me.role === 'admin', notes);
+  const quoteNoteId = await matchQuote(db, leadId, b.quote_no);
+  if (!quoteNoteId) throw new HttpError(400, b.quote_no
+    ? `CRM 裡找不到報價編號 ${b.quote_no}（或已成交）。成交要從 CRM 的報價單轉，請確認編號，或先在 CRM 建立報價：${url.origin}/#lead=${leadId}`
+    : `成交要從 CRM 的報價單轉：這家沒有可成交的報價，或有好幾張。請帶 quote_no，或先在 CRM 建立報價：${url.origin}/#lead=${leadId}`);
   let acc = await accountForLead(db, leadId);
   if (acc && !b.confirm_not_duplicate) {
     const same = (await db.get(`contracts?account_id=eq.${acc.id}&select=id,name,amount,signed_date`)).filter(c => c.signed_date === b.signed_date && Math.abs((Number(c.amount) || 0) - total) <= 1);
@@ -687,7 +691,6 @@ async function recordDeal({ db, me, url }, leadId, b) {
   }
   if (!acc) acc = await db.insert('accounts', { name: lead.name, company: lead.company || null, lead_id: leadId, user_id: lead.user_id || me.id, user_name: lead.user_name || me.name, created_at: new Date().toISOString() });
   const monthly = num(b.monthly_fee);
-  const quoteNoteId = await matchQuote(db, leadId, b.quote_no);
   const ct = await db.insert('contracts', {
     quote_note_id: quoteNoteId,
     account_id: acc.id, user_id: me.id, created_at: new Date().toISOString(),

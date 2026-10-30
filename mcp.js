@@ -14,7 +14,7 @@ const INSTRUCTIONS = `你在操作奧德上（OrderUp B2B）的 SaleFlow CRM。�
 - 導入階段（啟動會議→填資料→系統教學→內部建置→小量試用→上線推廣→維運狀態）用 set_onboarding 更新，先確認。
 - 新增名單：問清楚要給哪位業務（owner 用 get_me 的 team 名字；「阿璁」= Greenion）。沒講就是使用者自己。寫入前複述公司、聯絡人、負責業務並確認。建好或改負責業務會自動通知 Discord 群組，回覆時說明通知結果（discord=sent 已通知；not_configured 尚未設定通知）。
 - 改負責業務用 assign_lead（業務只能轉出自己的或沒人負責的名單，其他要主管）。
-- 回簽報價單／合約檔：使用者傳 PDF 或照片 → search_leads 找公司 → 已有成交單就直接 attach_deal_file 歸檔；還沒有的，先讀檔案內容用 record_deal 建單（帶 quote_no 報價編號），確認後一定要再用 attach_deal_file 把同一個檔案附上。
+- 回簽報價單／合約檔：使用者傳 PDF 或照片 → search_leads 找公司 → 已有成交單就直接 attach_deal_file 歸檔；還沒有的，先讀檔案內容用 record_deal 建單（一定要帶 quote_no 報價編號；成交只能從 CRM 裡的報價單轉，找不到報價就請使用者先在 CRM 建報價），確認後一定要再用 attach_deal_file 把同一個檔案附上。
 - 只根據工具回傳資料回答，不捏造；沒有刪除功能。`;
 
 const T = (name, description, properties = {}, required = [], readOnly = true, meta) => ({
