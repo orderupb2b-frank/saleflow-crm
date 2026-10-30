@@ -296,6 +296,13 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .kanban-card.dragging { opacity: 0.4; }
 .kanban-card.drag-over { border-color: var(--accent); background: var(--accent-glow); }
 .kanban-col.drag-over-col .kanban-cards { background: var(--accent-glow); border-radius: 6px; }
+.onb-board { display:flex; gap:12px; overflow-x:auto; padding-bottom:12px; align-items:flex-start; }
+.onb-board .kanban-col { width:230px; max-height:calc(100vh - 170px); }
+.onb-card .oc-meta { display:flex; justify-content:space-between; gap:6px; font-size:11px; color:var(--text3); margin-top:4px; }
+.onb-card .oc-days.stuck { color:var(--red); font-weight:600; }
+.onb-card select { margin-top:8px; width:100%; }
+.onb-more { font:inherit; font-size:12px; color:var(--text3); background:none; border:1px dashed var(--border); border-radius:8px; padding:8px; cursor:pointer; }
+@media (max-width:768px){ .onb-board .kanban-col { width:78vw; max-height:none; } .hide-mobile { display:none; } }
 .kc-name { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
 .kc-company { font-size: 11.5px; color: var(--text3); margin-bottom: 6px; }
 .kc-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -625,6 +632,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
         <div class="nav-item" onclick="navigate('accounts')" id="nav-accounts">
           <span class="nav-icon">🤝</span><span class="nav-text">客戶</span>
         </div>
+        <div class="nav-item" onclick="navigate('onboard')" id="nav-onboard">
+          <span class="nav-icon">🚀</span><span class="nav-text">導入</span>
+        </div>
         <div class="nav-item" onclick="navigate('coldcall')" id="nav-coldcall">
           <span class="nav-icon">📞</span><span class="nav-text">陌開</span>
         </div>
@@ -930,7 +940,7 @@ function navigate(page, opt) {
   const bnav = document.getElementById('bnav-' + bkey);
   if (bnav) bnav.classList.add('active');
   document.getElementById('topbarTitle').textContent = {
-    today: '今天', dashboard: 'Dashboard', leads: '公司', quotes: '報價單', accounts: '成交客戶', performance: '業績', coldcall: '陌開電話', decks: '公版簡報',
+    today: '今天', dashboard: 'Dashboard', leads: '公司', quotes: '報價單', accounts: '成交客戶', onboard: '導入看板', performance: '業績', coldcall: '陌開電話', decks: '公版簡報',
     contacts: '聯絡人', settings: '設定', feed: '動態總覽'
   }[page] || page;
   document.getElementById('topbarActions').innerHTML = '';
@@ -939,7 +949,7 @@ function navigate(page, opt) {
 }
 function openMoreMenu() {
   const b = function (pg, ico, label) { return '<button class="btn btn-secondary" style="justify-content:flex-start;width:100%;margin-bottom:8px" onclick="closeModal();navigate(\'' + pg + '\')">' + ico + '　' + label + '</button>'; };
-  openModal('更多', b('decks', '📊', '公版簡報') + b('accounts', '🤝', '成交客戶') + b('performance', '💰', '業績') + b('dashboard', '📊', 'Dashboard') + b('contacts', '👥', '聯絡人') + b('feed', '📰', '動態總覽') + b('settings', '⚙️', '設定'), [{ label: '關閉', cls: 'btn-secondary', action: closeModal }]);
+  openModal('更多', b('decks', '📊', '公版簡報') + b('accounts', '🤝', '成交客戶') + b('onboard', '🚀', '導入看板') + b('performance', '💰', '業績') + b('dashboard', '📊', 'Dashboard') + b('contacts', '👥', '聯絡人') + b('feed', '📰', '動態總覽') + b('settings', '⚙️', '設定'), [{ label: '關閉', cls: 'btn-secondary', action: closeModal }]);
 }
 
 function onFabClick() {
@@ -964,6 +974,7 @@ async function renderPage(page) {
     case 'leads': await renderLeads(); break;
     case 'quotes': await renderQuotes(); break;
     case 'accounts': await renderAccounts(); break;
+    case 'onboard': await renderOnboard(); break;
     case 'contacts': await renderContacts(); break;
     case 'settings': await renderSettings(); break;
     case 'feed': await renderFeed(); break;
@@ -4266,7 +4277,7 @@ function setLeadHash(leadId) { /* 網址由 histPush 管理 */ }
 
 // ── 瀏覽器「上一頁／下一頁」──
 // 每換一頁就推一筆紀錄：#/today、#/leads…；公司頁是 #lead=<id>
-const PAGE_KEYS = ['today', 'dashboard', 'leads', 'quotes', 'accounts', 'performance', 'coldcall', 'decks', 'contacts', 'settings', 'feed'];
+const PAGE_KEYS = ['today', 'dashboard', 'leads', 'quotes', 'accounts', 'onboard', 'performance', 'coldcall', 'decks', 'contacts', 'settings', 'feed'];
 let _histRouting = false;
 function histPush(hash, opt) {
   if (_histRouting) return;
@@ -5289,6 +5300,7 @@ async function renderAccounts() {
       <div class="view-toggle">
         <button class="view-toggle-btn" onclick="navigate('leads')">開發中</button>
         <button class="view-toggle-btn active">成交客戶</button>
+        <button class="view-toggle-btn" onclick="navigate('onboard')">導入看板</button>
       </div>
       ${window.isAdmin ? '<button class="btn btn-secondary btn-sm" onclick="openMergeAccounts()">🔀 合併重複</button>' : ''}
       <button class="btn btn-primary btn-sm" onclick="openNewAccountModal()">＋ 新增客戶</button>
@@ -5482,6 +5494,93 @@ async function openRenewalQuote(leadId) {
 }
 function fmtDateSlash(s) { return s ? String(s).slice(0, 10).replace(/-/g, '/') : ''; }
 
+// ════════════════════════ 導入看板 ════════════════════════
+// 欄位＝導入階段；拖卡片換階段（手機用卡片上的下拉）。全面上線只列最近 30 天上線的，其他收起來
+let _onbOwner = 'all', _onbShowAllLive = false, _onbDragId = null;
+async function renderOnboard() {
+  if (!usersData.length) await loadGlobalData();
+  const { data: accs } = await db.from('accounts').select('*, contracts(*)');
+  accountsData = accs || [];
+  document.getElementById('topbarActions').innerHTML = '<div class="action-bar"><div class="view-toggle">'
+    + '<button class="view-toggle-btn" onclick="navigate(\'leads\')">開發中</button>'
+    + '<button class="view-toggle-btn" onclick="navigate(\'accounts\')">成交客戶</button>'
+    + '<button class="view-toggle-btn active">導入看板</button></div></div>';
+  renderOnboardBoard();
+}
+function renderOnboardBoard() {
+  if (currentPage !== 'onboard') return;
+  const content = document.getElementById('content');
+  const live = ONB_STAGES[ONB_STAGES.length - 1];
+  let list = accountsData.filter(function (a) { return a.status !== 'terminated' && (a.contracts || []).length; });
+  const owners = {};
+  list.forEach(function (a) { if (a.user_id) owners[a.user_id] = a.user_name || userNameById(a.user_id, ''); });
+  if (_onbOwner === 'mine') list = list.filter(function (a) { return a.user_id === currentUser.id; });
+  else if (_onbOwner !== 'all') list = list.filter(function (a) { return a.user_id === _onbOwner; });
+  const cols = [''].concat(ONB_STAGES);
+  let ownerOpts = '<option value="all"' + (_onbOwner === 'all' ? ' selected' : '') + '>全部業務</option><option value="mine"' + (_onbOwner === 'mine' ? ' selected' : '') + '>我的</option>';
+  Object.keys(owners).forEach(function (id) { ownerOpts += '<option value="' + id + '"' + (_onbOwner === id ? ' selected' : '') + '>' + esc(owners[id]) + '</option>'; });
+  const stuckN = list.filter(function (a) { const i = onbIdx(a), d = onbDays(a); return i >= 0 && i < ONB_STAGES.length - 1 && d != null && d >= ONB_STUCK_DAYS; }).length;
+  let html = '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'
+    + '<select class="form-select" style="width:auto;height:30px;font-size:12.5px;padding:3px 8px" onchange="_onbOwner=this.value;renderOnboardBoard()">' + ownerOpts + '</select>'
+    + '<span style="font-size:12.5px;color:var(--text3)">導入中 ' + list.filter(function (a) { return onbIdx(a) < ONB_STAGES.length - 1; }).length + ' 家'
+    + (stuckN ? '・<span style="color:var(--red)">停超過 ' + ONB_STUCK_DAYS + ' 天 ' + stuckN + ' 家</span>' : '') + '</span>'
+    + '<span style="font-size:11.5px;color:var(--text3);margin-left:auto" class="hide-mobile">拖拉卡片換階段</span>'
+    + '</div><div class="onb-board">';
+  cols.forEach(function (st) {
+    let cards = list.filter(function (a) { return (a.onboarding_stage || '') === st || (st === '' && onbIdx(a) < 0); });
+    cards.sort(function (x, y) { return (onbDays(y) || 0) - (onbDays(x) || 0); });
+    let hidden = 0;
+    if (st === live && !_onbShowAllLive) {
+      const recent = cards.filter(function (a) { return !a.go_live_date || daysUntil(a.go_live_date) >= -30; });
+      hidden = cards.length - recent.length; cards = recent;
+      cards.sort(function (x, y) { return String(y.go_live_date || '').localeCompare(String(x.go_live_date || '')); });
+    }
+    if (st === '' && !cards.length) return;
+    html += '<div class="kanban-col" ondragover="onbDragOver(event,this)" ondragleave="this.classList.remove(\'drag-over-col\')" ondrop="onbDrop(event,this,\'' + st + '\')">'
+      + '<div class="kanban-col-header"><div class="kanban-col-title"' + (st === '' ? ' style="color:var(--yellow)"' : '') + '>' + (st || '未設定') + '</div><div class="kanban-col-count">' + (cards.length + hidden) + '</div></div>'
+      + '<div class="kanban-cards">' + cards.map(onbCardHtml).join('')
+      + (hidden ? '<button class="onb-more" onclick="_onbShowAllLive=true;renderOnboardBoard()">再顯示 ' + hidden + ' 家較早上線的</button>' : '')
+      + '</div></div>';
+  });
+  html += '</div>';
+  content.innerHTML = list.length ? html : html.replace('<div class="onb-board">', '<div class="onb-board"><div class="empty-state" style="padding:40px"><div class="empty-text">還沒有成交客戶</div></div>');
+}
+function onbCardHtml(a) {
+  const i = onbIdx(a), d = onbDays(a), f = acctFin(a.contracts || []);
+  const isLive = i === ONB_STAGES.length - 1;
+  const stuck = i >= 0 && !isLive && d != null && d >= ONB_STUCK_DAYS;
+  const dayTxt = isLive ? (a.go_live_date ? a.go_live_date + ' 上線' : '') : (d != null ? '第 ' + (d + 1) + ' 天' : '');
+  const can = canEditAcc(a);
+  let sel = '';
+  if (can) {
+    sel = '<select class="form-select" style="height:28px;font-size:12px;padding:2px 6px" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" onchange="setOnboarding(\'' + a.id + '\',this.value,this)">'
+      + '<option value=""' + (i < 0 ? ' selected' : '') + '>未設定</option>'
+      + ONB_STAGES.map(function (s, k) { return '<option value="' + s + '"' + (k === i ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select>';
+  }
+  return '<div class="kanban-card onb-card" ' + (can ? 'draggable="true" ondragstart="onbDragStart(event,\'' + a.id + '\')" ondragend="this.classList.remove(\'dragging\')"' : '')
+    + ' onclick="if(!event.target.closest(\'select\'))openAccountDetail(\'' + a.id + '\')">'
+    + '<div class="kc-name">' + esc(a.name) + '</div>'
+    + '<div class="oc-meta"><span>' + esc(a.user_name || '—') + '</span><span class="oc-days' + (stuck ? ' stuck' : '') + '">' + (stuck ? '停 ' + d + ' 天' : dayTxt) + '</span></div>'
+    + (f.unpaid && f.nextPay && daysUntil(f.nextPay.due_date) < 0 ? '<div class="oc-meta"><span style="color:var(--red)">逾期未收 $' + fmtNum(f.unpaid) + '</span></div>' : '')
+    + (accMissingSigned(a) ? '<div class="oc-meta"><span style="color:var(--yellow)">未附回簽</span></div>' : '')
+    + sel + '</div>';
+}
+function onbDragStart(e, accId) {
+  _onbDragId = accId;
+  e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', accId); } catch (x) {}
+  e.currentTarget.classList.add('dragging');
+}
+function onbDragOver(e, col) { if (!_onbDragId) return; e.preventDefault(); col.classList.add('drag-over-col'); }
+function onbDrop(e, col, stage) {
+  e.preventDefault(); col.classList.remove('drag-over-col');
+  const id = _onbDragId; _onbDragId = null;
+  if (!id) return;
+  const a = accountsData.find(function (x) { return x.id === id; });
+  if (!a || (a.onboarding_stage || '') === stage) { renderOnboardBoard(); return; }
+  setOnboarding(id, stage, null);
+}
+
 // ════════════════════════ 成交後：導入階段 ════════════════════════
 // 跟「導入指南」簡報同一條路線：啟動會議 → 準備期 → 試營運 → 熟客試用 → 全面上線
 const ONB_STAGES = ['啟動會議', '準備期', '試營運', '熟客試用', '全面上線'];
@@ -5522,6 +5621,7 @@ async function setOnboarding(accId, stage, sel) {
   if (a && a.lead_id) await db.from('activities').insert({ type: 'note', content: '導入階段：' + (prev || '未設定') + ' → ' + (stage || '未設定'), lead_id: a.lead_id, user_id: currentUser.id, created_at: new Date().toISOString() });
   toast('導入階段：' + (stage || '未設定'), 'success');
   if (currentPage === 'accounts') renderAccountsList(accountsData, true);
+  else if (currentPage === 'onboard') renderOnboardBoard();
   else if (currentPage === 'company') refreshCompany();
 }
 // 每家客戶「還沒成交、也沒作廢」的報價
