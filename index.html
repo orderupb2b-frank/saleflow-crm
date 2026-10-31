@@ -1449,6 +1449,32 @@ async function renderMToday() {
 
 // ── 客戶：先搜尋 ──
 let _mcQ = '', _mcKind = 'mine', _mcMore = 0;
+let _mcF = { stage: [], owner: '', ctag: [], due: '', grade: [] }, _mcSort = 'smart';
+const MC_SORTS = [['smart', '該聯絡優先'], ['recent', '最近動過'], ['next', '下次聯絡日'], ['name', '公司名'], ['amount', '預計金額']];
+function mcFCount() { return _mcF.stage.length + (_mcF.owner ? 1 : 0) + _mcF.ctag.length + (_mcF.due ? 1 : 0) + _mcF.grade.length; }
+function mcTog(k, v) { const a = _mcF[k]; const i = a.indexOf(v); if (i >= 0) a.splice(i, 1); else a.push(v); _mcMore = 0; mcDraw(); mcFilterSheet(); }
+function mcSet(k, v) { _mcF[k] = _mcF[k] === v ? '' : v; _mcMore = 0; mcDraw(); mcFilterSheet(); }
+function mcClearF() { _mcF = { stage: [], owner: '', ctag: [], due: '', grade: [] }; _mcMore = 0; mcDraw(); mcFilterSheet(); }
+function mcFilterSheet() {
+  const chip = function (on, js, label) { return '<button type="button" class="ml-chip' + (on ? ' on' : '') + '" style="height:36px" onclick="' + js + '">' + label + '</button>'; };
+  const grp = function (t, h) { return '<div class="form-label" style="margin:12px 0 6px">' + t + '</div><div style="display:flex;flex-wrap:wrap;gap:6px">' + h + '</div>'; };
+  let h = grp('下次聯絡', [['overdue', '逾期'], ['today', '今天'], ['week', '7 天內'], ['none', '沒排']].map(function (d) { return chip(_mcF.due === d[0], 'mcSet(\'due\',\'' + d[0] + '\')', d[1]); }).join(''));
+  h += grp('顏色', '<span class="ctag-filter" style="display:inline-flex;gap:8px;align-items:center">' + CTAGS.map(function (c) { return '<button type="button" class="ctag on ctag-' + c + (_mcF.ctag.indexOf(c) >= 0 ? ' act' : '') + '" style="width:26px;height:26px" onclick="mcTog(\'ctag\',\'' + c + '\')"></button>'; }).join('') + '</span>');
+  if (_mcKind !== 'cc' && _mcKind !== 'acc') h += grp('階段', stagesData.map(function (st) { return chip(_mcF.stage.indexOf(st.id) >= 0, 'mcTog(\'stage\',\'' + st.id + '\')', esc(st.name)); }).join(''));
+  if (_mcKind === 'cc' || _mcKind === 'all') h += grp('陌開等級', ['A', 'B', 'C'].map(function (g) { return chip(_mcF.grade.indexOf(g) >= 0, 'mcTog(\'grade\',\'' + g + '\')', g); }).join(''));
+  if (_mcKind !== 'mine') h += grp('負責人', usersData.map(function (u) { return chip(_mcF.owner === u.id, 'mcSet(\'owner\',\'' + u.id + '\')', esc(u.full_name || u.email || '')); }).join(''));
+  h += grp('排序', MC_SORTS.map(function (o) { return chip(_mcSort === o[0], '_mcSort=\'' + o[0] + '\';mcDraw();mcFilterSheet()', o[1]); }).join(''));
+  const body = document.getElementById('modalBody');
+  if (body && document.getElementById('mcSheet')) { body.querySelector('#mcSheet').innerHTML = h; return; }
+  openModal('篩選・排序', '<div id="mcSheet">' + h + '</div>', [{ label: '清除', cls: 'btn-ghost', action: mcClearF }, { label: '完成', cls: 'btn-primary', action: closeModal }]);
+}
+function mcDueMatch(nd) {
+  const d = _mcF.due; if (!d) return true;
+  if (d === 'none') return !nd;
+  if (!nd) return false;
+  const k = daysUntil(String(nd).slice(0, 10));
+  return d === 'overdue' ? k < 0 : d === 'today' ? k === 0 : k >= 0 && k <= 7;
+}
 async function renderMClients(opt) {
   const content = document.getElementById('content');
   content.innerHTML = '<input class="m-search" id="mcQ" type="search" placeholder="公司、聯絡人、電話、統編" value="' + esc(_mcQ) + '" oninput="_mcQ=this.value;_mcMore=0;mcDraw()" autocomplete="off">'
@@ -1459,11 +1485,21 @@ async function renderMClients(opt) {
   mcDraw();
 }
 function mcKind(k) { _mcKind = k; _mcMore = 0; mcDraw(); }
+function mcSortKey(x) {
+  const recent = String(99999999999999 - new Date(x.upd || 0).getTime());
+  if (_mcSort === 'recent') return '0|' + recent;
+  if (_mcSort === 'next') return (x.nd ? '0|' + x.nd : '1|') + '|' + recent;
+  if (_mcSort === 'name') return '0|' + String(x.name || '');
+  if (_mcSort === 'amount') return '0|' + String(99999999999 - (x.amt || 0)).padStart(12, '0') + '|' + recent;
+  return (x.nd && x.nd <= nowDateStr() ? '0' : x.cc ? '2' : '1') + '|' + recent;
+}
 function mcDraw() {
   const el = document.getElementById('mcList'), m = _mCache; if (!el || !m) return;
   const chips = document.getElementById('mcChips');
   const kinds = [['mine', '我的'], ['lead', '開發中'], ['acc', '合作中'], ['cc', '陌開'], ['all', '全部']];
-  if (chips) chips.innerHTML = kinds.map(function (k) { return '<button class="ml-chip' + (_mcKind === k[0] ? ' on' : '') + '" onclick="mcKind(\'' + k[0] + '\')">' + k[1] + '</button>'; }).join('');
+  const fc = mcFCount();
+  if (chips) chips.innerHTML = '<button class="ml-chip' + (fc || _mcSort !== 'smart' ? ' on' : '') + '" style="border-style:dashed" onclick="mcFilterSheet()">' + (fc ? '篩選 ' + fc : '篩選') + ' ▾</button><span style="flex:0 0 2px"></span>'
+    + kinds.map(function (k) { return '<button class="ml-chip' + (_mcKind === k[0] ? ' on' : '') + '" onclick="mcKind(\'' + k[0] + '\')">' + k[1] + '</button>'; }).join('');
   const q = _mcQ.trim().toLowerCase(), qd = q.replace(/\D/g, '');
   const hit = function (strs) { if (!q) return true; return strs.some(function (x) { x = String(x || ''); return x.toLowerCase().indexOf(q) >= 0 || (qd.length >= 3 && x.replace(/\D/g, '').indexOf(qd) >= 0); }); };
   const rows = [];
@@ -1472,17 +1508,26 @@ function mcDraw() {
     if (_mcKind === 'mine' && l.user_id !== currentUser.id && !(acc && acc.user_id === currentUser.id)) return;
     if (_mcKind === 'lead' && (acc || ['暫停', '結案'].indexOf(st) >= 0)) return;
     if (_mcKind === 'acc' && !acc) return;
+    if (_mcF.stage.length && _mcF.stage.indexOf(l.stage_id) < 0) return;
+    if (_mcF.owner && l.user_id !== _mcF.owner && !(acc && acc.user_id === _mcF.owner)) return;
+    if (_mcF.ctag.length && _mcF.ctag.indexOf(l.color_tag) < 0) return;
+    if (!mcDueMatch(l.next_contact_date)) return;
+    if (_mcF.grade.length && _mcKind === 'all') return;
     const cs = m.contacts.filter(function (c) { return c.lead_id === l.id; });
     if (!hit([l.name, l.company, l.tax_id].concat(cs.map(function (c) { return c.name; }), cs.map(function (c) { return c.phone; })))) return;
     const nd = l.next_contact_date ? String(l.next_contact_date).slice(0, 10) : '';
-    rows.push({ s: (nd && nd <= nowDateStr() ? '0' : '1') + '|' + (99999999999999 - new Date(l.updated_at || 0).getTime()), h: mLeadRow(l, m, { owner: _mcKind !== 'mine', call: !!q }) });
+    rows.push({ s: mcSortKey({ nd: nd, upd: l.updated_at, name: l.name, amt: isExpStage(l) ? expTotal(l) : 0 }), h: mLeadRow(l, m, { owner: _mcKind !== 'mine', call: !!q }) });
   });
   if (_mcKind === 'cc' || _mcKind === 'all' || (_mcKind === 'mine' && (q || true))) m.ccs.forEach(function (c) {
     if (c.lead_id && m.leadById[c.lead_id]) return;
     if (_mcKind === 'mine' && c.owner_id !== currentUser.id) return;
-    if (_mcKind === 'mine' && !q && ccbColOf(c) !== 'today' && ccbColOf(c) !== 'callback') return;
+    if (_mcKind === 'mine' && !q && !mcFCount() && ccbColOf(c) !== 'today' && ccbColOf(c) !== 'callback') return;
+    if (_mcF.stage.length || _mcF.ctag.length) return;
+    if (_mcF.owner && c.owner_id !== _mcF.owner) return;
+    if (_mcF.grade.length && _mcF.grade.indexOf(String(c.grade || '').toUpperCase()) < 0) return;
+    if (!mcDueMatch(c.next_call_at)) return;
     if (!hit([c.company, c.contact_name, c.phone])) return;
-    rows.push({ s: '2|' + (99999999999999 - new Date(c.updated_at || 0).getTime()), h: mCcRow(c, { call: !!q }) });
+    rows.push({ s: mcSortKey({ nd: c.next_call_at ? String(c.next_call_at).slice(0, 10) : '', upd: c.updated_at, name: c.company, amt: 0, cc: true }), h: mCcRow(c, { call: !!q }) });
   });
   rows.sort(function (a, b) { return a.s.localeCompare(b.s); });
   const lim = 50 + _mcMore;
