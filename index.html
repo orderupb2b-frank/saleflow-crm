@@ -490,6 +490,8 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 @media (max-width:768px){ .hide-mobile { display:none !important; } }
 /* ── 手機版：客戶是中心 ── */
 .bnav-rec { position:relative; }
+select.ml-chip.m-owner { appearance:none; -webkit-appearance:none; padding:6px 26px 6px 12px; background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%); background-position:calc(100% - 13px) 55%,calc(100% - 9px) 55%; background-size:4px 4px; background-repeat:no-repeat; height:auto; font-size:13px; }
+select.ml-chip.m-owner.on { background-color:var(--accent); }
 .bnav-big { width:56px; height:56px; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:24px; margin-top:-22px; box-shadow:0 6px 18px rgba(47,91,234,.35); }
 .m-h1 { font-size:24px; font-weight:700; margin:4px 0 2px; }
 .m-sub { font-size:13px; color:var(--text3); margin-bottom:12px; }
@@ -566,6 +568,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
   .perf-card .pc-n { font-size:22px; font-weight:800; font-family:var(--mono); }
   .perf-row { display:flex; justify-content:space-between; gap:10px; padding:9px 0; border-top:1px solid var(--border); font-size:13.5px; }
   .quote-mobile-note { display:block !important; }
+  .data-table th { white-space:nowrap; }
+  .cp-card { padding:12px; }
+  .m-pills select, .m-pills .ml-chip { max-width:46vw; }
 }
 .cp-call { display:none; width:40px; height:40px; border-radius:50%; background:var(--accent-glow); color:var(--accent); align-items:center; justify-content:center; text-decoration:none; font-size:18px; flex-shrink:0; }
 .ql-voice { display:none; width:100%; justify-content:center; gap:8px; margin:8px 0 2px; height:44px; font-size:15px; }
@@ -1332,28 +1337,55 @@ async function renderPage(page) {
 
 // ═══ 手機版：今天／客戶／一家客戶／我的 ═══
 let _mCache = null, _mAt = 0;
+let _mLoading = null;
 async function mLoad(force) {
-  if (!force && _mCache && Date.now() - _mAt < 45000) return _mCache;
+  if (!force && _mCache) {
+    if (Date.now() - _mAt > 30000 && !_mLoading) mLoadFresh().then(mRedraw).catch(function () {});
+    return _mCache;
+  }
+  return mLoadFresh();
+}
+function mRedraw() {
+  if (document.getElementById('modalOverlay') && /flex|block/.test(document.getElementById('modalOverlay').style.display || '')) return;
+  const c = document.getElementById('content'), y = c ? c.scrollTop : 0;
+  if (currentPage === 'mclients') mcDraw();
+  else if (currentPage === 'mtoday') renderMToday().then(function () { if (c) c.scrollTop = y; });
+  else if (currentPage === 'mme') renderMMe().then(function () { if (c) c.scrollTop = y; });
+}
+async function mLoadFresh() {
+  if (_mLoading) return _mLoading;
+  _mLoading = mLoadFresh2().finally(function () { _mLoading = null; });
+  return _mLoading;
+}
+async function mLoadFresh2() {
   if (!usersData.length || !stagesData.length) await loadGlobalData();
   const [lr, ar, cr, ctr, qr, ccr] = await Promise.all([
-    db.from('leads').select('id,name,company,tax_id,stage_id,user_id,user_name,next_contact_date,color_tag,updated_at,created_at,expected_total,expected_months,lost_reason'),
+    db.from('leads').select('id,name,company,tax_id,stage_id,user_id,user_name,next_contact_date,color_tag,updated_at,created_at,expected_total,expected_months,expected_monthly,lost_reason,source_id'),
     db.from('accounts').select('id,lead_id,name,status,user_id,onboarding_stage,updated_at'),
     db.from('contacts').select('id,lead_id,name,phone,role'),
     db.from('contracts').select('*'),
     db.from('notes').select('id,lead_id,created_at,content,quote_status').eq('quote_status', 'sent'),
-    fetchAllPaged(function () { return db.from('cold_calls').select('id,company,phone,contact_name,status,owner_id,owner_name,next_call_at,grade,industry,updated_at,lead_id').order('id', { ascending: true }); })
+    fetchAllPaged(function () { return db.from('cold_calls').select('id,company,phone,contact_name,status,owner_id,owner_name,next_call_at,grade,industry,updated_at,lead_id').not('owner_id', 'is', null).order('id', { ascending: true }); })
   ]);
-  const m = { leads: lr.data || [], accs: ar.data || [], contacts: cr.data || [], cts: ctr.data || [], quotes: qr.data || [], ccs: ccr.data || [] };
+  const m = { leads: lr.data || [], accs: ar.data || [], contacts: cr.data || [], cts: ctr.data || [], quotes: qr.data || [], ccs: ccr.data || [], pool: _mCache && _mCache.pool || null };
   m.accByLead = {}; m.accs.forEach(function (a) { if (a.lead_id) m.accByLead[a.lead_id] = a; });
   m.accById = {}; m.accs.forEach(function (a) { m.accById[a.id] = a; });
   m.phoneOf = {}; m.contacts.forEach(function (c) { if (c.phone && !m.phoneOf[c.lead_id]) m.phoneOf[c.lead_id] = c; });
   m.leadById = {}; m.leads.forEach(function (l) { m.leadById[l.id] = l; });
+  m.contactsBy = {}; m.contacts.forEach(function (c) { (m.contactsBy[c.lead_id] = m.contactsBy[c.lead_id] || []).push(c); });
   convertedLeadIds = new Set(m.accs.filter(function (a) { return a.lead_id; }).map(function (a) { return a.lead_id; }));
   accountsData = m.accs.concat(accountsData.filter(function (a) { return !m.accById[a.id]; }));
   _mCache = m; _mAt = Date.now();
   return m;
 }
 function mInvalidate() { _mAt = 0; }
+// 公海（沒人認領的）只有搜尋／看陌開時才抓
+let _mPoolLoading = null;
+function mEnsurePool() {
+  const m = _mCache; if (!m || m.pool || _mPoolLoading) return;
+  _mPoolLoading = fetchAllPaged(function () { return db.from('cold_calls').select('id,company,phone,contact_name,status,owner_id,owner_name,next_call_at,grade,industry,updated_at,lead_id').is('owner_id', null).order('id', { ascending: true }); })
+    .then(function (r) { if (_mCache) _mCache.pool = r.data || []; _mPoolLoading = null; if (currentPage === 'mclients') mcDraw(); });
+}
 const mQ = function (x) { return String(x || '').replace(/'/g, ''); };
 function mTel(p) { const d = String(p || '').replace(/[^\d+#,]/g, ''); return d ? '<a class="m-call" href="tel:' + esc(d) + '" onclick="event.stopPropagation()" aria-label="撥打">📞</a>' : '<span style="width:40px;flex:0 0 40px"></span>'; }
 function mDot(l) { const c = l && CTAGS.indexOf(l.color_tag) >= 0 ? l.color_tag : ''; return '<span class="m-dot' + (c ? ' on ctag-' + c : '') + '"></span>'; }
@@ -1378,7 +1410,7 @@ function mLeadRow(l, m, opt) {
 function mCcRow(c, opt) {
   opt = opt || {};
   const col = ccbColOf(c);
-  const sub = '陌開・' + (col === 'today' ? '今日待打' : col === 'callback' ? '再聯絡' : col === 'dev' ? '進開發' : col === 'closed' ? '結案' : (c.grade ? c.grade + ' 級' : '名單')) + (c.industry ? '・' + esc(c.industry) : '');
+  const sub = '陌開・' + (col === 'today' ? (c.grade ? c.grade + ' 級' : '待打') : col === 'callback' ? '再聯絡' : col === 'dev' ? '進開發' : col === 'closed' ? '結案' : (c.grade ? c.grade + ' 級' : '名單')) + (c.industry ? '・' + esc(c.industry) : '');
   const due = col === 'today' ? mDue(c.next_call_at) : (col === 'callback' ? mDue(c.next_call_at) : { t: '', cls: '' });
   return '<div class="m-row" onclick="openCcDetail(\'' + mQ(c.id) + '\')"><span class="m-dot"></span>'
     + '<div class="m-nm">' + esc(c.company) + '<small>' + sub + '</small></div>'
@@ -1453,7 +1485,8 @@ let _mcF = { stage: [], owner: '', ctag: [], due: '', grade: [] }, _mcSort = 'sm
 const MC_SORTS = [['smart', '該聯絡優先'], ['recent', '最近動過'], ['next', '下次聯絡日'], ['name', '公司名'], ['amount', '預計金額']];
 function mcFCount() { return _mcF.stage.length + (_mcF.owner ? 1 : 0) + _mcF.ctag.length + (_mcF.due ? 1 : 0) + _mcF.grade.length; }
 function mcTog(k, v) { const a = _mcF[k]; const i = a.indexOf(v); if (i >= 0) a.splice(i, 1); else a.push(v); _mcMore = 0; mcDraw(); mcFilterSheet(); }
-function mcSet(k, v) { _mcF[k] = _mcF[k] === v ? '' : v; _mcMore = 0; mcDraw(); mcFilterSheet(); }
+function mcSet(k, v) { _mcF[k] = _mcF[k] === v ? '' : v; if (k === 'owner' && _mcF.owner && _mcKind === 'mine') _mcKind = 'all'; _mcMore = 0; mcDraw(); if (document.getElementById('mcSheet')) mcFilterSheet(); }
+function mcOwnerSel(v) { mcSet('owner', v); }
 function mcClearF() { _mcF = { stage: [], owner: '', ctag: [], due: '', grade: [] }; _mcMore = 0; mcDraw(); mcFilterSheet(); }
 function mcFilterSheet() {
   const chip = function (on, js, label) { return '<button type="button" class="ml-chip' + (on ? ' on' : '') + '" style="height:36px" onclick="' + js + '">' + label + '</button>'; };
@@ -1462,7 +1495,7 @@ function mcFilterSheet() {
   h += grp('顏色', '<span class="ctag-filter" style="display:inline-flex;gap:8px;align-items:center">' + CTAGS.map(function (c) { return '<button type="button" class="ctag on ctag-' + c + (_mcF.ctag.indexOf(c) >= 0 ? ' act' : '') + '" style="width:26px;height:26px" onclick="mcTog(\'ctag\',\'' + c + '\')"></button>'; }).join('') + '</span>');
   if (_mcKind !== 'cc' && _mcKind !== 'acc') h += grp('階段', stagesData.map(function (st) { return chip(_mcF.stage.indexOf(st.id) >= 0, 'mcTog(\'stage\',\'' + st.id + '\')', esc(st.name)); }).join(''));
   if (_mcKind === 'cc' || _mcKind === 'all') h += grp('陌開等級', ['A', 'B', 'C'].map(function (g) { return chip(_mcF.grade.indexOf(g) >= 0, 'mcTog(\'grade\',\'' + g + '\')', g); }).join(''));
-  if (_mcKind !== 'mine') h += grp('負責人', usersData.map(function (u) { return chip(_mcF.owner === u.id, 'mcSet(\'owner\',\'' + u.id + '\')', esc(u.full_name || u.email || '')); }).join(''));
+  h += grp('業務', usersData.map(function (u) { return chip(_mcF.owner === u.id, 'mcSet(\'owner\',\'' + u.id + '\')', esc(u.full_name || u.email || '')); }).join(''));
   h += grp('排序', MC_SORTS.map(function (o) { return chip(_mcSort === o[0], '_mcSort=\'' + o[0] + '\';mcDraw();mcFilterSheet()', o[1]); }).join(''));
   const body = document.getElementById('modalBody');
   if (body && document.getElementById('mcSheet')) { body.querySelector('#mcSheet').innerHTML = h; return; }
@@ -1477,9 +1510,8 @@ function mcDueMatch(nd) {
 }
 async function renderMClients(opt) {
   const content = document.getElementById('content');
-  content.innerHTML = '<input class="m-search" id="mcQ" type="search" placeholder="公司、聯絡人、電話、統編" value="' + esc(_mcQ) + '" oninput="_mcQ=this.value;_mcMore=0;mcDraw()" autocomplete="off">'
+  content.innerHTML = '<input class="m-search" id="mcQ" type="search" placeholder="公司、聯絡人、電話、統編" value="' + esc(_mcQ) + '" oninput="_mcQ=this.value;_mcMore=0;clearTimeout(window._mcT);window._mcT=setTimeout(mcDraw,120)" autocomplete="off">'
     + '<div class="m-chips" id="mcChips"></div><div class="m-card" id="mcList"><div class="loading" style="height:80px"><span class="dot-pulse">載入中</span></div></div>';
-  const inp = document.getElementById('mcQ'); if (inp && !(opt && opt.noFocus)) { try { inp.focus(); } catch (e) {} }
   await mLoad();
   if (currentPage !== 'mclients') return;
   mcDraw();
@@ -1498,7 +1530,8 @@ function mcDraw() {
   const chips = document.getElementById('mcChips');
   const kinds = [['mine', '我的'], ['lead', '開發中'], ['acc', '合作中'], ['cc', '陌開'], ['all', '全部']];
   const fc = mcFCount();
-  if (chips) chips.innerHTML = '<button class="ml-chip' + (fc || _mcSort !== 'smart' ? ' on' : '') + '" style="border-style:dashed" onclick="mcFilterSheet()">' + (fc ? '篩選 ' + fc : '篩選') + ' ▾</button><span style="flex:0 0 2px"></span>'
+  if (chips) chips.innerHTML = '<button class="ml-chip' + (fc || _mcSort !== 'smart' ? ' on' : '') + '" style="border-style:dashed" onclick="mcFilterSheet()">' + (fc ? '篩選 ' + fc : '篩選') + ' ▾</button>'
+    + '<select class="ml-chip m-owner' + (_mcF.owner ? ' on' : '') + '" onchange="mcOwnerSel(this.value)"><option value="">全部業務</option>' + usersData.map(function (u) { return '<option value="' + u.id + '"' + (_mcF.owner === u.id ? ' selected' : '') + '>' + esc(u.full_name || u.email || '') + '</option>'; }).join('') + '</select>'
     + kinds.map(function (k) { return '<button class="ml-chip' + (_mcKind === k[0] ? ' on' : '') + '" onclick="mcKind(\'' + k[0] + '\')">' + k[1] + '</button>'; }).join('');
   const q = _mcQ.trim().toLowerCase(), qd = q.replace(/\D/g, '');
   const hit = function (strs) { if (!q) return true; return strs.some(function (x) { x = String(x || ''); return x.toLowerCase().indexOf(q) >= 0 || (qd.length >= 3 && x.replace(/\D/g, '').indexOf(qd) >= 0); }); };
@@ -1513,12 +1546,14 @@ function mcDraw() {
     if (_mcF.ctag.length && _mcF.ctag.indexOf(l.color_tag) < 0) return;
     if (!mcDueMatch(l.next_contact_date)) return;
     if (_mcF.grade.length && _mcKind === 'all') return;
-    const cs = m.contacts.filter(function (c) { return c.lead_id === l.id; });
+    const cs = m.contactsBy[l.id] || [];
     if (!hit([l.name, l.company, l.tax_id].concat(cs.map(function (c) { return c.name; }), cs.map(function (c) { return c.phone; })))) return;
     const nd = l.next_contact_date ? String(l.next_contact_date).slice(0, 10) : '';
     rows.push({ s: mcSortKey({ nd: nd, upd: l.updated_at, name: l.name, amt: isExpStage(l) ? expTotal(l) : 0 }), h: mLeadRow(l, m, { owner: _mcKind !== 'mine', call: !!q }) });
   });
-  if (_mcKind === 'cc' || _mcKind === 'all' || (_mcKind === 'mine' && (q || true))) m.ccs.forEach(function (c) {
+  if ((_mcKind === 'cc' || _mcKind === 'all' || q) && !m.pool) mEnsurePool();
+  const ccAll = (_mcKind === 'cc' || _mcKind === 'all' || q) && m.pool ? m.ccs.concat(m.pool) : m.ccs;
+  if (_mcKind !== 'lead' && _mcKind !== 'acc') ccAll.forEach(function (c) {
     if (c.lead_id && m.leadById[c.lead_id]) return;
     if (_mcKind === 'mine' && c.owner_id !== currentUser.id) return;
     if (_mcKind === 'mine' && !q && !mcFCount() && ccbColOf(c) !== 'today' && ccbColOf(c) !== 'callback') return;
@@ -1531,8 +1566,10 @@ function mcDraw() {
   });
   rows.sort(function (a, b) { return a.s.localeCompare(b.s); });
   const lim = 50 + _mcMore;
+  const poolNote = (_mcKind === 'cc' || _mcKind === 'all' || q) && !m.pool ? '<div class="m-row" style="color:var(--text3);cursor:default;font-size:12.5px;min-height:36px">公海名單載入中…</div>' : '';
   el.innerHTML = rows.length ? rows.slice(0, lim).map(function (r) { return r.h; }).join('') + (rows.length > lim ? '<button class="btn btn-ghost" style="width:100%;height:44px" onclick="_mcMore+=100;mcDraw()">再顯示（共 ' + rows.length + '）</button>' : '')
-    : '<div class="m-row" style="color:var(--text3);cursor:default">' + (q ? '找不到「' + esc(_mcQ) + '」' : '沒有資料') + '</div>';
+    : (poolNote || '<div class="m-row" style="color:var(--text3);cursor:default">' + (q ? '找不到「' + esc(_mcQ) + '」' : '沒有資料') + '</div>');
+  if (rows.length && poolNote) el.innerHTML += poolNote;
 }
 
 // ── 一家客戶 ──
@@ -1954,12 +1991,17 @@ function ccMine(c) { return c.owner_id === currentUser.id; }
 function ccCanTouch(c) { return window.isAdmin || !c.owner_id || ccMine(c); }
 // Supabase 一次最多回 1000 筆：分批抓完
 async function fetchAllPaged(mk) {
-  const step = 1000; let out = [];
-  for (let i = 0; i < 100; i++) {
-    const r = await mk().range(i * step, i * step + step - 1);
-    if (r.error) return { data: out.length ? out : null, error: r.error };
-    const d = r.data || []; out = out.concat(d);
-    if (d.length < step) break;
+  const step = 1000, par = 3; let out = [];
+  for (let i = 0; i < 100; i += par) {
+    const rs = await Promise.all([0, 1, 2].map(function (j) { return mk().range((i + j) * step, (i + j) * step + step - 1); }));
+    let done = false;
+    for (let j = 0; j < rs.length; j++) {
+      const r = rs[j];
+      if (r.error) return { data: out.length ? out : null, error: r.error };
+      const d = r.data || []; out = out.concat(d);
+      if (d.length < step) { done = true; break; }
+    }
+    if (done) break;
   }
   return { data: out, error: null };
 }
@@ -5608,6 +5650,11 @@ async function openCompany(leadId, opt) {
   content.classList.remove('quote-mode');
   content.innerHTML = '<div class="loading"><span class="dot-pulse">載入中</span></div>';
   window.scrollTo(0, 0);
+  if (isMobile() && _mCache && _mCache.leadById[leadId]) {
+    const m = _mCache, l = m.leadById[leadId], a = m.accByLead[leadId] || null;
+    window._cp = { lead: l, acc: a, contracts: a ? m.cts.filter(function (c) { return c.account_id === a.id; }) : [], openQ: [], contacts: m.contactsBy[leadId] || [], quick: true };
+    try { renderMCompany(); } catch (e) {}
+  }
   await refreshCompany();
 }
 
@@ -5632,6 +5679,7 @@ async function refreshCompany() {
     contracts = (r.data || []).sort(function (a, b) { return dealDate(b).localeCompare(dealDate(a)); });
     await loadDealFiles(contracts.map(function (c) { return c.id; }));
   }
+  if (isMobile() && window._cp && window._cp.quick) { window._cp.quick = false; renderCompanyTimeline(leadId); }
   const li = leadsData.findIndex(l => l.id === leadId);
   if (li >= 0) leadsData[li] = Object.assign(leadsData[li], lead);
   const [quotes, ccR] = await Promise.all([
@@ -5642,7 +5690,7 @@ async function refreshCompany() {
   const openQ = quotes.filter(function (r) { const no = (r.summary && r.summary.quoteNo) || r.noteId; if (r.wonContractId || r.quoteStatus === 'void' || seenQ[no]) return false; seenQ[no] = 1; return true; });
   window._cp = { lead: lead, acc: acc, contracts: contracts, openQ: openQ, contacts: ccR.data || [] };
   if (currentPage !== 'company' || currentLeadId !== leadId) return;
-  if (isMobile()) { renderMCompany(); renderCompanyTimeline(leadId); return; }
+  if (isMobile()) { const fd = document.getElementById('drawerPanel-activities'), keep = fd && !fd.querySelector('.loading') ? fd.innerHTML : ''; renderMCompany(); if (keep) document.getElementById('drawerPanel-activities').innerHTML = keep; renderCompanyTimeline(leadId); return; }
   if (_cpTab === 'deals' && !acc) _cpTab = 'timeline';
   const tabs = [['timeline', '時間軸', ''], acc ? ['deals', '合約', contracts.length] : null, ['quotes', '報價', quotes.length], ['contacts', '聯絡人', (ccR.data || []).length], ['info', '基本資料', '']].filter(Boolean);
   const pane = function (k, html) { return '<div class="cp-pane' + (_cpTab === k ? ' on' : '') + '" data-pane="' + k + '">' + html + '</div>'; };
@@ -6543,7 +6591,7 @@ async function deleteNote(noteId, entityId, entityType) {
 // Edit lead
 async function openEditLeadModal(leadId) {
   const { data: lead } = await db.from('leads').select('*').eq('id', leadId).single();
-  openModal('編輯 Lead', `
+  openModal('編輯公司資料', `
     <div class="form-row">
       <div class="form-group"><label class="form-label">公司名稱</label><input class="form-input" id="elName" value="${esc(lead.name||'')}"></div>
       <div class="form-group"><label class="form-label">聯絡人姓名</label><input class="form-input" id="elCompany" value="${esc(lead.company||'')}"></div>
@@ -9152,7 +9200,9 @@ function renderFeedList(items) {
     const t = isAct ? (ACTIVITY_TYPES[item.type] || ACTIVITY_TYPES['note']) : null;
     const icon = isAct ? t.icon : '📝';
     const iconColor = isAct ? t.color : '#6b7280';
-    const typeLabel = isAct ? t.label : '備註';
+    const qn = !isAct ? parseQuoteNote(item) : null;
+    const typeLabel = isAct ? t.label : qn ? '報價' : '備註';
+    if (qn) { const sm = qn.summary || {}; item = Object.assign({}, item, { content: (sm.quoteNo || '報價單') + '・$' + fmtNum(sm.grand || sm.subtotal || 0) + (sm.planName ? '・' + sm.planName : '') }); }
     const lead = item.leads;
     const contact = item.contacts;
     const leadInfo = lead ? `<span style="color:var(--accent);cursor:pointer;font-size:11.5px" onclick="event.stopPropagation();openLeadFromFeed('${lead.id}')">${esc(lead.name)}${lead.company?' · '+esc(lead.company):''}</span>` : '';
@@ -9165,7 +9215,7 @@ function renderFeedList(items) {
             <span style="font-size:12px;font-weight:600;color:var(--text2)">${typeLabel}</span>
             ${leadInfo}${contactInfo}
           </div>
-          <div style="font-size:13px;color:var(--text);white-space:pre-wrap;word-break:break-word">${esc(item.content||'')}</div>
+          <div style="font-size:13px;color:var(--text);white-space:pre-wrap;word-break:break-word">${esc(String(item.content||'').slice(0, 400))}</div>
           <div style="font-size:11px;color:var(--text3);margin-top:3px">${fmtDate(item.created_at)}</div>
         </div>
       </div>`;
