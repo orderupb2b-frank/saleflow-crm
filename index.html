@@ -488,8 +488,51 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .onb-card select { margin-top:8px; width:100%; }
 .onb-more { font:inherit; font-size:12px; color:var(--text3); background:none; border:1px dashed var(--border); border-radius:8px; padding:8px; cursor:pointer; }
 @media (max-width:768px){ .hide-mobile { display:none !important; } }
-/* ── 手機版：打電話、看一眼、記一筆 ── */
+/* ── 手機版：客戶是中心 ── */
+.bnav-rec { position:relative; }
+.bnav-big { width:56px; height:56px; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:24px; margin-top:-22px; box-shadow:0 6px 18px rgba(47,91,234,.35); }
+.m-h1 { font-size:24px; font-weight:700; margin:4px 0 2px; }
+.m-sub { font-size:13px; color:var(--text3); margin-bottom:12px; }
+.m-sec { font-size:12.5px; font-weight:600; color:var(--text3); margin:16px 0 6px; }
+.m-card { background:var(--bg2); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+.m-row { display:flex; align-items:center; gap:10px; padding:11px 12px; border-top:1px solid var(--border); min-height:56px; box-sizing:border-box; cursor:pointer; }
+.m-row:first-child { border-top:0; }
+.m-row[class*="ct-"] { box-shadow:inset 4px 0 0 var(--ct); }
+.m-dot { width:10px; height:10px; border-radius:50%; flex:0 0 auto; border:1.5px dashed var(--border2,#c9cdd6); background:transparent; }
+.m-dot.on { border:0; }
+.m-nm { flex:1; min-width:0; font-size:15px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.m-nm small { display:block; font-weight:400; font-size:12.5px; color:var(--text3); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.m-why { font-size:12.5px; color:var(--text3); white-space:nowrap; flex:0 0 auto; }
+.m-why.red { color:var(--red); } .m-why.yel { color:var(--yellow); }
+.m-call { width:40px; height:40px; border-radius:50%; background:var(--accent-glow); color:var(--accent); display:flex; align-items:center; justify-content:center; flex:0 0 auto; text-decoration:none; font-size:17px; }
+.m-tag { font-size:11.5px; padding:2px 8px; border-radius:999px; background:var(--bg4); color:var(--text2); white-space:nowrap; flex:0 0 auto; }
+.m-search { width:100%; box-sizing:border-box; height:46px; border-radius:12px; border:1px solid var(--border); background:var(--bg2); padding:0 14px; font:inherit; font-size:16px; color:var(--text); outline:none; }
+.m-search:focus { border-color:var(--accent); }
+.m-chips { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin:10px 0 4px; }
+.m-chips::-webkit-scrollbar { display:none; }
+.m-kv { display:flex; justify-content:space-between; gap:12px; padding:11px 12px; border-top:1px solid var(--border); font-size:14px; cursor:pointer; }
+.m-kv:first-child { border-top:0; }
+.m-kv span:first-child { color:var(--text3); flex:0 0 auto; }
+.m-kv span:last-child { text-align:right; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.m-pills { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; align-items:center; }
+.m-pills .cp-stage, .m-pills .owner-sel, .m-pills select { height:32px; border-radius:999px; padding:0 10px; font-size:13px; }
+.m-acts { display:flex; gap:8px; margin-top:14px; }
+.m-acts > * { flex:1; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:700; text-decoration:none; border:1px solid var(--border); background:var(--bg2); color:var(--text); font-family:inherit; cursor:pointer; }
+.m-acts > .p { background:var(--accent); color:#fff; border-color:var(--accent); }
+.m-feed { padding:11px 12px; border-top:1px solid var(--border); font-size:14px; line-height:1.5; }
+.m-feed:first-child { border-top:0; }
+.m-feed small { display:block; color:var(--text3); font-size:12px; margin-top:3px; }
+.m-stat { padding:14px; flex:1; min-width:0; }
+.m-stat small { display:block; font-size:12px; color:var(--text3); }
+.m-stat .n { font-size:26px; font-weight:800; font-family:var(--mono); margin:2px 0; }
+.m-two { display:flex; } .m-two .m-stat + .m-stat { border-left:1px solid var(--border); }
+.m-bar { height:8px; background:var(--bg4); border-radius:4px; overflow:hidden; margin-top:8px; } .m-bar > div { height:100%; background:var(--accent); border-radius:4px; }
+.ql-mic-big { width:100%; height:60px; border-radius:14px; background:var(--accent); color:#fff; border:0; font:inherit; font-size:17px; font-weight:700; margin:6px 0 10px; display:none; }
+.ql-mic-big.rec { background:var(--red); }
 @media (max-width:768px){
+  .ql-mic-big { display:block; }
+  .ql-voice { display:none !important; }
+  #main.m-company-page #content { padding-top:8px; }
   .form-input, .form-textarea { font-size:16px; padding:10px 12px; }
   .form-select { font-size:16px; padding:4px 10px; }
   .btn-sm { min-height:36px; }
@@ -1195,7 +1238,13 @@ async function loadGlobalData() {
 }
 
 // ── Navigation ──
+function isMobile() { return window.innerWidth <= 768; }
+const M_MAP = { today: 'mtoday', leadlist: 'mclients', accounts: 'mclients', contacts: 'mclients', performance: 'mme' };
 function navigate(page, opt) {
+  if (isMobile() && M_MAP[page]) page = M_MAP[page];
+  if (!isMobile() && page === 'mtoday') page = 'today';
+  if (!isMobile() && page === 'mclients') page = 'leadlist';
+  if (!isMobile() && page === 'mme') page = 'performance';
   currentPage = page;
   histPush('#/' + page, opt);
   document.body.classList.remove('on-company');
@@ -1211,6 +1260,7 @@ const SECTIONS = [
   { key: 'pipe', label: '開發看板', pages: [['leads', '']] },
   { key: 'onb', label: '導入看板', pages: [['onboard', '']] },
   { key: 'lists', label: '列表清單', pages: [['accounts', '合作中客戶'], ['leadlist', '線索'], ['contacts', '聯絡人'], ['feed', '動態'], ['mclients', '客戶', 'hidden']] },
+  { key: 'm', label: '', pages: [['mtoday', '今天', 'hidden'], ['mme', '我的', 'hidden']] },
   { key: 'tools', label: '工具箱', pages: [['quotes', '報價單'], ['decks', '簡報'], ['bonus', '業績計算器'], ['settings', '設定']] }
 ];
 function sectionOf(page) {
@@ -1222,11 +1272,11 @@ function markSection(page) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.bnav-item').forEach(n => n.classList.remove('active'));
   const nav = document.getElementById('nav-' + sec.key); if (nav) nav.classList.add('active');
-  const bkey = (page === 'performance' || page === 'bonus') ? 'perf' : (page === 'today' || page === 'dashboard') ? 'home' : sec.key === 'cc' ? 'cc' : (sec.key === 'lists' || sec.key === 'pipe' || page === 'company') ? 'lists' : 'more';
+  const bkey = (page === 'mme' || page === 'performance' || page === 'bonus') ? 'me' : (page === 'mtoday' || page === 'today') ? 'home' : (page === 'mclients' || page === 'company' || sec.key === 'lists' || sec.key === 'pipe') ? 'lists' : 'more';
   const bnav = document.getElementById('bnav-' + bkey); if (bnav) bnav.classList.add('active');
-  document.getElementById('topbarTitle').textContent = page === 'company' ? '公司' : page === 'mclients' ? '客戶' : sec.label;
+  document.getElementById('topbarTitle').textContent = page === 'company' ? '公司' : page === 'mclients' ? '客戶' : page === 'mtoday' ? '今天' : page === 'mme' ? '我的' : sec.label;
   const tabs = document.getElementById('sectionTabs');
-  if (tabs) tabs.innerHTML = (page !== 'company' && page !== 'mclients' && sec.pages.length > 1)
+  if (tabs) tabs.innerHTML = (page !== 'company' && sec.key !== 'm' && page !== 'mclients' && sec.pages.length > 1)
     ? sec.pages.filter(function (p) { return p[2] !== 'hidden' || p[0] === page; }).map(function (p) { return '<button class="sec-tab' + (p[0] === page ? ' on' : '') + '" onclick="navigate(\'' + p[0] + '\')">' + p[1] + '</button>'; }).join('')
     : '';
 }
@@ -1234,13 +1284,14 @@ function openMoreMenu() {
   const b = function (pg, ico, label) { return '<button class="btn btn-secondary" style="justify-content:flex-start;width:100%;margin-bottom:8px;height:44px" onclick="closeModal();navigate(\'' + pg + '\')">' + ico + '　' + label + '</button>'; };
   const dark = document.documentElement.getAttribute('data-theme') !== 'light';
   openModal('更多', ''
+    + '<div style="font-size:12px;color:var(--text3);margin:-4px 0 8px">這些在電腦上比較好用</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 8px">'
     + b('leads', '🗂', '開發看板') + b('onboard', '🚀', '導入看板')
-    + b('ccpool', '🌊', '陌開公海') + b('ccstats', '📈', '陌開統計')
-    + b('accounts', '🤝', '合作中客戶') + b('contacts', '👤', '聯絡人')
-    + b('dashboard', '📊', '數據') + b('bonus', '🧮', '獎金試算')
-    + b('feed', '📰', '動態') + b('quotes', '🧾', '報價單')
-    + b('decks', '📽', '簡報') + b('settings', '⚙️', '設定')
+    + b('ccboard', '📞', '陌開進度') + b('ccpool', '🌊', '公海')
+    + b('ccstats', '📈', '陌開統計') + b('dashboard', '📊', '數據')
+    + b('performance', '💰', '業績明細') + b('bonus', '🧮', '獎金試算')
+    + b('quotes', '🧾', '報價單') + b('decks', '📽', '簡報')
+    + b('feed', '📰', '動態') + b('settings', '⚙️', '設定')
     + '</div>'
     + '<button class="btn btn-ghost" style="width:100%;height:44px" onclick="toggleTheme();closeModal()">' + (dark ? '☀️　切成淺色' : '🌙　切成深色') + '</button>');
 }
@@ -1256,7 +1307,9 @@ async function renderPage(page) {
   content.innerHTML = '<div class="loading"><span class="dot-pulse">載入中</span></div>';
   switch(page) {
     case 'today': await renderToday(); break;
+    case 'mtoday': await renderMToday(); break;
     case 'mclients': await renderMClients(); break;
+    case 'mme': await renderMMe(); break;
     case 'coldcall': ccTab = 'call'; await renderColdCall(); break;
     case 'cclist': ccTab = 'list'; await renderColdCall(); break;
     case 'ccstats': await renderCcStats2(); break;
@@ -1277,65 +1330,278 @@ async function renderPage(page) {
   }
 }
 
-// ── 客戶（手機）：找一家、看狀況 ──
-let _mcQ = '', _mcScope = 'mine', _mcKind = 'all', _mcMore = 0;
-async function renderMClients() {
-  const content = document.getElementById('content');
+// ═══ 手機版：今天／客戶／一家客戶／我的 ═══
+let _mCache = null, _mAt = 0;
+async function mLoad(force) {
+  if (!force && _mCache && Date.now() - _mAt < 45000) return _mCache;
   if (!usersData.length || !stagesData.length) await loadGlobalData();
-  const [lr, ar] = await Promise.all([
-    db.from('leads').select('id,name,company,stage_id,user_id,user_name,next_contact_date,color_tag,updated_at,expected_total'),
-    db.from('accounts').select('id,lead_id,name,status,user_id,onboarding_stage,updated_at')
+  const [lr, ar, cr, ctr, qr, ccr] = await Promise.all([
+    db.from('leads').select('id,name,company,tax_id,stage_id,user_id,user_name,next_contact_date,color_tag,updated_at,created_at,expected_total,expected_months,lost_reason'),
+    db.from('accounts').select('id,lead_id,name,status,user_id,onboarding_stage,updated_at'),
+    db.from('contacts').select('id,lead_id,name,phone,role'),
+    db.from('contracts').select('*'),
+    db.from('notes').select('id,lead_id,created_at,content,quote_status').eq('quote_status', 'sent'),
+    fetchAllPaged(function () { return db.from('cold_calls').select('id,company,phone,contact_name,status,owner_id,owner_name,next_call_at,grade,industry,updated_at,lead_id').order('id', { ascending: true }); })
   ]);
+  const m = { leads: lr.data || [], accs: ar.data || [], contacts: cr.data || [], cts: ctr.data || [], quotes: qr.data || [], ccs: ccr.data || [] };
+  m.accByLead = {}; m.accs.forEach(function (a) { if (a.lead_id) m.accByLead[a.lead_id] = a; });
+  m.accById = {}; m.accs.forEach(function (a) { m.accById[a.id] = a; });
+  m.phoneOf = {}; m.contacts.forEach(function (c) { if (c.phone && !m.phoneOf[c.lead_id]) m.phoneOf[c.lead_id] = c; });
+  m.leadById = {}; m.leads.forEach(function (l) { m.leadById[l.id] = l; });
+  convertedLeadIds = new Set(m.accs.filter(function (a) { return a.lead_id; }).map(function (a) { return a.lead_id; }));
+  accountsData = m.accs.concat(accountsData.filter(function (a) { return !m.accById[a.id]; }));
+  _mCache = m; _mAt = Date.now();
+  return m;
+}
+function mInvalidate() { _mAt = 0; }
+const mQ = function (x) { return String(x || '').replace(/'/g, ''); };
+function mTel(p) { const d = String(p || '').replace(/[^\d+#,]/g, ''); return d ? '<a class="m-call" href="tel:' + esc(d) + '" onclick="event.stopPropagation()" aria-label="撥打">📞</a>' : '<span style="width:40px;flex:0 0 40px"></span>'; }
+function mDot(l) { const c = l && CTAGS.indexOf(l.color_tag) >= 0 ? l.color_tag : ''; return '<span class="m-dot' + (c ? ' on ctag-' + c : '') + '"></span>'; }
+function mDue(nd) {
+  if (!nd) return { t: '', cls: '' };
+  const d = daysUntil(String(nd).slice(0, 10));
+  if (d < 0) return { t: '逾 ' + (-d) + ' 天', cls: 'red' };
+  if (d === 0) return { t: '今天', cls: 'yel' };
+  return { t: String(nd).slice(5, 10).replace('-', '/'), cls: '' };
+}
+function mLeadRow(l, m, opt) {
+  opt = opt || {};
+  const acc = m.accByLead[l.id];
+  const sub = opt.sub != null ? opt.sub : (acc ? '合作中' + (acc.onboarding_stage ? '・' + esc(acc.onboarding_stage) : '') : esc(getStageName(l.stage_id) || '')) + (opt.owner && l.user_name ? '・' + esc(l.user_name) : '');
+  const due = opt.why != null ? { t: opt.why, cls: opt.whyCls || '' } : mDue(l.next_contact_date);
+  const ph = m.phoneOf[l.id];
+  return '<div class="m-row' + ctagCls(l) + '" onclick="openCompany(\'' + mQ(l.id) + '\')">' + mDot(l)
+    + '<div class="m-nm">' + esc(l.name) + '<small>' + sub + '</small></div>'
+    + (due.t ? '<span class="m-why ' + due.cls + '">' + due.t + '</span>' : '')
+    + (opt.call ? mTel(ph && ph.phone) : '') + '</div>';
+}
+function mCcRow(c, opt) {
+  opt = opt || {};
+  const col = ccbColOf(c);
+  const sub = '陌開・' + (col === 'today' ? '今日待打' : col === 'callback' ? '再聯絡' : col === 'dev' ? '進開發' : col === 'closed' ? '結案' : (c.grade ? c.grade + ' 級' : '名單')) + (c.industry ? '・' + esc(c.industry) : '');
+  const due = col === 'today' ? mDue(c.next_call_at) : (col === 'callback' ? mDue(c.next_call_at) : { t: '', cls: '' });
+  return '<div class="m-row" onclick="openCcDetail(\'' + mQ(c.id) + '\')"><span class="m-dot"></span>'
+    + '<div class="m-nm">' + esc(c.company) + '<small>' + sub + '</small></div>'
+    + (due.t ? '<span class="m-why ' + due.cls + '">' + due.t + '</span>' : '')
+    + (opt.call ? mTel(c.phone) : '') + '</div>';
+}
+let _mScope = 'mine';
+function mScopeChips(fn) {
+  if (!window.isAdmin) return '';
+  return '<div class="m-chips"><button class="ml-chip' + (_mScope === 'mine' ? ' on' : '') + '" onclick="_mScope=\'mine\';' + fn + '()">我的</button><button class="ml-chip' + (_mScope === 'all' ? ' on' : '') + '" onclick="_mScope=\'all\';' + fn + '()">全公司</button></div>';
+}
+function mMine(uid) { return _mScope === 'all' ? true : uid === currentUser.id; }
+
+// ── 今天 ──
+async function renderMToday() {
+  const content = document.getElementById('content');
+  const m = await mLoad();
+  if (currentPage !== 'mtoday') return;
+  const today = nowDateStr();
+  const myName = userNameById(currentUser.id, '');
+  // 要打的電話
+  const calls = [];
+  m.leads.forEach(function (l) {
+    if (!mMine(l.user_id) || !l.next_contact_date || String(l.next_contact_date).slice(0, 10) > today) return;
+    calls.push({ k: 'lead', d: String(l.next_contact_date).slice(0, 10), h: mLeadRow(l, m, { call: true, owner: _mScope === 'all' }) });
+  });
+  m.ccs.forEach(function (c) {
+    if (!mMine(c.owner_id) || ccbColOf(c) !== 'today') return;
+    calls.push({ k: 'cc', d: String(c.next_call_at || '').slice(0, 10), h: mCcRow(c, { call: true }) });
+  });
+  const renBy = {};
+  m.cts.forEach(function (c) {
+    if (!c.end_date || !mMine(c.sales_user_id || c.user_id)) return;
+    const a = m.accById[c.account_id]; if (!a || a.status === 'terminated') return;
+    const d = daysUntil(c.end_date); if (d < 0 || d > (c.remind_days != null ? c.remind_days : 30)) return;
+    if (!renBy[c.account_id] || renBy[c.account_id].d > d) renBy[c.account_id] = { c: c, d: d, a: a };
+  });
+  Object.values(renBy).forEach(function (r) {
+    const l = r.a.lead_id ? m.leadById[r.a.lead_id] : null; if (!l) return;
+    calls.push({ k: 'ren', d: '9999', h: mLeadRow(l, m, { call: true, sub: '合作中・' + r.c.end_date.slice(5).replace('-', '/') + ' 到期', why: '要續約', whyCls: r.d <= 7 ? 'red' : 'yel' }) });
+  });
+  calls.sort(function (a, b) { return a.d.localeCompare(b.d); });
+  // 要處理
+  const todo = [];
+  const won = new Set(m.cts.map(function (c) { return String(c.quote_note_id || ''); }));
+  m.quotes.forEach(function (n) {
+    const l = m.leadById[n.lead_id]; if (!l || won.has(String(n.id)) || !mMine(l.user_id) || daysSince(n.created_at) < 7) return;
+    todo.push('<div class="m-row" onclick="openCompany(\'' + mQ(l.id) + '\')"><span class="m-tag" style="background:#fff3e0;color:#8a4b00">報價沒回</span><div class="m-nm">' + esc(l.name) + '</div><span class="m-why">' + daysSince(n.created_at) + ' 天</span></div>');
+  });
+  const byAcc = {};
+  m.cts.forEach(function (c) { (byAcc[c.account_id] = byAcc[c.account_id] || []).push(c); });
+  Object.keys(byAcc).forEach(function (aid) {
+    const a = m.accById[aid]; if (!a || !a.lead_id || a.status === 'terminated') return;
+    const cts = byAcc[aid]; if (!mMine(cts[0].sales_user_id || cts[0].user_id)) return;
+    if (accMissingSigned({ contracts: cts })) todo.push('<div class="m-row" onclick="openCompany(\'' + mQ(a.lead_id) + '\')"><span class="m-tag" style="background:#fff3e0;color:#8a4b00">缺回簽</span><div class="m-nm">' + esc(a.name) + '</div></div>');
+    let worst = null;
+    cts.forEach(function (c) { dealInstallments(c).forEach(function (p) { if (p.paid_date || !(Number(p.amount) > 0)) return; const d = daysUntil(p.due_date || dealDate(c)); if (d != null && d <= 7 && (!worst || d < worst.d)) worst = { d: d, amt: p.amount }; }); });
+    if (worst) todo.push('<div class="m-row" onclick="openCompany(\'' + mQ(a.lead_id) + '\')"><span class="m-tag" style="background:#fdecec;color:#b3261e">該收款</span><div class="m-nm">' + esc(a.name) + '<small>$' + fmtNum(worst.amt) + '</small></div><span class="m-why ' + (worst.d < 0 ? 'red' : '') + '">' + (worst.d < 0 ? '逾 ' + (-worst.d) + ' 天' : worst.d === 0 ? '今天' : worst.d + ' 天後') + '</span></div>');
+  });
+  const hr = new Date().getHours();
+  content.innerHTML = '<div class="m-h1">' + (hr < 11 ? '早安' : hr < 18 ? '午安' : '晚安') + '，' + esc(myName || '') + '</div>'
+    + '<div class="m-sub">' + calls.length + ' 通電話・' + todo.length + ' 件事</div>'
+    + '<input class="m-search" placeholder="🔍 找客戶" readonly onclick="navigate(\'mclients\')">'
+    + mScopeChips('renderMToday')
+    + '<div class="m-sec">要打的電話</div><div class="m-card">' + (calls.length ? calls.map(function (x) { return x.h; }).join('') : '<div class="m-row" style="color:var(--text3);cursor:default">今天沒有要打的</div>') + '</div>'
+    + '<div class="m-sec">要處理</div><div class="m-card">' + (todo.length ? todo.join('') : '<div class="m-row" style="color:var(--text3);cursor:default">沒有待處理</div>') + '</div>';
+}
+
+// ── 客戶：先搜尋 ──
+let _mcQ = '', _mcKind = 'mine', _mcMore = 0;
+async function renderMClients(opt) {
+  const content = document.getElementById('content');
+  content.innerHTML = '<input class="m-search" id="mcQ" type="search" placeholder="公司、聯絡人、電話、統編" value="' + esc(_mcQ) + '" oninput="_mcQ=this.value;_mcMore=0;mcDraw()" autocomplete="off">'
+    + '<div class="m-chips" id="mcChips"></div><div class="m-card" id="mcList"><div class="loading" style="height:80px"><span class="dot-pulse">載入中</span></div></div>';
+  const inp = document.getElementById('mcQ'); if (inp && !(opt && opt.noFocus)) { try { inp.focus(); } catch (e) {} }
+  await mLoad();
   if (currentPage !== 'mclients') return;
-  const leads = lr.data || [], accs = ar.data || [];
-  const accByLead = {}; accs.forEach(function (a) { if (a.lead_id) accByLead[a.lead_id] = a; });
-  window._mcLeads = leads; window._mcAcc = accByLead;
-  content.innerHTML = ''
-    + '<input class="form-input" id="mcQ" type="search" placeholder="公司名稱" value="' + esc(_mcQ) + '" oninput="_mcQ=this.value;_mcMore=0;mcDraw()" style="height:46px;border-radius:12px;margin-bottom:8px">'
-    + '<div class="ml-chips" style="margin:0 0 4px">'
-    +   '<button class="ml-chip' + (_mcScope === 'mine' ? ' on' : '') + '" onclick="_mcScope=\'mine\';_mcMore=0;mcDraw(this)">我的</button>'
-    +   '<button class="ml-chip' + (_mcScope === 'all' ? ' on' : '') + '" onclick="_mcScope=\'all\';_mcMore=0;mcDraw(this)">全部</button>'
-    +   '<span style="width:6px;flex:0 0 6px"></span>'
-    +   '<button class="ml-chip' + (_mcKind === 'lead' ? ' on' : '') + '" onclick="mcKind(\'lead\')">開發中</button>'
-    +   '<button class="ml-chip' + (_mcKind === 'acc' ? ' on' : '') + '" onclick="mcKind(\'acc\')">合作中</button>'
-    +   '<button class="ml-chip' + (_mcKind === 'due' ? ' on' : '') + '" onclick="mcKind(\'due\')">該聯絡</button>'
-    + '</div>'
-    + '<div class="cp-card" id="mcList" style="padding:4px 14px"></div>';
   mcDraw();
 }
-function mcKind(k) { _mcKind = _mcKind === k ? 'all' : k; _mcMore = 0; mcDraw(); }
+function mcKind(k) { _mcKind = k; _mcMore = 0; mcDraw(); }
 function mcDraw() {
-  const el = document.getElementById('mcList'); if (!el) return;
-  const on = { '我的': _mcScope === 'mine', '全部': _mcScope === 'all', '開發中': _mcKind === 'lead', '合作中': _mcKind === 'acc', '該聯絡': _mcKind === 'due' };
-  el.parentElement.querySelectorAll('.ml-chip').forEach(function (b) { b.classList.toggle('on', !!on[b.textContent]); });
-  const q = _mcQ.trim().toLowerCase(), today = nowDateStr();
-  const Q = function (x) { return String(x).replace(/'/g, ''); };
-  const rows = (window._mcLeads || []).filter(function (l) {
-    const acc = window._mcAcc[l.id];
-    if (_mcScope === 'mine' && l.user_id !== currentUser.id && !(acc && acc.user_id === currentUser.id)) return false;
-    if (_mcKind === 'lead' && (acc || ['暫停', '結案'].indexOf(getStageName(l.stage_id)) >= 0)) return false;
-    if (_mcKind === 'acc' && !acc) return false;
-    if (_mcKind === 'due' && !(l.next_contact_date && String(l.next_contact_date).slice(0, 10) <= today)) return false;
-    if (q && [l.name, l.company].join(' ').toLowerCase().indexOf(q) < 0) return false;
-    return true;
-  }).sort(function (a, b) {
-    const da = a.next_contact_date ? String(a.next_contact_date).slice(0, 10) : '', db_ = b.next_contact_date ? String(b.next_contact_date).slice(0, 10) : '';
-    const oa = da && da <= today ? 0 : 1, ob = db_ && db_ <= today ? 0 : 1;
-    if (oa !== ob) return oa - ob;
-    return String(b.updated_at || '').localeCompare(String(a.updated_at || ''));
-  });
-  const lim = 60 + _mcMore;
-  el.innerHTML = (rows.length ? rows.slice(0, lim).map(function (l) {
-    const acc = window._mcAcc[l.id];
+  const el = document.getElementById('mcList'), m = _mCache; if (!el || !m) return;
+  const chips = document.getElementById('mcChips');
+  const kinds = [['mine', '我的'], ['lead', '開發中'], ['acc', '合作中'], ['cc', '陌開'], ['all', '全部']];
+  if (chips) chips.innerHTML = kinds.map(function (k) { return '<button class="ml-chip' + (_mcKind === k[0] ? ' on' : '') + '" onclick="mcKind(\'' + k[0] + '\')">' + k[1] + '</button>'; }).join('');
+  const q = _mcQ.trim().toLowerCase(), qd = q.replace(/\D/g, '');
+  const hit = function (strs) { if (!q) return true; return strs.some(function (x) { x = String(x || ''); return x.toLowerCase().indexOf(q) >= 0 || (qd.length >= 3 && x.replace(/\D/g, '').indexOf(qd) >= 0); }); };
+  const rows = [];
+  if (_mcKind !== 'cc') m.leads.forEach(function (l) {
+    const acc = m.accByLead[l.id], st = getStageName(l.stage_id) || '';
+    if (_mcKind === 'mine' && l.user_id !== currentUser.id && !(acc && acc.user_id === currentUser.id)) return;
+    if (_mcKind === 'lead' && (acc || ['暫停', '結案'].indexOf(st) >= 0)) return;
+    if (_mcKind === 'acc' && !acc) return;
+    const cs = m.contacts.filter(function (c) { return c.lead_id === l.id; });
+    if (!hit([l.name, l.company, l.tax_id].concat(cs.map(function (c) { return c.name; }), cs.map(function (c) { return c.phone; })))) return;
     const nd = l.next_contact_date ? String(l.next_contact_date).slice(0, 10) : '';
-    const due = nd ? -daysUntil(nd) : null;
-    const right = nd ? (due > 0 ? '<span style="color:var(--red)">逾期 ' + due + ' 天</span>' : due === 0 ? '<span style="color:var(--yellow)">今天</span>' : nd.slice(5).replace('-', '/')) : '';
-    const st = acc ? '<span style="color:var(--green)">合作中</span>' + (acc.onboarding_stage ? '・' + esc(acc.onboarding_stage) : '') : esc(getStageName(l.stage_id) || '');
-    return '<div class="mc-row' + ctagCls(l) + '" onclick="openCompany(\'' + Q(l.id) + '\')">'
-      + '<div style="flex:1;min-width:0"><div class="mc-name">' + esc(l.name) + '</div><div class="mc-meta">' + st + (_mcScope === 'all' && l.user_name ? '・' + esc(l.user_name) : '') + '</div></div>'
-      + '<div class="mc-right">' + right + '</div></div>';
-  }).join('') + (rows.length > lim ? '<button class="btn btn-ghost" style="width:100%;height:44px" onclick="_mcMore+=100;mcDraw()">再顯示（共 ' + rows.length + '）</button>' : '')
-    : '<div class="td-empty" style="padding:24px 0">沒有符合的客戶</div>');
+    rows.push({ s: (nd && nd <= nowDateStr() ? '0' : '1') + '|' + (99999999999999 - new Date(l.updated_at || 0).getTime()), h: mLeadRow(l, m, { owner: _mcKind !== 'mine', call: !!q }) });
+  });
+  if (_mcKind === 'cc' || _mcKind === 'all' || (_mcKind === 'mine' && (q || true))) m.ccs.forEach(function (c) {
+    if (c.lead_id && m.leadById[c.lead_id]) return;
+    if (_mcKind === 'mine' && c.owner_id !== currentUser.id) return;
+    if (_mcKind === 'mine' && !q && ccbColOf(c) !== 'today' && ccbColOf(c) !== 'callback') return;
+    if (!hit([c.company, c.contact_name, c.phone])) return;
+    rows.push({ s: '2|' + (99999999999999 - new Date(c.updated_at || 0).getTime()), h: mCcRow(c, { call: !!q }) });
+  });
+  rows.sort(function (a, b) { return a.s.localeCompare(b.s); });
+  const lim = 50 + _mcMore;
+  el.innerHTML = rows.length ? rows.slice(0, lim).map(function (r) { return r.h; }).join('') + (rows.length > lim ? '<button class="btn btn-ghost" style="width:100%;height:44px" onclick="_mcMore+=100;mcDraw()">再顯示（共 ' + rows.length + '）</button>' : '')
+    : '<div class="m-row" style="color:var(--text3);cursor:default">' + (q ? '找不到「' + esc(_mcQ) + '」' : '沒有資料') + '</div>';
+}
+
+// ── 一家客戶 ──
+function renderMCompany() {
+  const cp = window._cp || {}, lead = cp.lead, acc = cp.acc; if (!lead) return;
+  const id = lead.id, contacts = cp.contacts || [], c0 = contacts.find(function (c) { return c.phone; }) || contacts[0];
+  const phone = c0 && c0.phone ? String(c0.phone).replace(/[^\d+#,]/g, '') : '';
+  const nd = lead.next_contact_date ? String(lead.next_contact_date).slice(0, 10) : '', ndd = nd ? daysUntil(nd) : null;
+  const stageHtml = !acc
+    ? '<select class="cp-stage" aria-label="階段" onchange="companyStage(\'' + id + '\',this.value)">' + stagesData.map(function (st) { return '<option value="' + st.id + '"' + (st.id === lead.stage_id ? ' selected' : '') + '>' + esc(st.name) + '</option>'; }).join('') + '</select>'
+    : '<span class="badge ' + (acc.status === 'terminated' ? 'badge-red' : 'badge-green') + '" style="height:32px;display:inline-flex;align-items:center;border-radius:999px">' + (acc.status === 'terminated' ? '終止合作' : '合作中') + '</span>';
+  const nextBtn = '<button type="button" class="ml-chip" style="height:32px;padding:0 12px;color:' + (nd ? (ndd < 0 ? 'var(--red)' : ndd === 0 ? 'var(--yellow)' : 'var(--text)') : 'var(--text3)') + '" onclick="openSetNextContact(\'' + id + '\',\'' + (lead.next_contact_date || '') + '\')">'
+    + (nd ? '下次 ' + nd.slice(5).replace('-', '/') + (ndd < 0 ? '・逾 ' + (-ndd) + ' 天' : ndd === 0 ? '・今天' : '') : '下次 —') + '</button>';
+  const kv = function (label, val, js) { return '<div class="m-kv"' + (js ? ' onclick="' + js + '"' : '') + '><span>' + label + '</span><span>' + (val || '<span style="color:var(--text3)">—</span>') + '</span></div>'; };
+  let info = '';
+  if (!acc && isExpStage(lead)) { const t = expTotal(lead); info += kv('預計成交', t ? '$' + fmtNum(t) + (lead.expected_months ? '・' + lead.expected_months + ' 個月' : '') : '', 'openExpModal(\'' + id + '\')'); }
+  if (acc) {
+    const f = acctFin(cp.contracts || []);
+    info += kv('月費', f.monthly ? '$' + fmtNum(f.monthly) : '', 'setCpTabM(\'deals\')')
+      + kv('未收', f.unpaid ? '<span style="color:' + (f.nextPay && daysUntil(f.nextPay.due_date) < 0 ? 'var(--red)' : 'inherit') + '">$' + fmtNum(f.unpaid) + (f.nextPay ? '・' + esc(f.nextPay.due_date || '') : '') + '</span>' : '已收齊', 'setCpTabM(\'deals\')')
+      + kv('續約', f.renewDate ? esc(f.renewDate) + (f.renewDays != null ? '・剩 ' + f.renewDays + ' 天' : '') : '', 'setCpTabM(\'deals\')')
+      + kv('導入', acc.onboarding_stage ? esc(acc.onboarding_stage) : '還沒設定', 'openMOnb(\'' + acc.id + '\')');
+  }
+  const oq = (cp.openQ || [])[0];
+  if (oq) { const sm = oq.summary || {}; info += kv('報價', esc(sm.quoteNo || '報價') + '・$' + fmtNum(sm.subtotal || 0) + '・等 ' + daysSince(oq.savedAt) + ' 天', 'setCpTabM(\'quotes\')'); }
+  contacts.forEach(function (c) { info += kv(esc(c.role || '聯絡人'), esc(c.name) + (c.phone ? ' <a href="tel:' + esc(String(c.phone).replace(/[^\d+#,]/g, '')) + '" onclick="event.stopPropagation()" style="color:var(--accent)">' + esc(c.phone) + '</a>' : ''), 'setCpTabM(\'contacts\')'); });
+  if (!contacts.length) info += kv('聯絡人', '<span style="color:var(--accent)">＋ 加一位</span>', 'setCpTabM(\'contacts\')');
+  info += kv('統編', lead.tax_id ? '<span style="font-family:var(--mono)">' + esc(lead.tax_id) + '</span>' : '', 'openEditLeadModal(\'' + id + '\')');
+  const src = sourcesData.find(function (x) { return x.id === lead.source_id; });
+  info += kv('來源', src ? esc(src.name) : '', 'openEditLeadModal(\'' + id + '\')');
+  if (lead.lost_reason && !acc) info += kv('結案原因', '<span style="color:var(--red)">' + esc(lead.lost_reason) + '</span>');
+  document.getElementById('content').innerHTML = ''
+    + '<div class="cp-head' + ctagCls(lead) + '" style="padding:4px 2px 0">'
+    + '<div style="display:flex;align-items:center;gap:10px">' + ctagHtml(lead) + '<div style="flex:1;min-width:0;font-size:20px;font-weight:700;line-height:1.3">' + esc(lead.name) + '</div><button class="btn btn-ghost btn-sm" onclick="openCpMore(\'' + id + '\')" aria-label="更多">⋯</button></div>'
+    + '<div class="m-pills">' + stageHtml + '<span style="display:inline-flex;align-items:center">' + ownerSelectHtml(lead) + '</span>' + nextBtn + '</div>'
+    + '<div class="m-acts">' + (phone ? '<a class="p" href="tel:' + esc(phone) + '">📞 ' + esc(c0.name || '撥打') + '</a>' : '<button class="p" style="opacity:.5" onclick="setCpTabM(\'contacts\')">📞 沒有電話</button>') + '<button onclick="openQuickLog(\'' + id + '\')">🎤 記錄</button></div>'
+    + '</div>'
+    + '<div class="m-card" style="margin-top:14px">' + info + '</div>'
+    + '<div class="m-sec">紀錄</div><div class="m-card" id="mFeedCard"><div id="drawerPanel-activities" style="padding:4px 0"><div class="loading" style="height:60px"><span class="dot-pulse">載入中</span></div></div></div>'
+    + '<div id="mCpPanes" style="margin-top:14px"></div>';
+}
+// 手機上點某一行 → 把桌面版那個分頁的內容展開在下面
+function setCpTabM(k) {
+  const cp = window._cp || {}, acc = cp.acc, box = document.getElementById('mCpPanes'); if (!box) return;
+  if (box.dataset.k === k) { box.innerHTML = ''; box.dataset.k = ''; return; }
+  box.dataset.k = k;
+  box.innerHTML = k === 'deals' && acc ? companyDealsCardHtml(acc, cp.contracts || [])
+    : k === 'quotes' ? '<div class="cp-card"><div class="cp-card-t" style="margin-bottom:8px">🧾 報價</div><div id="drawerPanel-quotes"></div></div>'
+    : k === 'contacts' ? '<div class="cp-card"><div class="cp-card-t" style="margin-bottom:8px">👤 聯絡人</div><div id="drawerPanel-contacts"></div></div>' : '';
+  if (k === 'quotes') renderDrawerQuotes(currentLeadId);
+  if (k === 'contacts') renderDrawerContacts(currentLeadId);
+  box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function openMOnb(accId) {
+  const a = (window._cp || {}).acc; if (!a || !canEditAcc(a)) return;
+  const cur = a.onboarding_stage || '';
+  openModal('導入到哪一步', '<div style="display:flex;flex-direction:column;gap:8px">' + ONB_STAGES.map(function (st) { return '<button class="btn ' + (st === cur ? 'btn-primary' : 'btn-secondary') + '" style="height:44px;justify-content:flex-start" onclick="closeModal();setOnboarding(\'' + accId + '\',\'' + st + '\')">' + st + '</button>'; }).join('') + '</div>', [{ label: '取消', cls: 'btn-secondary', action: closeModal }]);
+}
+
+// ── 我的 ──
+async function renderMMe() {
+  const content = document.getElementById('content');
+  const m = await mLoad();
+  if (currentPage !== 'mme') return;
+  const ym = ccMonthKey(), today = nowDateStr();
+  const uid = currentUser.id, all = window.isAdmin && _mScope === 'all';
+  const own = function (c) { return all || (c.sales_user_id || c.user_id) === uid; };
+  const dealsM = m.cts.filter(function (c) { return own(c) && dealDate(c).slice(0, 7) === ym; });
+  const dealSum = dealsM.reduce(function (s, c) { return s + (Number(c.amount) || 0); }, 0);
+  const dealAccs = new Set(dealsM.map(function (c) { return c.account_id; })).size;
+  const exp = m.leads.filter(function (l) { return (all || l.user_id === uid) && isExpStage(l) && expTotal(l) > 0; });
+  const expSum = exp.reduce(function (s, l) { return s + expTotal(l); }, 0);
+  const overdue = m.leads.filter(function (l) { return (all || l.user_id === uid) && l.next_contact_date && String(l.next_contact_date).slice(0, 10) < today && !m.accByLead[l.id]; }).length;
+  const won = new Set(m.cts.map(function (c) { return String(c.quote_note_id || ''); }));
+  const noReply = m.quotes.filter(function (n) { const l = m.leadById[n.lead_id]; return l && (all || l.user_id === uid) && !won.has(String(n.id)) && daysSince(n.created_at) >= 7; }).length;
+  // 獎金（依實收月）
+  let bonus = '', bonusPend = 0;
+  try {
+    const ents = buildBonusEntries(m.cts, m.accs).filter(function (e) { return e.ym === ym && (all || e.uid === uid); });
+    const r = sumBonus(ents.filter(function (e) { return e.paid; })); bonusPend = sumBonus(ents).total - r.total;
+    bonus = '$' + fmtNum(r.total) + (bonusPend ? ' <span style="color:var(--text3);font-weight:400">+' + fmtNum(bonusPend) + ' 待收</span>' : '');
+  } catch (e) { bonus = ''; }
+  // 陌開 KPI
+  let cc = '';
+  try {
+    const [kpis, lr] = await Promise.all([ccLoadKpis(ym), fetchAllPaged(function () { return db.from('call_logs').select('cold_call_id,outcome,called_at,user_id').gte('called_at', ym + '-01').order('id', { ascending: true }); })]);
+    const logs = lr.data || [], convs = m.ccs.filter(function (c) { return c.status === 'converted'; });
+    const prog = ccKpiProgress(uid, kpis, logs, convs, ym);
+    const g = ccGameOf(uid, logs, convs, ccGoal());
+    const myLogs = logs.filter(function (l) { return l.user_id === uid; });
+    if (prog.length || myLogs.length) {
+      cc = '<div class="m-sec">陌開</div><div class="m-card"><div class="m-stat">'
+        + (prog.length ? prog.map(function (k) { return '<small>' + k.label + (k.done ? ' ✓' : '') + '</small><div class="m-bar"><div style="width:' + Math.round(Math.min(1, k.pct) * 100) + '%;background:' + (k.done ? 'var(--green)' : 'var(--accent)') + '"></div></div><small style="margin:4px 0 8px">' + k.sub + '</small>'; }).join('') : '<small>本月處理 ' + myLogs.length + ' 筆</small>')
+        + '<small>Lv ' + g.lvl + '・' + g.title[1] + '獵人' + (g.streak ? '・🔥 連續 ' + g.streak + ' 天' : '') + '</small></div></div>';
+    }
+  } catch (e) {}
+  // 主管：每人一行
+  let reps = '';
+  if (all) {
+    const by = {};
+    dealsM.forEach(function (c) { const k = dealSalesName(c) || '（未指定）'; by[k] = (by[k] || 0) + (Number(c.amount) || 0); });
+    reps = '<div class="m-sec">每人本月</div><div class="m-card">' + Object.keys(by).sort(function (a, b) { return by[b] - by[a]; }).map(function (k) { return '<div class="m-kv" style="cursor:default"><span>' + esc(k) + '</span><span style="font-family:var(--mono);font-weight:600">$' + fmtNum(by[k]) + '</span></div>'; }).join('') + (Object.keys(by).length ? '' : '<div class="m-kv" style="cursor:default;color:var(--text3)">本月還沒有成交</div>') + '</div>';
+  }
+  const link = function (label, js) { return '<div class="m-kv" onclick="' + js + '"><span style="color:var(--text)">' + label + '</span><span style="color:var(--text3)">›</span></div>'; };
+  const dark = document.documentElement.getAttribute('data-theme') !== 'light';
+  content.innerHTML = '<div class="m-h1">' + (all ? '全公司' : esc(userNameById(uid, '我的'))) + '</div><div class="m-sub">' + ym.replace('-', ' 年 ') + ' 月</div>'
+    + mScopeChips('renderMMe')
+    + '<div class="m-card m-two"><div class="m-stat"><small>本月成交</small><div class="n">$' + fmtNum(dealSum) + '</div><small>' + dealAccs + ' 家</small></div><div class="m-stat"><small>議價中預計</small><div class="n">$' + fmtNum(expSum) + '</div><small>' + exp.length + ' 家</small></div></div>'
+    + '<div class="m-card" style="margin-top:10px">'
+    + (bonus ? '<div class="m-kv" onclick="navigate(\'bonus\')"><span>預估獎金</span><span>' + bonus + '</span></div>' : '')
+    + '<div class="m-kv" onclick="_mcKind=\'mine\';_mcQ=\'\';navigate(\'mclients\')"><span>逾期沒聯絡</span><span style="color:' + (overdue ? 'var(--red)' : 'inherit') + '">' + overdue + ' 家</span></div>'
+    + '<div class="m-kv" onclick="navigate(\'mtoday\')"><span>報價沒回</span><span>' + noReply + ' 家</span></div>'
+    + '</div>' + cc + reps
+    + '<div class="m-card" style="margin-top:14px">' + link('成交明細', "navigate('performance')") + link('獎金試算', "navigate('bonus')") + link(dark ? '切成淺色' : '切成深色', 'toggleTheme();renderMMe()') + link('設定', "navigate('settings')") + '</div>';
 }
 
 // ── 今天 ──
@@ -5331,6 +5597,7 @@ async function refreshCompany() {
   const openQ = quotes.filter(function (r) { const no = (r.summary && r.summary.quoteNo) || r.noteId; if (r.wonContractId || r.quoteStatus === 'void' || seenQ[no]) return false; seenQ[no] = 1; return true; });
   window._cp = { lead: lead, acc: acc, contracts: contracts, openQ: openQ, contacts: ccR.data || [] };
   if (currentPage !== 'company' || currentLeadId !== leadId) return;
+  if (isMobile()) { renderMCompany(); renderCompanyTimeline(leadId); return; }
   if (_cpTab === 'deals' && !acc) _cpTab = 'timeline';
   const tabs = [['timeline', '時間軸', ''], acc ? ['deals', '合約', contracts.length] : null, ['quotes', '報價', quotes.length], ['contacts', '聯絡人', (ccR.data || []).length], ['info', '基本資料', '']].filter(Boolean);
   const pane = function (k, html) { return '<div class="cp-pane' + (_cpTab === k ? ' on' : '') + '" data-pane="' + k + '">' + html + '</div>'; };
@@ -5575,6 +5842,7 @@ function afterStageChanged(leadId, stageId) {
 }
 // 目前畫面若和這個線索有關就重畫
 function refreshCurrentView(leadId) {
+  mInvalidate();
   if (currentPage === 'company') { if (!leadId || leadId === currentLeadId) refreshCompany(); }
   else if (currentPage === 'today') renderToday();
 }
@@ -5594,7 +5862,7 @@ function setLeadHash(leadId) { /* 網址由 histPush 管理 */ }
 
 // ── 瀏覽器「上一頁／下一頁」──
 // 每換一頁就推一筆紀錄：#/today、#/leads…；公司頁是 #lead=<id>
-const PAGE_KEYS = ['today', 'dashboard', 'leads', 'leadlist', 'bonus', 'quotes', 'accounts', 'onboard', 'performance', 'coldcall', 'ccboard', 'ccpool', 'cclist', 'ccstats', 'decks', 'contacts', 'settings', 'feed'];
+const PAGE_KEYS = ['mtoday', 'mclients', 'mme', 'today', 'dashboard', 'leads', 'leadlist', 'bonus', 'quotes', 'accounts', 'onboard', 'performance', 'coldcall', 'ccboard', 'ccpool', 'cclist', 'ccstats', 'decks', 'contacts', 'settings', 'feed'];
 let _histRouting = false;
 function histPush(hash, opt) {
   if (_histRouting) return;
@@ -5606,7 +5874,7 @@ function histPush(hash, opt) {
 }
 function goBack() {
   if (history.state && history.state.sf > 0) history.back();
-  else navigate(_cpBack || 'leads', { replace: true });
+  else navigate(_cpBack || (isMobile() ? 'mclients' : 'leads'), { replace: true });
 }
 window.addEventListener('popstate', function () {
   if (!currentUser) return;
@@ -5911,7 +6179,7 @@ async function openQuickLog(leadId) {
   openModal(lead.name, ''
     + '<div style="font-size:12px;color:var(--text3);margin:-6px 0 10px">' + esc(st) + (lead.user_name ? '・' + esc(lead.user_name) : '') + '</div>'
     + '<div class="ql-res" id="qlRes">' + resBtns + '</div>'
-    + '<button type="button" class="btn btn-secondary ql-voice" id="qlVoice" onclick="startVoiceInput(\'qlText\', this)">🎤 用說的</button>'
+    + '<button type="button" class="ql-mic-big" id="qlVoice" onclick="startVoiceInput(\'qlText\', this)">🎤 按一下，開始說</button>'
     + '<div style="position:relative"><textarea class="form-textarea ql-ta" id="qlText" placeholder="一句話就好" onkeydown="qlKey(event)" oninput="qlAutoPick(this.value)"></textarea>'
     + '<button type="button" class="btn btn-ghost btn-sm hide-mobile" style="position:absolute;right:6px;bottom:6px;padding:2px 8px" onclick="startVoiceInput(\'qlText\', this)">🎤</button></div>'
     + '<div class="ql-row"><span style="font-size:12.5px;color:var(--text3);margin-right:2px">下次</span><span id="qlNext">' + (keepNext ? '<button type="button" class="df-chip on" data-v="keep" onclick="qlSet(\'next\',\'keep\')">' + keepNext.slice(5).replace('-', '/') + '</button>' : '') + nextBtns + '</span>'
@@ -6199,7 +6467,7 @@ function startVoiceInput(targetId, btnEl) {
   };
   rec.onend = () => {
     _recognition = null;
-    if (btnEl) { btnEl.textContent = btnEl.id === 'qlVoice' ? '🎤 用說的' : '🎤 語音輸入'; btnEl.classList.remove('btn-danger'); btnEl.classList.remove('rec'); btnEl.classList.add('btn-secondary'); }
+    if (btnEl) { btnEl.textContent = btnEl.id === 'qlVoice' ? '🎤 再說一段' : '🎤 語音輸入'; btnEl.classList.remove('btn-danger'); btnEl.classList.remove('rec'); btnEl.classList.add('btn-secondary'); }
   };
   try { rec.start(); } catch(e) { toast('無法啟動語音輸入', 'error'); _recognition = null; }
 }
@@ -9226,23 +9494,23 @@ db.auth.onAuthStateChange(async (event, session) => {
 </script>
 <!-- Bottom Nav (mobile) -->
 <div id="bottom-nav">
-  <div class="bnav-item" id="bnav-home" onclick="navigate('today')">
+  <div class="bnav-item" id="bnav-home" onclick="navigate('mtoday')">
     <div class="bnav-icon">☀️</div><div class="bnav-label">今天</div>
   </div>
   <div class="bnav-item" id="bnav-lists" onclick="navigate('mclients')">
-    <div class="bnav-icon">🏢</div><div class="bnav-label">客戶</div>
+    <div class="bnav-icon">🔍</div><div class="bnav-label">客戶</div>
   </div>
-  <div class="bnav-item" id="bnav-cc" onclick="navigate('ccboard')">
-    <div class="bnav-icon">📞</div><div class="bnav-label">陌開</div>
+  <div class="bnav-item bnav-rec" onclick="onFabClick()" aria-label="記錄聯絡">
+    <div class="bnav-big">🎤</div>
   </div>
-  <div class="bnav-item" id="bnav-perf" onclick="navigate('performance')">
-    <div class="bnav-icon">💰</div><div class="bnav-label">業績</div>
+  <div class="bnav-item" id="bnav-me" onclick="navigate('mme')">
+    <div class="bnav-icon">📈</div><div class="bnav-label">我的</div>
   </div>
   <div class="bnav-item" id="bnav-more" onclick="openMoreMenu()">
     <div class="bnav-icon">⋯</div><div class="bnav-label">更多</div>
   </div>
 </div>
-<button id="fab" onclick="onFabClick()" aria-label="記錄聯絡">📝</button>
+<button id="fab" onclick="onFabClick()" aria-label="記錄聯絡" style="display:none !important">📝</button>
 </body>
 </html>
 
