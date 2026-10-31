@@ -487,7 +487,47 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .onb-card .oc-days.stuck { color:var(--red); font-weight:600; }
 .onb-card select { margin-top:8px; width:100%; }
 .onb-more { font:inherit; font-size:12px; color:var(--text3); background:none; border:1px dashed var(--border); border-radius:8px; padding:8px; cursor:pointer; }
-@media (max-width:768px){ .onb-board .kanban-col { width:78vw; max-height:none; } .hide-mobile { display:none; } }
+@media (max-width:768px){ .hide-mobile { display:none !important; } }
+/* ── 手機版：打電話、看一眼、記一筆 ── */
+@media (max-width:768px){
+  .form-input, .form-textarea { font-size:16px; padding:10px 12px; }
+  .form-select { font-size:16px; padding:4px 10px; }
+  .btn-sm { min-height:36px; }
+  #bottom-nav { height:calc(60px + env(safe-area-inset-bottom)); padding-bottom:env(safe-area-inset-bottom); }
+  #main { padding-bottom:calc(60px + env(safe-area-inset-bottom)) !important; }
+  #fab { bottom:calc(76px + env(safe-area-inset-bottom)); width:56px; height:56px; font-size:22px; }
+  .bnav-item { padding:6px 4px; min-width:0; flex:1; }
+  .onb-board, .ccb-board { scroll-snap-type:x mandatory; gap:10px; }
+  .onb-board .kanban-col { flex:0 0 86vw; width:86vw; max-height:none; scroll-snap-align:start; }
+  .ccb-board .kanban-col { flex:0 0 100%; width:100%; max-height:none; min-width:0; }
+  .ccb-board.ccb-mob .kanban-col { display:none; }
+  .ccb-board.ccb-mob .kanban-col.mob-on { display:flex; }
+  .ccb-board.ccb-mob .kanban-col-header { display:none; }
+  .ccb-mobtabs { display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; margin:0 0 10px; }
+  .ccb-mobtabs::-webkit-scrollbar { display:none; }
+  .gm { display:block; padding:10px 12px; margin-bottom:10px; }
+  .gm .gm-me { cursor:pointer; }
+  .gm:not(.gm-open) .gm-quests, .gm:not(.gm-open) .gm-side, .gm:not(.gm-open) .gm-extra { display:none; }
+  .gm.gm-open .gm-quests, .gm.gm-open .gm-side, .gm.gm-open .gm-extra { margin-top:12px; }
+  .td-acts .btn-primary { padding:6px 10px; }
+  .cp-head .cp-name { font-size:17px; }
+  .cp-call { display:inline-flex !important; }
+  .ql-voice { display:flex !important; }
+  .mc-row { display:flex; align-items:center; gap:10px; padding:11px 0; border-top:1px solid var(--border); cursor:pointer; min-height:52px; }
+  .mc-row:first-child { border-top:none; }
+  .mc-name { font-size:15px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mc-meta { font-size:12.5px; color:var(--text3); margin-top:2px; }
+  .mc-right { font-size:12.5px; color:var(--text3); flex-shrink:0; text-align:right; }
+  .mc-row[class*="ct-"] { box-shadow:inset 4px 0 0 var(--ct); padding-left:10px; }
+  .perf-card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:8px; }
+  .perf-card .pc-n { font-size:22px; font-weight:800; font-family:var(--mono); }
+  .perf-row { display:flex; justify-content:space-between; gap:10px; padding:9px 0; border-top:1px solid var(--border); font-size:13.5px; }
+  .quote-mobile-note { display:block !important; }
+}
+.cp-call { display:none; width:40px; height:40px; border-radius:50%; background:var(--accent-glow); color:var(--accent); align-items:center; justify-content:center; text-decoration:none; font-size:18px; flex-shrink:0; }
+.ql-voice { display:none; width:100%; justify-content:center; gap:8px; margin:8px 0 2px; height:44px; font-size:15px; }
+.ql-voice.rec { background:var(--red); color:#fff; border-color:var(--red); }
+.quote-mobile-note { display:none; background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:12px 14px; font-size:13.5px; color:var(--text2); margin-bottom:12px; }
 .kc-name { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
 .kc-company { font-size: 11.5px; color: var(--text3); margin-bottom: 6px; }
 .kc-foot { display:flex; align-items:center; gap:6px; margin-top:6px; padding-right:26px; flex-wrap:wrap; row-gap:4px; }
@@ -694,7 +734,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
   #topbar { height:52px; padding:0 14px; }
   .topbar-title { font-size:15px; }
   #topbarActions { display:none; }
-  #content { padding:14px; }
+  #content { padding:14px 14px 96px; }
   #bottom-nav { display:flex; }
   #fab { display:flex; }
   .drawer { width:100% !important; }
@@ -709,6 +749,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
   .action-bar { flex-wrap:wrap; gap:6px; }
 }
 
+@media (min-width:769px){ .hide-desktop { display:none !important; } }
 /* ── Tablet ── */
 @media (max-width: 900px) and (min-width: 769px) {
   #sidebar { width:60px; }
@@ -1169,7 +1210,7 @@ const SECTIONS = [
   { key: 'cc', label: '陌開', pages: [['ccpool', '公海'], ['ccboard', '陌開進度'], ['ccstats', '統計'], ['coldcall', '開打', 'hidden'], ['cclist', '名單', 'hidden']] },
   { key: 'pipe', label: '開發看板', pages: [['leads', '']] },
   { key: 'onb', label: '導入看板', pages: [['onboard', '']] },
-  { key: 'lists', label: '列表清單', pages: [['accounts', '合作中客戶'], ['leadlist', '線索'], ['contacts', '聯絡人'], ['feed', '動態']] },
+  { key: 'lists', label: '列表清單', pages: [['accounts', '合作中客戶'], ['leadlist', '線索'], ['contacts', '聯絡人'], ['feed', '動態'], ['mclients', '客戶', 'hidden']] },
   { key: 'tools', label: '工具箱', pages: [['quotes', '報價單'], ['decks', '簡報'], ['bonus', '業績計算器'], ['settings', '設定']] }
 ];
 function sectionOf(page) {
@@ -1181,22 +1222,31 @@ function markSection(page) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.bnav-item').forEach(n => n.classList.remove('active'));
   const nav = document.getElementById('nav-' + sec.key); if (nav) nav.classList.add('active');
-  const bnav = document.getElementById('bnav-' + sec.key); if (bnav) bnav.classList.add('active');
-  document.getElementById('topbarTitle').textContent = page === 'company' ? '公司' : sec.label;
+  const bkey = (page === 'performance' || page === 'bonus') ? 'perf' : (page === 'today' || page === 'dashboard') ? 'home' : sec.key === 'cc' ? 'cc' : (sec.key === 'lists' || sec.key === 'pipe' || page === 'company') ? 'lists' : 'more';
+  const bnav = document.getElementById('bnav-' + bkey); if (bnav) bnav.classList.add('active');
+  document.getElementById('topbarTitle').textContent = page === 'company' ? '公司' : page === 'mclients' ? '客戶' : sec.label;
   const tabs = document.getElementById('sectionTabs');
-  if (tabs) tabs.innerHTML = (page !== 'company' && sec.pages.length > 1)
+  if (tabs) tabs.innerHTML = (page !== 'company' && page !== 'mclients' && sec.pages.length > 1)
     ? sec.pages.filter(function (p) { return p[2] !== 'hidden' || p[0] === page; }).map(function (p) { return '<button class="sec-tab' + (p[0] === page ? ' on' : '') + '" onclick="navigate(\'' + p[0] + '\')">' + p[1] + '</button>'; }).join('')
     : '';
 }
 function openMoreMenu() {
-  const b = function (pg, ico, label) { return '<button class="btn btn-secondary" style="justify-content:flex-start;width:100%;margin-bottom:8px" onclick="closeModal();navigate(\'' + pg + '\')">' + ico + '　' + label + '</button>'; };
-  openModal('更多', b('decks', '📊', '公版簡報') + b('accounts', '🤝', '成交客戶') + b('onboard', '🚀', '導入看板') + b('performance', '💰', '業績') + b('dashboard', '📊', 'Dashboard') + b('contacts', '👥', '聯絡人') + b('feed', '📰', '動態總覽') + b('settings', '⚙️', '設定'), [{ label: '關閉', cls: 'btn-secondary', action: closeModal }]);
+  const b = function (pg, ico, label) { return '<button class="btn btn-secondary" style="justify-content:flex-start;width:100%;margin-bottom:8px;height:44px" onclick="closeModal();navigate(\'' + pg + '\')">' + ico + '　' + label + '</button>'; };
+  const dark = document.documentElement.getAttribute('data-theme') !== 'light';
+  openModal('更多', ''
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 8px">'
+    + b('leads', '🗂', '開發看板') + b('onboard', '🚀', '導入看板')
+    + b('ccpool', '🌊', '陌開公海') + b('ccstats', '📈', '陌開統計')
+    + b('accounts', '🤝', '合作中客戶') + b('contacts', '👤', '聯絡人')
+    + b('dashboard', '📊', '數據') + b('bonus', '🧮', '獎金試算')
+    + b('feed', '📰', '動態') + b('quotes', '🧾', '報價單')
+    + b('decks', '📽', '簡報') + b('settings', '⚙️', '設定')
+    + '</div>'
+    + '<button class="btn btn-ghost" style="width:100%;height:44px" onclick="toggleTheme();closeModal()">' + (dark ? '☀️　切成淺色' : '🌙　切成深色') + '</button>');
 }
 
 function onFabClick() {
   if (currentPage === 'company' && currentLeadId) openQuickLog(currentLeadId);
-  else if (['coldcall', 'ccboard', 'cclist', 'ccpool', 'ccstats'].indexOf(currentPage) >= 0) openCcImport();
-  else if (currentPage === 'quotes') saveCurrentQuote();
   else openQuickLogPicker();
 }
 
@@ -1206,6 +1256,7 @@ async function renderPage(page) {
   content.innerHTML = '<div class="loading"><span class="dot-pulse">載入中</span></div>';
   switch(page) {
     case 'today': await renderToday(); break;
+    case 'mclients': await renderMClients(); break;
     case 'coldcall': ccTab = 'call'; await renderColdCall(); break;
     case 'cclist': ccTab = 'list'; await renderColdCall(); break;
     case 'ccstats': await renderCcStats2(); break;
@@ -1224,6 +1275,67 @@ async function renderPage(page) {
     case 'settings': await renderSettings(); break;
     case 'feed': await renderFeed(); break;
   }
+}
+
+// ── 客戶（手機）：找一家、看狀況 ──
+let _mcQ = '', _mcScope = 'mine', _mcKind = 'all', _mcMore = 0;
+async function renderMClients() {
+  const content = document.getElementById('content');
+  if (!usersData.length || !stagesData.length) await loadGlobalData();
+  const [lr, ar] = await Promise.all([
+    db.from('leads').select('id,name,company,stage_id,user_id,user_name,next_contact_date,color_tag,updated_at,expected_total'),
+    db.from('accounts').select('id,lead_id,name,status,user_id,onboarding_stage,updated_at')
+  ]);
+  if (currentPage !== 'mclients') return;
+  const leads = lr.data || [], accs = ar.data || [];
+  const accByLead = {}; accs.forEach(function (a) { if (a.lead_id) accByLead[a.lead_id] = a; });
+  window._mcLeads = leads; window._mcAcc = accByLead;
+  content.innerHTML = ''
+    + '<input class="form-input" id="mcQ" type="search" placeholder="公司名稱" value="' + esc(_mcQ) + '" oninput="_mcQ=this.value;_mcMore=0;mcDraw()" style="height:46px;border-radius:12px;margin-bottom:8px">'
+    + '<div class="ml-chips" style="margin:0 0 4px">'
+    +   '<button class="ml-chip' + (_mcScope === 'mine' ? ' on' : '') + '" onclick="_mcScope=\'mine\';_mcMore=0;mcDraw(this)">我的</button>'
+    +   '<button class="ml-chip' + (_mcScope === 'all' ? ' on' : '') + '" onclick="_mcScope=\'all\';_mcMore=0;mcDraw(this)">全部</button>'
+    +   '<span style="width:6px;flex:0 0 6px"></span>'
+    +   '<button class="ml-chip' + (_mcKind === 'lead' ? ' on' : '') + '" onclick="mcKind(\'lead\')">開發中</button>'
+    +   '<button class="ml-chip' + (_mcKind === 'acc' ? ' on' : '') + '" onclick="mcKind(\'acc\')">合作中</button>'
+    +   '<button class="ml-chip' + (_mcKind === 'due' ? ' on' : '') + '" onclick="mcKind(\'due\')">該聯絡</button>'
+    + '</div>'
+    + '<div class="cp-card" id="mcList" style="padding:4px 14px"></div>';
+  mcDraw();
+}
+function mcKind(k) { _mcKind = _mcKind === k ? 'all' : k; _mcMore = 0; mcDraw(); }
+function mcDraw() {
+  const el = document.getElementById('mcList'); if (!el) return;
+  const on = { '我的': _mcScope === 'mine', '全部': _mcScope === 'all', '開發中': _mcKind === 'lead', '合作中': _mcKind === 'acc', '該聯絡': _mcKind === 'due' };
+  el.parentElement.querySelectorAll('.ml-chip').forEach(function (b) { b.classList.toggle('on', !!on[b.textContent]); });
+  const q = _mcQ.trim().toLowerCase(), today = nowDateStr();
+  const Q = function (x) { return String(x).replace(/'/g, ''); };
+  const rows = (window._mcLeads || []).filter(function (l) {
+    const acc = window._mcAcc[l.id];
+    if (_mcScope === 'mine' && l.user_id !== currentUser.id && !(acc && acc.user_id === currentUser.id)) return false;
+    if (_mcKind === 'lead' && (acc || ['暫停', '結案'].indexOf(getStageName(l.stage_id)) >= 0)) return false;
+    if (_mcKind === 'acc' && !acc) return false;
+    if (_mcKind === 'due' && !(l.next_contact_date && String(l.next_contact_date).slice(0, 10) <= today)) return false;
+    if (q && [l.name, l.company].join(' ').toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  }).sort(function (a, b) {
+    const da = a.next_contact_date ? String(a.next_contact_date).slice(0, 10) : '', db_ = b.next_contact_date ? String(b.next_contact_date).slice(0, 10) : '';
+    const oa = da && da <= today ? 0 : 1, ob = db_ && db_ <= today ? 0 : 1;
+    if (oa !== ob) return oa - ob;
+    return String(b.updated_at || '').localeCompare(String(a.updated_at || ''));
+  });
+  const lim = 60 + _mcMore;
+  el.innerHTML = (rows.length ? rows.slice(0, lim).map(function (l) {
+    const acc = window._mcAcc[l.id];
+    const nd = l.next_contact_date ? String(l.next_contact_date).slice(0, 10) : '';
+    const due = nd ? -daysUntil(nd) : null;
+    const right = nd ? (due > 0 ? '<span style="color:var(--red)">逾期 ' + due + ' 天</span>' : due === 0 ? '<span style="color:var(--yellow)">今天</span>' : nd.slice(5).replace('-', '/')) : '';
+    const st = acc ? '<span style="color:var(--green)">合作中</span>' + (acc.onboarding_stage ? '・' + esc(acc.onboarding_stage) : '') : esc(getStageName(l.stage_id) || '');
+    return '<div class="mc-row' + ctagCls(l) + '" onclick="openCompany(\'' + Q(l.id) + '\')">'
+      + '<div style="flex:1;min-width:0"><div class="mc-name">' + esc(l.name) + '</div><div class="mc-meta">' + st + (_mcScope === 'all' && l.user_name ? '・' + esc(l.user_name) : '') + '</div></div>'
+      + '<div class="mc-right">' + right + '</div></div>';
+  }).join('') + (rows.length > lim ? '<button class="btn btn-ghost" style="width:100%;height:44px" onclick="_mcMore+=100;mcDraw()">再顯示（共 ' + rows.length + '）</button>' : '')
+    : '<div class="td-empty" style="padding:24px 0">沒有符合的客戶</div>');
 }
 
 // ── 今天 ──
@@ -1276,7 +1388,7 @@ async function renderToday() {
     const d = -daysUntil(String(l.next_contact_date).slice(0, 10));
     return tdRow(go(l.id), esc(l.name) + (convertedLeadIds.has(l.id) ? ' <span class="badge badge-green" style="font-size:10px">客戶</span>' : ''),
       (d > 0 ? '<span style="color:var(--red)">逾期 ' + d + ' 天</span>' : '今天') + '・' + esc(getStageName(l.stage_id) || '') + (todayUser === 'all' ? '・' + esc(l.user_name || '未指派') : ''),
-      logBtn(l.id) + '<button class="btn btn-ghost btn-sm" onclick="snoozeLead(\'' + l.id + '\',1)" title="延到明天">+1天</button><button class="btn btn-ghost btn-sm" onclick="snoozeLead(\'' + l.id + '\',7)" title="延一週">+1週</button>', ctagCls(l));
+      logBtn(l.id) + '<button class="btn btn-ghost btn-sm hide-mobile" onclick="snoozeLead(\'' + l.id + '\',1)" title="延到明天">+1天</button><button class="btn btn-ghost btn-sm hide-mobile" onclick="snoozeLead(\'' + l.id + '\',7)" title="延一週">+1週</button>', ctagCls(l));
   });
   // ② 待收款（逾期與 7 天內）
   const pay = [];
@@ -1870,6 +1982,7 @@ const CCP_DEFAULT = { order: CCP_COLS.map(function (c) { return c.k; }), hidden:
 function ccpCfg() {
   let c; try { c = JSON.parse(localStorage.getItem('sf_ccp_cfg') || 'null'); } catch (e) {}
   c = Object.assign({}, CCP_DEFAULT, c || {});
+  if (!c.mobileInit && window.innerWidth <= 768) { c.hidden = ['contact', 'city', 'email', 'batch', 'source', 'note', 'attempts', 'created_at']; c.mobileInit = true; try { localStorage.setItem('sf_ccp_cfg', JSON.stringify(c)); } catch (e) {} }
   const known = CCP_COLS.map(function (x) { return x.k; });
   c.order = c.order.filter(function (k) { return known.indexOf(k) >= 0; }).concat(known.filter(function (k) { return c.order.indexOf(k) < 0; }));
   c.filters = c.filters || {};
@@ -2057,8 +2170,8 @@ function ccHudHtml(g, overdue, todayDue, board, extra) {
   const me = currentUser.id;
   const lb = board.slice(0, 4).map(function (r, i) { return '<div class="gm-lb' + (r.uid === me ? ' me' : '') + '"><span class="gm-lbn">' + ['🥇', '🥈', '🥉', '4'][i] + '</span><span class="gm-lbname">' + esc(r.name) + '</span><span class="gm-lbx">' + r.week + '</span></div>'; }).join('');
   const myRank = board.findIndex(function (r) { return r.uid === me; }) + 1;
-  return '<div class="gm">'
-    + '<div class="gm-me"><div class="gm-badge"><span>Lv</span><b>' + g.lvl + '</b></div>'
+  return '<div class="gm' + (window.innerWidth <= 768 ? '' : ' gm-open') + '">'
+    + '<div class="gm-me" onclick="if(window.innerWidth<=768)this.parentElement.classList.toggle(\'gm-open\')"><div class="gm-badge"><span>Lv</span><b>' + g.lvl + '</b></div>'
     +   '<div style="flex:1;min-width:0"><div class="gm-title">' + g.title[2] + ' ' + g.title[1] + '獵人</div>'
     +   '<div class="gm-bar"><div style="width:' + pct + '%"></div></div>'
     +   '<div class="gm-xp">' + fmtNum(g.into) + ' / ' + fmtNum(g.need) + ' XP・再 ' + fmtNum(g.need - g.into) + ' 升級</div></div></div>'
@@ -2069,8 +2182,15 @@ function ccHudHtml(g, overdue, todayDue, board, extra) {
     + '</div>'
     + '<div class="gm-side"><div class="gm-streak' + (g.streak ? ' on' : '') + '"><b>🔥 ' + g.streak + '</b><span>天連續達標</span></div>'
     +   '<div class="gm-board"><div class="gm-h">本週排行' + (myRank ? '<span style="margin-left:auto;opacity:.7">你第 ' + myRank + '</span>' : '') + '</div>' + (lb || '<div class="gm-lb" style="opacity:.6">還沒有人上榜</div>') + '</div></div>'
-    + (extra || '')
+    + (extra ? '<div class="gm-extra">' + extra + '</div>' : '')
     + '</div>';
+}
+function ccbMobShow(col, counts) {
+  window._ccbMobCol = col;
+  const tabs = document.getElementById('ccbMobTabs'); if (!tabs) return;
+  if (!counts) { counts = {}; document.querySelectorAll('.ccb-board .kanban-col').forEach(function (c) { counts[c.dataset.col] = Number((c.querySelector('.kanban-col-count') || {}).textContent || 0); }); }
+  tabs.innerHTML = CCB_COLS.map(function (k) { return '<button class="ml-chip' + (k[0] === col ? ' on' : '') + '" onclick="ccbMobShow(\'' + k[0] + '\')">' + k[1] + '<b>' + (counts[k[0]] || 0) + '</b></button>'; }).join('');
+  document.querySelectorAll('.ccb-board .kanban-col').forEach(function (c) { c.classList.toggle('mob-on', c.dataset.col === col); });
 }
 function ccSetGoal2() {
   openModal('🎯 每日處理目標', '<div class="form-group"><label class="form-label">每天想處理幾筆？（移到再聯絡、結案、進開發都算）</label><input class="form-input" id="ccGoalIn" type="number" min="1" max="200" value="' + ccGoal() + '"></div>', [
@@ -2275,7 +2395,13 @@ async function renderCcBoard() {
   content.style.padding = '16px'; content.style.overflowX = 'auto';
   content.innerHTML = hud
     + '<div class="kanban-filters" style="gap:10px">' + scopeSel + '<div class="ml-chips" style="margin:0">' + gradeChips + '</div><span style="flex:1"></span><a href="#" onclick="event.preventDefault();navigate(\'ccpool\')" style="font-size:12.5px">公海拿名單 →</a></div>'
-    + '<div class="ccb-board">' + cols + '</div>';
+    + (window.innerWidth <= 768 ? '<div class="ccb-mobtabs" id="ccbMobTabs"></div>' : '')
+    + '<div class="ccb-board' + (window.innerWidth <= 768 ? ' ccb-mob' : '') + '">' + cols + '</div>';
+  if (window.innerWidth <= 768) {
+    const counts = {}; CCB_COLS.forEach(function (k) { counts[k[0]] = list.filter(function (c) { return ccbColOf(c) === k[0]; }).length; });
+    if (!window._ccbMobCol) window._ccbMobCol = counts.today ? 'today' : 'pool';
+    ccbMobShow(window._ccbMobCol, counts);
+  }
   content.querySelectorAll('.ccb-card').forEach(function (el) {
     el.addEventListener('dragstart', function (e) { window._ccbDrag = el.dataset.id; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
     el.addEventListener('dragend', function () { el.classList.remove('dragging'); document.querySelectorAll('.ccb-board .drag-over').forEach(function (x) { x.classList.remove('drag-over'); }); });
@@ -3677,6 +3803,10 @@ async function renderPerformance() {
     if (perfTab === 'bonus') perfTab = 'deals';
     document.getElementById('topbarActions').innerHTML = '<div class="action-bar"><div class="view-toggle">' + tab('deals', '📊 成交統計') + tab('lost', '📉 流失分析') + '</div></div>';
   }
+  const mobTabs = currentPage === 'bonus' ? '' : '<div class="ml-chips hide-desktop" style="margin:0 0 10px">'
+    + '<button class="ml-chip' + (perfTab === 'deals' ? ' on' : '') + '" onclick="perfTab=\'deals\';renderPerformance()">成交</button>'
+    + '<button class="ml-chip" onclick="navigate(\'bonus\')">獎金</button>'
+    + '<button class="ml-chip' + (perfTab === 'lost' ? ' on' : '') + '" onclick="perfTab=\'lost\';renderPerformance()">流失</button></div>';
   const content = document.getElementById('content');
   const t = new Date();
   const ym = t.getFullYear() + '-' + _pad2(t.getMonth() + 1);
@@ -3708,19 +3838,20 @@ async function renderPerformance() {
     renderBonusTrial();
     runBonusCalc();
   } else if (perfTab === 'deals') {
-    content.innerHTML = wrap(''
+    content.innerHTML = mobTabs + wrap(''
       + '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">'
-      +   '<div class="form-group" style="margin:0"><label class="form-label">起（依簽約日）</label><input class="form-input" id="srFrom" type="month" value="' + ym + '"></div>'
-      +   '<div class="form-group" style="margin:0"><label class="form-label">迄</label><input class="form-input" id="srTo" type="month" value="' + ym + '"></div>'
-      +   '<button class="btn btn-primary btn-sm" onclick="runSalesReport()">查詢</button>'
+      +   '<div class="form-group hide-mobile" style="margin:0"><label class="form-label">起（依簽約日）</label><input class="form-input" id="srFrom" type="month" value="' + ym + '"></div>'
+      +   '<div class="form-group hide-mobile" style="margin:0"><label class="form-label">迄</label><input class="form-input" id="srTo" type="month" value="' + ym + '"></div>'
+      +   '<button class="btn btn-primary btn-sm hide-mobile" onclick="runSalesReport()">查詢</button>'
+      +   '<button class="btn btn-ghost btn-sm hide-desktop" id="srChipMonth" onclick="setSalesReportRange(\'month\')">本月</button>'
       +   '<button class="btn btn-ghost btn-sm" onclick="setSalesReportRange(\'lastmonth\')">上月</button>'
       +   '<button class="btn btn-ghost btn-sm" onclick="setSalesReportRange(\'quarter\')">本季</button>'
       +   '<button class="btn btn-ghost btn-sm" onclick="setSalesReportRange(\'year\')">今年</button>'
-      +   '<button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="exportSalesReport()">📤 匯出 Excel</button>'
+      +   '<button class="btn btn-secondary btn-sm hide-mobile" style="margin-left:auto" onclick="exportSalesReport()">📤 匯出 Excel</button>'
       + '</div><div id="srResult"><div class="loading"><span class="dot-pulse">載入中</span></div></div>');
     runSalesReport();
   } else {
-    content.innerHTML = wrap(''
+    content.innerHTML = mobTabs + wrap(''
       + '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">'
       +   '<div class="form-group" style="margin:0"><label class="form-label">期間（依結案時間）</label><select class="form-select" id="lostRange" onchange="runLostReport()"><option value="90">近 90 天</option><option value="year">今年</option><option value="all">全部</option></select></div>'
       + '</div><div id="lostResult"><div class="loading"><span class="dot-pulse">載入中</span></div></div>');
@@ -5300,6 +5431,7 @@ function companyHeaderHtml(lead, acc) {
     +   ctagHtml(lead) + '<div class="cp-name">' + esc(lead.name) + '</div>' + stageHtml
     +   '<span style="display:inline-flex;align-items:center">' + ownerSelectHtml(lead) + '</span>'
     +   '<span style="flex:1"></span>'
+    +   (phone ? '<a class="cp-call" href="tel:' + esc(phone) + '" aria-label="撥打">📞</a>' : '')
     +   '<div class="cp-actions" style="margin:0">' + actions + '</div>'
     + '</div>'
     + '<div class="cp-meta">' + meta.join('') + '</div>'
@@ -5779,8 +5911,9 @@ async function openQuickLog(leadId) {
   openModal(lead.name, ''
     + '<div style="font-size:12px;color:var(--text3);margin:-6px 0 10px">' + esc(st) + (lead.user_name ? '・' + esc(lead.user_name) : '') + '</div>'
     + '<div class="ql-res" id="qlRes">' + resBtns + '</div>'
-    + '<div style="position:relative"><textarea class="form-textarea ql-ta" id="qlText" placeholder="一句話就好" onkeydown="qlKey(event)"></textarea>'
-    + '<button type="button" class="btn btn-ghost btn-sm" style="position:absolute;right:6px;bottom:6px;padding:2px 8px" onclick="startVoiceInput(\'qlText\', this)">🎤</button></div>'
+    + '<button type="button" class="btn btn-secondary ql-voice" id="qlVoice" onclick="startVoiceInput(\'qlText\', this)">🎤 用說的</button>'
+    + '<div style="position:relative"><textarea class="form-textarea ql-ta" id="qlText" placeholder="一句話就好" onkeydown="qlKey(event)" oninput="qlAutoPick(this.value)"></textarea>'
+    + '<button type="button" class="btn btn-ghost btn-sm hide-mobile" style="position:absolute;right:6px;bottom:6px;padding:2px 8px" onclick="startVoiceInput(\'qlText\', this)">🎤</button></div>'
     + '<div class="ql-row"><span style="font-size:12.5px;color:var(--text3);margin-right:2px">下次</span><span id="qlNext">' + (keepNext ? '<button type="button" class="df-chip on" data-v="keep" onclick="qlSet(\'next\',\'keep\')">' + keepNext.slice(5).replace('-', '/') + '</button>' : '') + nextBtns + '</span>'
     + '<input type="date" class="form-input" id="qlDate" style="display:none;width:auto;height:34px;padding:2px 8px" value="' + _ql.nextDate + '" onchange="_ql.nextDate=this.value"></div>'
     + '<div class="ql-stage" id="qlStage"></div>', [
@@ -5789,12 +5922,30 @@ async function openQuickLog(leadId) {
   ]);
   document.getElementById('modalBox').style.maxWidth = '480px';
   qlRenderStage();
-  setTimeout(function () { const t = document.getElementById('qlText'); if (t && window.innerWidth > 768) t.focus(); }, 30);
+  setTimeout(function () { const t = document.getElementById('qlText'); if (t) t.focus(); }, 30);
+}
+// 從一句話猜結果跟下次（只在使用者沒手動選過時套用）
+function qlAutoPick(text) {
+  if (!_ql) return;
+  const t = String(text || '');
+  if (!_ql.touchedResult) {
+    let r = null;
+    if (/沒接|未接|沒人接|無人接|不在|沒接通|掛掉|掛電話/.test(t)) r = 'missed';
+    else if (/拜訪|到訪|見面|現場|去了|去過|碰面/.test(t)) r = 'visit';
+    else if (/LINE|賴|訊息|簡訊|mail|Email|信件|傳了|回訊/i.test(t)) r = 'msg';
+    else if (/接通|聊|講|說|電話/.test(t)) r = 'call';
+    if (r && r !== _ql.result) { _ql.result = r; document.querySelectorAll('#qlRes .df-chip').forEach(function (b) { b.classList.toggle('on', b.dataset.v === r); }); qlRenderStage(); }
+  }
+  if (!_ql.touchedNext) {
+    let n = null;
+    if (/明天|明日/.test(t)) n = 1; else if (/後天|三天|3天|3 天/.test(t)) n = 3; else if (/下週|下星期|下禮拜|一週後|一周後/.test(t)) n = 7; else if (/兩週|二週|2週|2 週|兩星期|兩禮拜/.test(t)) n = 14; else if (/不用|不必|結案|沒興趣/.test(t)) n = 'null';
+    if (n !== null && String(n) !== String(_ql.next)) { const tr = _ql.touchedNext; qlSet('next', String(n)); _ql.touchedNext = tr; }
+  }
 }
 function qlSet(k, v) {
   if (!_ql) return;
-  if (k === 'result') { _ql.result = v; document.querySelectorAll('#qlRes .df-chip').forEach(function (b) { b.classList.toggle('on', b.dataset.v === v); }); qlRenderStage(); return; }
-  _ql.next = v === 'null' ? null : v;
+  if (k === 'result') { _ql.touchedResult = true; _ql.result = v; document.querySelectorAll('#qlRes .df-chip').forEach(function (b) { b.classList.toggle('on', b.dataset.v === v); }); qlRenderStage(); return; }
+  _ql.next = v === 'null' ? null : v; _ql.touchedNext = true;
   const dateEl = document.getElementById('qlDate');
   if (v === 'pick') { dateEl.style.display = ''; dateEl.focus(); }
   else { dateEl.style.display = 'none'; if (v === 'keep') _ql.nextDate = String(_ql.lead.next_contact_date).slice(0, 10); else if (v !== 'null') _ql.nextDate = addDaysStr(nowDateStr(), parseInt(v, 10)); }
@@ -6024,7 +6175,8 @@ function startVoiceInput(targetId, btnEl) {
   // Already recording → stop
   if (_recognition) { try { _recognition.stop(); } catch(e){} return; }
   if (!SR) {
-    toast('此瀏覽器不支援語音按鈕，請改用手機鍵盤上的麥克風圖示', 'error');
+    toast('這個瀏覽器沒有語音按鈕，用鍵盤上的 🎤 一樣能說', 'error');
+    const t0 = document.getElementById(targetId); if (t0) t0.focus();
     return;
   }
   const ta = document.getElementById(targetId);
@@ -6035,18 +6187,19 @@ function startVoiceInput(targetId, btnEl) {
   rec.interimResults = true;
   _recognition = rec;
   const baseText = ta.value ? (ta.value.endsWith('\n') ? ta.value : ta.value + '\n') : '';
-  if (btnEl) { btnEl.textContent = '⏹ 停止錄音'; btnEl.classList.remove('btn-secondary'); btnEl.classList.add('btn-danger'); }
+  if (btnEl) { btnEl.textContent = '⏹ 說完了，按一下'; btnEl.classList.remove('btn-secondary'); btnEl.classList.add('btn-danger'); btnEl.classList.add('rec'); }
   rec.onresult = (e) => {
     let txt = '';
     for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
     ta.value = baseText + txt;
+    try { ta.dispatchEvent(new Event('input')); } catch (_) {}
   };
   rec.onerror = (e) => {
     if (e.error !== 'aborted' && e.error !== 'no-speech') toast('語音辨識錯誤：' + (e.error || ''), 'error');
   };
   rec.onend = () => {
     _recognition = null;
-    if (btnEl) { btnEl.textContent = '🎤 語音輸入'; btnEl.classList.remove('btn-danger'); btnEl.classList.add('btn-secondary'); }
+    if (btnEl) { btnEl.textContent = btnEl.id === 'qlVoice' ? '🎤 用說的' : '🎤 語音輸入'; btnEl.classList.remove('btn-danger'); btnEl.classList.remove('rec'); btnEl.classList.add('btn-secondary'); }
   };
   try { rec.start(); } catch(e) { toast('無法啟動語音輸入', 'error'); _recognition = null; }
 }
@@ -6663,7 +6816,7 @@ async function renderQuotes() {
   const content = document.getElementById('content');
   const selectedLead = quoteSelectedLead();
   const searchValue = selectedLead?.name || quoteManualClientName || '';
-  content.innerHTML = `<div class="quote-page-wrap">
+  content.innerHTML = `<div class="quote-mobile-note">🧾 報價單請在電腦上做。手機可以看已存的報價單、把 PDF 傳給客戶。</div><div class="quote-page-wrap">
     <div class="quote-toolbar">
       <div class="quote-client-combo">
         <span class="quote-search-icon">⌕</span>
@@ -7724,7 +7877,8 @@ function openSalesReport() { perfTab = 'deals'; navigate('performance'); }
 function setSalesReportRange(kind) {
   const t = new Date(); const y = t.getFullYear(); const m = t.getMonth();
   let a, b;
-  if (kind === 'lastmonth') { const d = new Date(y, m - 1, 1); a = b = d.getFullYear() + '-' + _pad2(d.getMonth() + 1); }
+  if (kind === 'month') { a = b = y + '-' + _pad2(m + 1); }
+  else if (kind === 'lastmonth') { const d = new Date(y, m - 1, 1); a = b = d.getFullYear() + '-' + _pad2(d.getMonth() + 1); }
   else if (kind === 'quarter') { const qs = Math.floor(m / 3) * 3; a = y + '-' + _pad2(qs + 1); b = y + '-' + _pad2(qs + 3); }
   else { a = y + '-01'; b = y + '-12'; }
   document.getElementById('srFrom').value = a;
@@ -7754,6 +7908,7 @@ async function runSalesReport() {
   });
   window._srRange = from + '_' + to;
   if (!rows.length) { el.innerHTML = '<div class="empty-state" style="padding:24px"><div class="empty-text">此期間沒有成交紀錄</div></div>'; return; }
+  if (window.innerWidth <= 768) { el.innerHTML = salesReportMobileHtml(window._srRows, from, to); return; }
   const bySales = {};
   window._srRows.forEach(function (r) {
     const k = r.業務;
@@ -7784,6 +7939,24 @@ async function runSalesReport() {
   el.innerHTML = (window.isAdmin ? '' : '<div style="font-size:12px;color:var(--text3);margin-bottom:8px">僅顯示你本人的業績</div>') + '<div style="overflow-x:auto">' + sum + '</div>' + det;
 }
 
+// 手機版業績：每人一張卡 + 明細列
+function salesReportMobileHtml(rows, from, to) {
+  const by = {}; let grand = 0;
+  rows.forEach(function (r) { const k = r.業務; if (!by[k]) by[k] = { n: 0, total: 0, cat: {} }; by[k].n++; by[k].total += r.金額; by[k].cat[r.類型] = (by[k].cat[r.類型] || 0) + r.金額; grand += r.金額; });
+  const period = from === to ? from.replace('-', '/') : from.replace('-', '/') + '–' + to.replace('-', '/');
+  let h = '<div style="font-size:12.5px;color:var(--text3);margin-bottom:8px">' + period + '・依簽約日' + (window.isAdmin ? '' : '・只看你自己') + '</div>';
+  Object.keys(by).sort(function (a, b) { return by[b].total - by[a].total; }).forEach(function (k) {
+    const s = by[k];
+    h += '<div class="perf-card"><div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-weight:600">' + esc(k) + '</div><div class="pc-n">$' + fmtNum(s.total) + '</div></div>'
+      + '<div style="font-size:12.5px;color:var(--text3);margin-top:4px">' + s.n + ' 筆・' + Object.keys(s.cat).map(function (c) { return c + ' $' + fmtNum(s.cat[c]); }).join('・') + '</div></div>';
+  });
+  if (window.isAdmin && Object.keys(by).length > 1) h += '<div style="display:flex;justify-content:space-between;padding:6px 4px 10px;font-weight:700"><span>合計</span><span style="font-family:var(--mono)">$' + fmtNum(grand) + '</span></div>';
+  h += '<div class="form-label" style="margin:6px 0 2px">明細</div>';
+  rows.forEach(function (r) {
+    h += '<div class="perf-row" onclick="goToAccount(\'' + r._acc + '\')"><div style="min-width:0"><div style="font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.客戶) + '</div><div style="font-size:12px;color:var(--text3)">' + r.簽約日 + '・' + esc(r.類型) + (window.isAdmin ? '・' + esc(r.業務) : '') + '</div></div><div style="font-family:var(--mono);font-weight:600;flex-shrink:0">$' + fmtNum(r.金額) + '</div></div>';
+  });
+  return h;
+}
 // ── 業績獎金（依 V3 制度，只算業績獎金；不含底薪與 KPI）──
 // 規則集中在這裡，制度改版時只要改這個物件
 const BONUS_RULES = {
@@ -9054,25 +9227,22 @@ db.auth.onAuthStateChange(async (event, session) => {
 <!-- Bottom Nav (mobile) -->
 <div id="bottom-nav">
   <div class="bnav-item" id="bnav-home" onclick="navigate('today')">
-    <div class="bnav-icon">📊</div><div class="bnav-label">Dashboard</div>
+    <div class="bnav-icon">☀️</div><div class="bnav-label">今天</div>
+  </div>
+  <div class="bnav-item" id="bnav-lists" onclick="navigate('mclients')">
+    <div class="bnav-icon">🏢</div><div class="bnav-label">客戶</div>
   </div>
   <div class="bnav-item" id="bnav-cc" onclick="navigate('ccboard')">
     <div class="bnav-icon">📞</div><div class="bnav-label">陌開</div>
   </div>
-  <div class="bnav-item" id="bnav-pipe" onclick="navigate('leads')">
-    <div class="bnav-icon">🗂</div><div class="bnav-label">開發</div>
+  <div class="bnav-item" id="bnav-perf" onclick="navigate('performance')">
+    <div class="bnav-icon">💰</div><div class="bnav-label">業績</div>
   </div>
-  <div class="bnav-item" id="bnav-onb" onclick="navigate('onboard')">
-    <div class="bnav-icon">🚀</div><div class="bnav-label">導入</div>
-  </div>
-  <div class="bnav-item" id="bnav-lists" onclick="navigate('accounts')">
-    <div class="bnav-icon">📋</div><div class="bnav-label">列表</div>
-  </div>
-  <div class="bnav-item" id="bnav-tools" onclick="navigate('quotes')">
-    <div class="bnav-icon">🧰</div><div class="bnav-label">工具箱</div>
+  <div class="bnav-item" id="bnav-more" onclick="openMoreMenu()">
+    <div class="bnav-icon">⋯</div><div class="bnav-label">更多</div>
   </div>
 </div>
-<button id="fab" onclick="onFabClick()">＋</button>
+<button id="fab" onclick="onFabClick()" aria-label="記錄聯絡">📝</button>
 </body>
 </html>
 
