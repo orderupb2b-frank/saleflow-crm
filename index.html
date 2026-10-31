@@ -1405,6 +1405,35 @@ const CC_OUTCOMES = {
 };
 const CC_GIVEUP_AFTER = 4; // 連續撥打達此次數仍未接通 → 建議放棄
 const CC_GRADES = { A: '高潛力', B: '一般', C: '觀望' };
+// 陌開產業：固定分類，匯入時自動歸類（原文搬進備註）
+const CC_IND_RULES = [
+  ['寵物', /寵物|貓|犬|狗|水族|飼料/],
+  ['美容美髮／美妝', /美容|美髮|髮|化妝|美妝|保養|美甲|美睫|指甲|沙龍|紋眉|紋繡|O\.P\.I|香氛|彩妝|除毛|美體|SPA/i],
+  ['農業／肥料', /肥料|植保|農藥|農業|種苗|種子|園藝|灌溉|噴灌|有機肥|化成肥|植物保護|微生物資材/],
+  ['醫療／生技／實驗', /醫療|醫用|藥|醫材|手術|保健|營養|健康|生技|生醫|膠原|衛材|敷料|試劑|實驗|分析儀|儀器|檢驗|牙科|感控|PPE|中醫|注射|針頭|傷口|護具|骨科/],
+  ['玩具／模型／母嬰', /玩具|模型|公仔|扭蛋|盒玩|桌遊|桌上遊戲|動漫|教具|STEAM|轉蛋|景品|積木|母嬰|嬰|兒童|童|魔術方塊|益智|幼教/],
+  ['日用品／清潔／包材', /清潔|衛生紙|垃圾袋|免洗|包材|緩衝|紙箱|紙盒|保鮮膜|伸縮膜|膠帶|無塵|洗碗/],
+  ['餐飲／加盟', /加盟/],
+  ['酒類／飲料', /酒|啤|威士忌|飲料|咖啡|茶葉|茶飲|水機|飲品|手搖飲/],
+  ['3C／電子', /3C|電子|手機|電腦|Garmin|音響|燈光|通訊|家電|照明|監視|攝影|視訊|直播|影音|HDMI|投影|網通|電源|感測|耳機|音訊|記憶體|SSD|記憶卡|隨身碟|電競|LED|弱電|網路線|電纜|條碼|POS|安防|監控|智慧家庭/],
+  ['汽機車零件', /汽車|機車|車系|輪胎|活塞|潤滑|機油|火星塞|車用|改裝|拖車|安全帽|騎士|汽材|零件|濾清器|油品/],
+  ['食品／食材', /食品|食材|蔬果|水產|海鮮|肉|雞|豬|乳|冷凍|烘焙|麵|米|雞蛋|蛋品|糧|調味|醬|零食|餅|糖|冰品|冰塊|營業用冰|水果|蔬菜|雜糧|南北貨|乾貨|點心|菓子|穀|豆|早餐|原物料|小吃|餐飲|餐廳|團膳|素食|液蛋|洗選蛋|菜商|漁業/],
+  ['文具／紙品／印刷', /文具|辦公|紙|印刷|油墨|事務機|印表|碳粉|電腦耗材|繪圖|相紙|墨水|白板|文教|集郵/],
+  ['樂器', /樂器|吉他|貝斯|管樂|笛|鋼琴|鼓/],
+  ['五金／建材／工業', /五金|建材|水電|氣動|氣壓|油壓|空壓|自動化|工控|工業|機械|Festo|螺絲|工具|化工|化學|鋼|鐵|FA |伺服|變頻|塗料|油漆|磁磚|石材|地板|衛浴|矽酸鈣|消防|瓦斯|配線|焊|閥|泵|軸承|電機|馬達|刀具|扣件|鉚|自動門|門弓|木業|窗簾|廣告材料|招牌|天花板|防水|橡膠|溶劑|配電|電料|自控|OMRON/],
+  ['家具／居家／戶外', /家具|傢飾|傢俱|寢具|毛巾|家居|家用品|露營|戶外|釣具|運動|健身|自行車|單車|泳|睡袋|抱枕|坐墊|床|行李箱|杯瓶|球類|防護具/],
+  ['服飾／配件', /服飾|襪|手套|內衣|睡衣|紡織|布|鞋|包包|成衣|飾品|皮件|珠寶|眼鏡/],
+  ['日用品／清潔／包材', /日用|日化|百貨|居家|生活用品|民生用品|禮品|禮贈|餐具|廚具|雜貨|綜合|批發平台|貿易|塑膠|煙火|備品|包裝材料|衛生耗材|飯店用品|旅館|航空用品/]
+];
+const CC_INDUSTRIES = CC_IND_RULES.map(function (r) { return r[0]; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).concat(['其他']);
+function ccIndNorm(raw) {
+  const s = String(raw || '').trim();
+  if (!s || /^(-|#N\/A|N\/A|下單)$/i.test(s) || /(有限公司|股份有限公司|實業)$/.test(s)) return { industry: null, extra: '' };
+  if (CC_INDUSTRIES.indexOf(s) >= 0) return { industry: s, extra: '' };
+  for (let i = 0; i < CC_IND_RULES.length; i++) if (CC_IND_RULES[i][1].test(s)) return { industry: CC_IND_RULES[i][0], extra: s };
+  return { industry: '其他', extra: s };
+}
+function ccIndDatalist() { return '<datalist id="ccIndList">' + CC_INDUSTRIES.map(function (v) { return '<option value="' + v + '">'; }).join('') + '</datalist>'; }
 // 遊戲化：各行為得分（即時由 call_logs 算出，不另存分數）
 const CC_POINTS = { call: 1, connected: 5, interested: 20, converted: 50 };
 const CC_RANKS = [[1000, '傳說', '👑'], [600, '金牌', '🥇'], [300, '銀牌', '🥈'], [100, '銅牌', '🥉'], [0, '新手', '🌱']];
@@ -2649,7 +2678,7 @@ async function openCcEdit(id) {
     +   '<div class="form-group"><label class="form-label">職稱</label><input class="form-input" id="ceTitle" value="' + esc(c.title || '') + '"></div>'
     + '</div>'
     + '<div class="form-row">'
-    +   '<div class="form-group"><label class="form-label">產業</label><input class="form-input" id="ceIndustry" value="' + esc(c.industry || '') + '"></div>'
+    +   '<div class="form-group"><label class="form-label">產業</label><input class="form-input" id="ceIndustry" list="ccIndList" value="' + esc(c.industry || '') + '">' + ccIndDatalist() + '</div>'
     +   '<div class="form-group"><label class="form-label">地區</label><input class="form-input" id="ceCity" value="' + esc(c.city || '') + '"></div>'
     + '</div>'
     + '<div class="form-row">'
@@ -2909,7 +2938,7 @@ function openCcImport() {
     +   '</div>'
     +   '<div class="form-row">'
     +     '<div class="form-group"><label class="form-label">窗口</label><input class="form-input" id="co1Contact"></div>'
-    +     '<div class="form-group"><label class="form-label">產業</label><input class="form-input" id="co1Industry"></div>'
+    +     '<div class="form-group"><label class="form-label">產業</label><input class="form-input" id="co1Industry" list="ccIndList">' + ccIndDatalist() + '</div>'
     +   '</div>'
     +   '<div class="form-group"><label class="form-label">等級</label><select class="form-select" id="co1Grade">'
     +     '<option value="">— 未分級 —</option><option value="A">A（高潛力）</option><option value="B" selected>B（一般）</option><option value="C">C（觀望）</option></select></div>'
@@ -3037,8 +3066,9 @@ async function ccDoImport() {
       toInsert.push({
         company: r.company || '（未填公司）', phone: r.phone || null,
         contact_name: r.contact_name || null, title: r.title || null,
-        industry: r.industry || null, city: r.city || null,
-        email: r.email || null, source: r.source || defSrc, note: r.note || null,
+        industry: ccIndNorm(r.industry).industry, city: r.city || null,
+        email: r.email || null, source: r.source || defSrc,
+        note: (function () { const ex = ccIndNorm(r.industry).extra; const n = String(r.note || '').trim(); return (n && ex && n.indexOf(ex) < 0 ? n + '\n' + ex : (n || ex)) || null; })(),
         grade: (function () { const g = String(r.grade || '').trim().toUpperCase().charAt(0); return CC_GRADES[g] ? g : null; })(),
         batch: batch, status: 'new', attempts: 0,
         owner_id: mineOnly ? currentUser.id : null,
