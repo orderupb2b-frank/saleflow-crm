@@ -216,6 +216,11 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .ccp-th.dragging { opacity:.4; }
 .ccp-th.over { box-shadow:inset 3px 0 0 var(--accent); }
 .ccp-s { color:var(--accent); font-size:10px; }
+.ccp-pager { display:flex; align-items:center; gap:4px; padding:10px 12px; border-top:1px solid var(--border); flex-wrap:wrap; }
+.ccp-pg { min-width:32px; height:30px; padding:0 8px; border-radius:8px; border:1px solid var(--border); background:var(--bg2); color:var(--text2); font:inherit; font-size:12.5px; cursor:pointer; }
+.ccp-pg:hover:not([disabled]) { border-color:var(--accent); color:var(--accent); }
+.ccp-pg.on { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+.ccp-pg[disabled] { opacity:.35; cursor:default; }
 .ccp-menu { position:absolute; right:0; top:36px; z-index:50; background:var(--bg2); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow); padding:8px; min-width:150px; }
 .ccp-menu label { display:flex; align-items:center; gap:8px; font-size:13px; padding:5px 6px; border-radius:6px; cursor:pointer; }
 .ccp-menu label:hover { background:var(--bg3); }
@@ -1249,7 +1254,7 @@ async function renderToday() {
     db.from('contracts').select('*'),
     db.from('activities').select('lead_id,created_at'),
     db.from('notes').select('id,lead_id,created_at,content,quote_status').eq('quote_status', 'sent'),
-    db.from('cold_calls').select('id,company,phone,status,owner_id,owner_name,next_call_at,attempts,created_at,grade,note')
+    fetchAllPaged(function () { return db.from('cold_calls').select('id,company,phone,status,owner_id,owner_name,next_call_at,attempts,created_at,grade,note').order('id', { ascending: true }); })
   ]);
   if (currentPage !== 'today') return;
   const leads = ldR.data || [], accs = accR.data || [], cts = ctR.data || [], acts = actR.data || [], qs = qR.data || [];
@@ -1450,7 +1455,7 @@ function ccPop(text, color) {
 }
 // 今日戰績（本人）
 async function ccTodayScore() {
-  const { data } = await db.from('call_logs').select('outcome,called_at,user_id').eq('user_id', currentUser.id);
+  const { data } = await fetchAllPaged(function () { return db.from('call_logs').select('outcome,called_at,user_id').eq('user_id', currentUser.id).order('id', { ascending: true }); });
   const today = nowDateStr();
   const logs = (data || []).filter(function (l) { return String(l.called_at || '').slice(0, 10) === today; });
   let pts = 0, conn = 0, hot = 0;
@@ -1495,6 +1500,17 @@ function ccOwnerName(c) {
 }
 function ccMine(c) { return c.owner_id === currentUser.id; }
 function ccCanTouch(c) { return window.isAdmin || !c.owner_id || ccMine(c); }
+// Supabase 一次最多回 1000 筆：分批抓完
+async function fetchAllPaged(mk) {
+  const step = 1000; let out = [];
+  for (let i = 0; i < 100; i++) {
+    const r = await mk().range(i * step, i * step + step - 1);
+    if (r.error) return { data: out.length ? out : null, error: r.error };
+    const d = r.data || []; out = out.concat(d);
+    if (d.length < step) break;
+  }
+  return { data: out, error: null };
+}
 function isCcPage() { return ['coldcall', 'cclist', 'ccstats'].indexOf(currentPage) >= 0; }
 function ccTelHref(p) { return 'tel:' + String(p || '').replace(/[^\d+]/g, ''); }
 
@@ -1509,7 +1525,7 @@ async function renderColdCall() {
 
 // ── ① 開打模式 ──
 async function loadCcQueue() {
-  const { data, error } = await db.from('cold_calls').select('*');
+  const { data, error } = await fetchAllPaged(function () { return db.from('cold_calls').select('*').order('id', { ascending: true }); });
   if (error) { toast('讀取失敗：' + error.message, 'error'); return []; }
   const today = nowDateStr();
   return (data || [])
@@ -1806,7 +1822,7 @@ async function ccDoConvert(c) {
 }
 
 // ── 陌開：公海（可排序、拖欄、隱藏欄位、篩選）──
-let ccpSel = new Set(), ccpQ = '';
+let ccpSel = new Set(), ccpQ = '', ccpPage = 1;
 const CCP_COLS = [
   { k: 'grade', label: '級', w: 46, get: function (c) { return String(c.grade || '').toUpperCase(); }, html: function (c) { return ccGradeBadge(c.grade); }, sortv: function (c) { const i = 'ABC'.indexOf(String(c.grade || '').toUpperCase()); return i < 0 ? 9 : i; } },
   { k: 'company', label: '公司', get: function (c) { return c.company || ''; }, bold: true },
@@ -1821,7 +1837,7 @@ const CCP_COLS = [
   { k: 'attempts', label: '撥過', get: function (c) { return c.attempts ? c.attempts + ' 次' : ''; }, sortv: function (c) { return c.attempts || 0; } },
   { k: 'created_at', label: '加入日', get: function (c) { return fmtDate(c.created_at); }, sortv: function (c) { return c.created_at || ''; } }
 ];
-const CCP_DEFAULT = { order: CCP_COLS.map(function (c) { return c.k; }), hidden: ['email', 'source', 'attempts'], sort: { k: 'grade', dir: 1 }, filters: {} };
+const CCP_DEFAULT = { order: CCP_COLS.map(function (c) { return c.k; }), hidden: ['email', 'source', 'attempts'], sort: { k: 'grade', dir: 1 }, filters: {}, size: 100 };
 function ccpCfg() {
   let c; try { c = JSON.parse(localStorage.getItem('sf_ccp_cfg') || 'null'); } catch (e) {}
   c = Object.assign({}, CCP_DEFAULT, c || {});
@@ -1853,7 +1869,7 @@ async function renderCcPool() {
   if (!usersData.length) await loadGlobalData();
   const content = document.getElementById('content');
   document.getElementById('topbarActions').innerHTML = '<div class="action-bar"><button class="btn btn-primary btn-sm" onclick="openCcImport()">＋ 加名單</button></div>';
-  const r = await db.from('cold_calls').select('*').is('owner_id', null).order('created_at', { ascending: false });
+  const r = await fetchAllPaged(function () { return db.from('cold_calls').select('*').is('owner_id', null).order('created_at', { ascending: false }).order('id', { ascending: true }); });
   if (currentPage !== 'ccpool') return;
   if (r.error) { content.innerHTML = '<div class="cp-card" style="color:var(--red)">讀取失敗：' + esc(r.error.message) + '</div>'; return; }
   window._ccPool = (r.data || []).filter(function (c) { return ['converted', 'rejected', 'invalid'].indexOf(c.status) < 0; });
@@ -1874,12 +1890,15 @@ function ccpDraw(keepFocus) {
   }).join('');
   const gradeChips = ['', 'A', 'B', 'C'].map(function (g) { const on = (cfg.filters.grade || '') === g; return '<button class="ml-chip' + (on ? ' on' : '') + '" onclick="ccpSetFilter(\'grade\',\'' + g + '\')">' + (g || '全部') + '<b>' + (g ? all.filter(function (c) { return String(c.grade || '').toUpperCase() === g; }).length : all.length) + '</b></button>'; }).join('');
   const anyFilter = Object.keys(cfg.filters).some(function (k) { return cfg.filters[k]; }) || ccpQ;
-  const allOn = list.length && list.every(function (c) { return ccpSel.has(c.id); });
+  const size = cfg.size || 100, pages = Math.max(1, Math.ceil(list.length / size));
+  if (ccpPage > pages) ccpPage = pages; if (ccpPage < 1) ccpPage = 1;
+  const pageList = list.slice((ccpPage - 1) * size, ccpPage * size);
+  const allOn = pageList.length && pageList.every(function (c) { return ccpSel.has(c.id); });
   const th = cols.map(function (col) {
     const s = cfg.sort.k === col.k ? (cfg.sort.dir > 0 ? ' ▲' : ' ▼') : '';
     return '<th draggable="true" data-k="' + col.k + '" class="ccp-th" style="' + (col.w ? 'width:' + col.w + 'px' : '') + '" onclick="ccpSort(\'' + col.k + '\')">' + col.label + '<span class="ccp-s">' + s + '</span></th>';
   }).join('');
-  const rows = list.slice(0, 400).map(function (c) {
+  const rows = pageList.map(function (c) {
     const on = ccpSel.has(c.id);
     return '<tr class="' + (on ? 'sel' : '') + '" onclick="openCcDetail(\'' + c.id + '\')">'
       + '<td onclick="event.stopPropagation()" style="width:34px;text-align:center"><input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="ccpToggle(\'' + c.id + '\',this.checked)" style="width:15px;height:15px;cursor:pointer"></td>'
@@ -1894,15 +1913,15 @@ function ccpDraw(keepFocus) {
     + '<div class="ml-chips" style="margin:0">' + gradeChips + '</div>' + filterSels
     + (anyFilter ? '<button class="btn btn-ghost btn-sm" onclick="ccpClear()">清除篩選</button>' : '')
     + '<span style="flex:1"></span>'
-    + '<input class="form-input" id="ccpQ" placeholder="🔍 搜尋任何欄位" style="width:200px;padding:6px 10px" value="' + esc(ccpQ) + '" oninput="ccpQ=this.value;clearTimeout(window._ccpT);window._ccpT=setTimeout(function(){ccpDraw(true)},150)">'
+    + '<input class="form-input" id="ccpQ" placeholder="🔍 搜尋任何欄位" style="width:200px;padding:6px 10px" value="' + esc(ccpQ) + '" oninput="ccpQ=this.value;ccpPage=1;clearTimeout(window._ccpT);window._ccpT=setTimeout(function(){ccpDraw(true)},150)">'
     + '<div style="position:relative"><button class="btn btn-secondary btn-sm" onclick="ccpColsMenu(event)">欄位 ▾</button></div>'
     + '</div>'
     + '<div style="font-size:12px;color:var(--text3);margin:-4px 0 8px">' + list.length + ' 筆' + (list.length !== all.length ? '（共 ' + all.length + '）' : '') + '・點欄名排序，拖欄名換位置</div>'
     + (list.length ? '<div class="panel" style="overflow:auto"><table class="data-table pool-table" style="min-width:' + (120 + cols.length * 110) + 'px"><thead><tr>'
       + '<th style="width:34px;text-align:center"><input type="checkbox" ' + (allOn ? 'checked' : '') + ' onchange="ccpSelectAll(this.checked)" style="width:15px;height:15px;cursor:pointer"></th>' + th + '</tr></thead><tbody>' + rows + '</tbody></table>'
-      + (list.length > 400 ? '<div style="font-size:12px;color:var(--text3);padding:8px 12px">只顯示前 400 筆，請用篩選縮小</div>' : '') + '</div>'
+      + '</div>' + ccpPagerHtml(list.length, pages, size)
       : '<div class="empty-state" style="padding:40px"><div class="empty-icon">📭</div><div class="empty-text">' + (all.length ? '沒有符合的名單' : '公海沒有名單了') + '</div>' + (all.length ? '' : '<button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="openCcImport()">＋ 加名單</button>') + '</div>')
-    + (ccpSel.size ? '<div class="pool-bar"><span style="font-weight:600">已選 ' + ccpSel.size + ' 筆</span><span style="flex:1"></span>' + assignTo
+    + (ccpSel.size ? '<div class="pool-bar"><span style="font-weight:600">已選 ' + ccpSel.size + ' 筆</span>' + (allOn && list.length > ccpSel.size ? '<button class="btn btn-ghost btn-sm" onclick="ccpSelectAllMatched()">選取全部符合的 ' + list.length + ' 筆</button>' : '') + '<span style="flex:1"></span>' + assignTo
       + '<button class="btn btn-primary btn-sm" onclick="ccpAssign()">轉給' + (window.isAdmin ? '' : '我') + '</button>'
       + '<button class="btn btn-ghost btn-sm" onclick="ccpSel.clear();ccpDraw()">取消</button></div>' : '');
   content.querySelectorAll('.ccp-th').forEach(function (thEl) {
@@ -1918,9 +1937,24 @@ function ccpDraw(keepFocus) {
   });
   if (keepFocus) { const qi = document.getElementById('ccpQ'); if (qi) { qi.focus(); qi.setSelectionRange(qi.value.length, qi.value.length); } }
 }
-function ccpSort(k) { const c = ccpCfg(); if (c.sort.k === k) c.sort.dir = -(c.sort.dir || 1); else c.sort = { k: k, dir: 1 }; ccpSave(c); ccpDraw(); }
-function ccpSetFilter(k, v) { const c = ccpCfg(); if (v) c.filters[k] = v; else delete c.filters[k]; ccpSave(c); ccpDraw(); }
-function ccpClear() { const c = ccpCfg(); c.filters = {}; ccpSave(c); ccpQ = ''; ccpDraw(); }
+function ccpSort(k) { const c = ccpCfg(); if (c.sort.k === k) c.sort.dir = -(c.sort.dir || 1); else c.sort = { k: k, dir: 1 }; ccpSave(c); ccpPage = 1; ccpDraw(); }
+function ccpPagerHtml(total, pages, size) {
+  if (!total) return '';
+  const b = function (p, label, on, dis) { return '<button class="ccp-pg' + (on ? ' on' : '') + '"' + (dis ? ' disabled' : ' onclick="ccpGo(' + p + ')"') + '>' + label + '</button>'; };
+  let nums = [];
+  for (let i = 1; i <= pages; i++) { if (i === 1 || i === pages || Math.abs(i - ccpPage) <= 2) nums.push(i); else if (nums[nums.length - 1] !== '…') nums.push('…'); }
+  const from = (ccpPage - 1) * size + 1, to = Math.min(total, ccpPage * size);
+  return '<div class="ccp-pager"><span style="font-size:12px;color:var(--text3)">第 ' + from + '–' + to + ' 筆，共 ' + total + ' 筆</span><span style="flex:1"></span>'
+    + b(ccpPage - 1, '‹', false, ccpPage <= 1)
+    + nums.map(function (n) { return n === '…' ? '<span style="padding:0 4px;color:var(--text3)">…</span>' : b(n, n, n === ccpPage, false); }).join('')
+    + b(ccpPage + 1, '›', false, ccpPage >= pages)
+    + '<select class="form-select" style="width:auto;height:30px;font-size:12px;padding:0 24px 0 8px;margin-left:8px" onchange="ccpSetSize(this.value)">' + [50, 100, 200, 500].map(function (n) { return '<option value="' + n + '"' + (n === size ? ' selected' : '') + '>每頁 ' + n + '</option>'; }).join('') + '</select></div>';
+}
+function ccpGo(p) { ccpPage = p; ccpDraw(); const c = document.getElementById('content'); if (c) c.scrollTop = 0; }
+function ccpSetSize(n) { const c = ccpCfg(); c.size = parseInt(n) || 100; ccpSave(c); ccpPage = 1; ccpDraw(); }
+function ccpSelectAllMatched() { ccpFiltered().forEach(function (c) { ccpSel.add(c.id); }); ccpDraw(); }
+function ccpSetFilter(k, v) { const c = ccpCfg(); if (v) c.filters[k] = v; else delete c.filters[k]; ccpSave(c); ccpPage = 1; ccpDraw(); }
+function ccpClear() { const c = ccpCfg(); c.filters = {}; ccpSave(c); ccpQ = ''; ccpPage = 1; ccpDraw(); }
 function ccpColsMenu(e) {
   e.stopPropagation();
   const old = document.getElementById('ccpMenu'); if (old) { old.remove(); return; }
@@ -1934,7 +1968,7 @@ function ccpColsMenu(e) {
 function ccpToggleCol(k, on) { const c = ccpCfg(); c.hidden = c.hidden.filter(function (x) { return x !== k; }); if (!on) c.hidden.push(k); ccpSave(c); const m = document.getElementById('ccpMenu'); ccpDraw(); }
 function ccpResetCols() { const c = ccpCfg(); c.order = CCP_DEFAULT.order.slice(); c.hidden = CCP_DEFAULT.hidden.slice(); ccpSave(c); const m = document.getElementById('ccpMenu'); if (m) m.remove(); ccpDraw(); }
 function ccpToggle(id, on) { if (on) ccpSel.add(id); else ccpSel.delete(id); ccpDraw(); }
-function ccpSelectAll(on) { ccpFiltered().forEach(function (c) { if (on) ccpSel.add(c.id); else ccpSel.delete(c.id); }); ccpDraw(); }
+function ccpSelectAll(on) { const size = ccpCfg().size || 100; ccpFiltered().slice((ccpPage - 1) * size, ccpPage * size).forEach(function (c) { if (on) ccpSel.add(c.id); else ccpSel.delete(c.id); }); ccpDraw(); }
 async function ccpAssign() {
   const ids = Array.from(ccpSel); if (!ids.length) return;
   const sel = document.getElementById('ccpAssignTo');
@@ -2123,7 +2157,7 @@ async function ccSaveKpis() {
 }
 
 // ── 陌開：進度看板（我的名單池 / 今日待打 / 再聯絡 / 結案 / 進開發）──
-let ccbScope = null, ccbGrade = 'all';
+let ccbScope = null, ccbGrade = 'all', ccbMore = {};
 const CCB_COLS = [['pool', '我的名單池'], ['today', '今日待打'], ['callback', '再聯絡'], ['closed', '結案'], ['dev', '進開發']];
 const CC_CLOSE_REASONS = [
   ['B2C', 'B2C', '他們賣給誰、怎麼接單'],
@@ -2148,9 +2182,9 @@ async function renderCcBoard() {
   document.getElementById('topbarActions').innerHTML = '';
   if (ccbScope === null) ccbScope = currentUser.id;
   const [r, lr, cvr, kpiRows] = await Promise.all([
-    db.from('cold_calls').select('*').eq('owner_id', ccbScope).order('updated_at', { ascending: false }),
-    db.from('call_logs').select('cold_call_id,outcome,called_at,user_id,user_name'),
-    db.from('cold_calls').select('id,owner_id,owner_name,updated_at').eq('status', 'converted'),
+    fetchAllPaged(function () { return db.from('cold_calls').select('*').eq('owner_id', ccbScope).order('updated_at', { ascending: false }).order('id', { ascending: true }); }),
+    fetchAllPaged(function () { return db.from('call_logs').select('cold_call_id,outcome,called_at,user_id,user_name').order('id', { ascending: true }); }),
+    fetchAllPaged(function () { return db.from('cold_calls').select('id,owner_id,owner_name,updated_at').eq('status', 'converted').order('id', { ascending: true }); }),
     ccLoadKpis()
   ]);
 
@@ -2205,7 +2239,9 @@ async function renderCcBoard() {
     });
     return '<div class="kanban-col" data-col="' + k[0] + '" ondragover="ccbDragOver(event,this)" ondragleave="this.classList.remove(\'drag-over\')" ondrop="ccbDrop(event,this)">'
       + '<div class="kanban-col-header"><div class="kanban-col-title">' + k[1] + '</div><div class="kanban-col-count">' + items.length + '</div></div>'
-      + '<div class="kanban-cards">' + (items.slice(0, 80).map(function (c) { return card(c, k[0]); }).join('') || '<div style="height:30px"></div>') + '</div></div>';
+      + '<div class="kanban-cards">' + (items.slice(0, ccbMore[k[0]] || 80).map(function (c) { return card(c, k[0]); }).join('') || '<div style="height:30px"></div>')
+      + (items.length > (ccbMore[k[0]] || 80) ? '<button class="btn btn-ghost btn-sm" style="width:100%" onclick="ccbMore[\'' + k[0] + '\']=(ccbMore[\'' + k[0] + '\']||80)+80;renderCcBoard()">再顯示 ' + Math.min(80, items.length - (ccbMore[k[0]] || 80)) + ' 筆（共 ' + items.length + '）</button>' : '')
+      + '</div></div>';
   }).join('');
   content.style.padding = '16px'; content.style.overflowX = 'auto';
   content.innerHTML = hud
@@ -2333,7 +2369,7 @@ async function renderCcStats2() {
   const content = document.getElementById('content');
   document.getElementById('topbarActions').innerHTML = window.isAdmin ? '<div class="action-bar"><button class="btn btn-primary btn-sm" onclick="ccOpenKpiEditor()">🎯 設定本月 KPI</button></div>' : '';
   const kpiRows = await ccLoadKpis();
-  const [cr, lr] = await Promise.all([db.from('cold_calls').select('id,status,owner_id,owner_name,attempts,next_call_at,created_at,updated_at,lead_id,batch,source,close_reason'), db.from('call_logs').select('cold_call_id,outcome,called_at,user_id,user_name')]);
+  const [cr, lr] = await Promise.all([fetchAllPaged(function () { return db.from('cold_calls').select('id,status,owner_id,owner_name,attempts,next_call_at,created_at,updated_at,lead_id,batch,source,close_reason').order('id', { ascending: true }); }), fetchAllPaged(function () { return db.from('call_logs').select('cold_call_id,outcome,called_at,user_id,user_name').order('id', { ascending: true }); })]);
   if (currentPage !== 'ccstats') return;
   if (cr.error || lr.error) { content.innerHTML = '<div class="cp-card" style="color:var(--red)">讀取失敗</div>'; return; }
   const cc = cr.data || [], logs = lr.data || [];
@@ -2455,7 +2491,7 @@ async function renderCcStats2() {
 async function renderCcList() {
   const content = document.getElementById('content');
   content.innerHTML = '<div class="loading"><span class="dot-pulse">載入中</span></div>';
-  const { data, error } = await db.from('cold_calls').select('*').order('created_at', { ascending: false });
+  const { data, error } = await fetchAllPaged(function () { return db.from('cold_calls').select('*').order('created_at', { ascending: false }).order('id', { ascending: true }); });
   if (!isCcPage() || ccTab !== 'list') return;
   if (error) { content.innerHTML = '<div class="cp-card" style="color:var(--red)">讀取失敗：' + esc(error.message) + '（是否已執行 v5 SQL？）</div>'; return; }
   const all = data || [];
@@ -2686,8 +2722,8 @@ async function renderCcStats() {
   const t = new Date();
   const ym = t.getFullYear() + '-' + _pad2(t.getMonth() + 1);
   const [lR, cR] = await Promise.all([
-    db.from('call_logs').select('*'),
-    db.from('cold_calls').select('id,status,owner_id,owner_name,batch,lead_id')
+    fetchAllPaged(function () { return db.from('call_logs').select('*').order('id', { ascending: true }); }),
+    fetchAllPaged(function () { return db.from('cold_calls').select('id,status,owner_id,owner_name,batch,lead_id').order('id', { ascending: true }); })
   ]);
   if (!isCcPage() || ccTab !== 'stats') return;
   if (lR.error) { content.innerHTML = '<div class="cp-card" style="color:var(--red)">讀取失敗：' + esc(lR.error.message) + '（是否已執行 v5 SQL？）</div>'; return; }
@@ -2977,7 +3013,7 @@ async function ccDoImport() {
     const myName = userNameById(currentUser.id, currentUser.user_metadata?.full_name || currentUser.email || '');
     // 既有資料：陌開名單、線索、客戶
     const [ccR, ldR, acR] = await Promise.all([
-      db.from('cold_calls').select('company,phone'),
+      fetchAllPaged(function () { return db.from('cold_calls').select('company,phone').order('id', { ascending: true }); }),
       db.from('leads').select('name'),
       db.from('accounts').select('name')
     ]);
@@ -3030,7 +3066,7 @@ async function ccDoImport() {
 
 // 今天頁：今日陌開
 async function ccTodayCount() {
-  const { data } = await db.from('cold_calls').select('id,status,owner_id,next_call_at');
+  const { data } = await fetchAllPaged(function () { return db.from('cold_calls').select('id,status,owner_id,next_call_at').order('id', { ascending: true }); });
   const today = nowDateStr();
   return (data || []).filter(function (c) {
     if (['interested', 'rejected', 'invalid', 'converted'].indexOf(c.status) >= 0) return false;
