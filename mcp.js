@@ -3,7 +3,7 @@
 // 其他路徑原樣交給 worker.js。工具一律轉呼叫既有的 /api，權限與邏輯完全共用。
 import app from './worker.js';
 
-const SERVER = { name: 'saleflow-crm', version: '1.4.0' };
+const SERVER = { name: 'saleflow-crm', version: '1.5.0' };
 const INSTRUCTIONS = `你在操作奧德上（OrderUp B2B）的 SaleFlow CRM。一律繁體中文、簡潔回覆。
 - 對話開始先呼叫 get_me 取得使用者、角色與今天日期（台北時間），相對日期都用它換算成 YYYY-MM-DD。
 - 記錄活動：search_leads 找公司 → 整理內容（重點、需求、下一步，不加料）→ 先向使用者複述公司、類型、聯絡人、內容、下次聯絡日並取得確認 → add_activity。
@@ -15,6 +15,8 @@ const INSTRUCTIONS = `你在操作奧德上（OrderUp B2B）的 SaleFlow CRM。�
 - 新增名單：問清楚要給哪位業務（owner 用 get_me 的 team 名字；「阿璁」= Greenion）。沒講就是使用者自己。寫入前複述公司、聯絡人、負責業務並確認。建好或改負責業務會自動通知 Discord 群組，回覆時說明通知結果（discord=sent 已通知；not_configured 尚未設定通知）。
 - 改負責業務用 assign_lead（業務只能轉出自己的或沒人負責的名單，其他要主管）。
 - 回簽報價單／合約檔：使用者傳 PDF 或照片 → search_leads 找公司 → 已有這張報價的成交單就直接 attach_deal_file 歸檔；還沒有的，用 record_deal 建單，file 帶同一個檔案、quote_no 帶檔案上的報價編號，金額會自動照報價單算，不用自己填 items。成交只能從 CRM 裡的報價單轉，也一定要有回簽檔；兩者缺一就請使用者補，不要硬建。
+- 找名單／挖信箱時：拿到候選公司先用 check_duplicates 一次比對（公司名、電話、Email、統編都可以帶），回報哪些已經在 CRM（是誰的、什麼狀態）、哪些全新。要在外部自己去重時用 export_names 撈全部名單（看 next_offset 分頁）。
+- 把新名單丟進陌開：import_cold_calls 先不帶 confirm 看預覽（會自動跳過已存在的），跟使用者確認後再帶 confirm=true。預設進公海；使用者說要給自己才設 assign_to_me。
 - 只根據工具回傳資料回答，不捏造；沒有刪除功能。`;
 
 const T = (name, description, properties = {}, required = [], readOnly = true, meta) => ({
@@ -78,6 +80,19 @@ const TOOLS = [
   }, ['deal_id'], false),
   T('get_followups', '待聯絡清單：下次聯絡日在今天+days 以前（含逾期）', { days: { type: 'integer', description: '往後看幾天，0=今天與逾期' }, owner }),
   T('get_activity_report', '活動報表：期間內每位業務的活動與碰過的公司，用來做週報/月報', { from: S('YYYY-MM-DD，預設 7 天前'), to: S('YYYY-MM-DD，預設今天'), owner }),
+  T('check_duplicates', '比對一批公司是否已經在 CRM（線索、合作中客戶、結案、陌開名單／公海）。用公司名、電話、Email、統編任一比對；回傳每筆是 已存在／可能重複／全新，以及在哪、誰負責、什麼狀態', {
+    items: { type: 'array', description: '要比對的公司，最多 2000 筆', items: { type: 'object', properties: { company: S('公司名'), phone: S('電話'), email: S('Email'), tax_id: S('統編') } } },
+    text: S('也可以直接貼多行公司名，一行一家')
+  }),
+  T('export_names', '撈出 CRM 全部名單（線索、客戶、陌開名單）的公司名、比對用 key、電話、Email、統編、狀態、負責人，用來在外部去除重複。資料多時用 offset 分頁', {
+    source: S('all=全部（預設）；leads=線索與客戶；cold_calls=陌開名單', { enum: ['all', 'leads', 'cold_calls'] }), offset: { type: 'integer' }, limit: { type: 'integer', description: '每頁筆數，預設 2000，最多 3000' }
+  }),
+  T('import_cold_calls', '把新名單加進陌開（預設公海）。會自動跳過 CRM 已有的。不帶 confirm 只回預覽，使用者確認後帶 confirm=true 才寫入', {
+    items: { type: 'array', description: '最多 1000 筆', items: { type: 'object', properties: { company: S('公司名'), phone: S('電話'), email: S('Email'), contact_name: S('窗口'), title: S('職稱'), industry: S('產業（會自動歸到固定分類，原文進備註）'), city: S('地區'), grade: S('A/B/C'), note: S('備註'), source: S('來源') }, required: ['company'] } },
+    batch: S('批次名稱，預設「AI YYYY-MM-DD」'), source: S('來源，預設「AI 找名單」'),
+    assign_to_me: { type: 'boolean', description: '直接放進使用者自己的名單池（預設 false＝公海）' },
+    confirm: { type: 'boolean', description: '使用者確認後才設 true' }
+  }, ['items'], false),
   T('get_attention_report', '需要關注的案子：逾期未追、長期沒更新的進行中案子', { stale_days: { type: 'integer', description: '幾天沒動算停滯，預設 30' }, owner })
 ];
 const qs = (a, keys) => { const p = new URLSearchParams(); for (const k of keys) if (a[k] !== undefined && a[k] !== null && a[k] !== '') p.set(k, String(a[k])); const s = p.toString(); return s ? '?' + s : ''; };
@@ -103,7 +118,10 @@ const ROUTES = {
   record_payment: a => ['POST', `/api/deals/${did(a)}/payments`, pick(a, ['installment_index', 'paid_date', 'paid_amount'])],
   get_followups: a => ['GET', '/api/followups' + qs(a, ['days', 'owner'])],
   get_activity_report: a => ['GET', '/api/report/activity' + qs(a, ['from', 'to', 'owner'])],
-  get_attention_report: a => ['GET', '/api/report/attention' + qs(a, ['stale_days', 'owner'])]
+  get_attention_report: a => ['GET', '/api/report/attention' + qs(a, ['stale_days', 'owner'])],
+  check_duplicates: a => ['POST', '/api/dedupe', pick(a, ['items', 'text'])],
+  export_names: a => ['GET', '/api/names' + qs(a, ['source', 'offset', 'limit'])],
+  import_cold_calls: a => ['POST', '/api/cold-calls', pick(a, ['items', 'batch', 'source', 'assign_to_me', 'confirm'])]
 };
 
 const J = (o, status = 200, h = {}) => new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Expose-Headers': 'WWW-Authenticate, Mcp-Session-Id', ...h } });
@@ -164,7 +182,7 @@ async function sbAuth(env, grant, b) {
 }
 async function authorize(request, env, url) {
   const q = request.method === 'POST' ? await body(request) : Object.fromEntries(url.searchParams);
-  if (!okRedirect(q.redirect_uri)) return page(q, '這個登入連結不正確，請從 ChatGPT 重新連結 SaleFlow。', true, 400);
+  if (!okRedirect(q.redirect_uri)) return page(q, '這個登入連結不正確，請從 ChatGPT 或 Claude 重新連結 SaleFlow。', true, 400);
   if (request.method !== 'POST') return page(q);
   const { ok, data } = await sbAuth(env, 'password', { email: String(q.email || '').trim(), password: q.password || '' });
   if (!ok) return page(q, 'Email 或密碼錯誤（跟登入 SaleFlow CRM 的帳密一樣）', false, 401);

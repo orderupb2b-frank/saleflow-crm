@@ -176,11 +176,165 @@ async function api(request, env, url, ectx) {
   if (m === 'GET' && path === '/api/report/activity') return json(await activityReport(ctx));
   if (m === 'GET' && path === '/api/report/attention') return json(await attentionReport(ctx));
   if (m === 'GET' && path === '/api/customers') return json(await listCustomers(ctx));
+  if (m === 'POST' && path === '/api/dedupe') return json(await checkDuplicates(ctx, await readBody(request)));
+  if (m === 'GET' && path === '/api/names') return json(await exportNames(ctx));
+  if (m === 'POST' && path === '/api/cold-calls') return json(await importColdCalls(ctx, await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/deals$/)) && m === 'GET') return json(await getDeals(ctx, mm[1]));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/deals$/)) && m === 'POST') return json(await recordDeal(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/deals\/([0-9a-f-]{36})$/)) && m === 'PATCH') return json(await updateDeal(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/deals\/([0-9a-f-]{36})\/payments$/)) && m === 'POST') return json(await recordPayment(ctx, mm[1], await readBody(request)));
   throw new HttpError(404, '沒有這個功能');
+}
+
+// ───────────────────────── 名單比對／去重／匯入陌開 ─────────────────────────
+// 給 AI 找名單時用：先問「這些公司我們有沒有」，或把全部名單撈出來在外面去重
+const normCo = s => String(s || '').replace(/股份有限公司|有限公司|企業社|工作室|商行|實業|公司|\(股\)|（股）|台灣|臺灣|[\s\-_.,，、・·()（）]/g, '').toLowerCase();
+const normPhone = s => { let d = String(s || '').replace(/\D/g, ''); if (d.startsWith('886')) d = '0' + d.slice(3); return d.length >= 8 ? d : ''; };
+const normEmail = s => String(s || '').trim().toLowerCase();
+const normTax = s => { const d = String(s || '').replace(/\D/g, ''); return d.length === 8 ? d : ''; };
+const CC_IND_RULES = [
+  ['寵物', /寵物|貓|犬|狗|水族|飼料/],
+  ['美容美髮／美妝', /美容|美髮|髮|化妝|美妝|保養|美甲|美睫|指甲|沙龍|紋眉|紋繡|O\.P\.I|香氛|彩妝|除毛|美體|SPA/i],
+  ['農業／肥料', /肥料|植保|農藥|農業|種苗|種子|園藝|灌溉|噴灌|有機肥|化成肥|植物保護|微生物資材/],
+  ['醫療／生技／實驗', /醫療|醫用|藥|醫材|手術|保健|營養|健康|生技|生醫|膠原|衛材|敷料|試劑|實驗|分析儀|儀器|檢驗|牙科|感控|PPE|中醫|注射|針頭|傷口|護具|骨科/],
+  ['玩具／模型／母嬰', /玩具|模型|公仔|扭蛋|盒玩|桌遊|桌上遊戲|動漫|教具|STEAM|轉蛋|景品|積木|母嬰|嬰|兒童|童|魔術方塊|益智|幼教/],
+  ['日用品／清潔／包材', /清潔|衛生紙|垃圾袋|免洗|包材|緩衝|紙箱|紙盒|保鮮膜|伸縮膜|膠帶|無塵|洗碗/],
+  ['餐飲／加盟', /加盟/],
+  ['酒類／飲料', /酒|啤|威士忌|飲料|咖啡|茶葉|茶飲|水機|飲品|手搖飲/],
+  ['3C／電子', /3C|電子|手機|電腦|Garmin|音響|燈光|通訊|家電|照明|監視|攝影|視訊|直播|影音|HDMI|投影|網通|電源|感測|耳機|音訊|記憶體|SSD|記憶卡|隨身碟|電競|LED|弱電|網路線|電纜|條碼|POS|安防|監控|智慧家庭/],
+  ['汽機車零件', /汽車|機車|車系|輪胎|活塞|潤滑|機油|火星塞|車用|改裝|拖車|安全帽|騎士|汽材|零件|濾清器|油品/],
+  ['食品／食材', /食品|食材|蔬果|水產|海鮮|肉|雞|豬|乳|冷凍|烘焙|麵|米|雞蛋|蛋品|糧|調味|醬|零食|餅|糖|冰品|冰塊|營業用冰|水果|蔬菜|雜糧|南北貨|乾貨|點心|菓子|穀|豆|早餐|原物料|小吃|餐飲|餐廳|團膳|素食|液蛋|洗選蛋|菜商|漁業/],
+  ['文具／紙品／印刷', /文具|辦公|紙|印刷|油墨|事務機|印表|碳粉|電腦耗材|繪圖|相紙|墨水|白板|文教|集郵/],
+  ['樂器', /樂器|吉他|貝斯|管樂|笛|鋼琴|鼓/],
+  ['五金／建材／工業', /五金|建材|水電|氣動|氣壓|油壓|空壓|自動化|工控|工業|機械|Festo|螺絲|工具|化工|化學|鋼|鐵|FA |伺服|變頻|塗料|油漆|磁磚|石材|地板|衛浴|矽酸鈣|消防|瓦斯|配線|焊|閥|泵|軸承|電機|馬達|刀具|扣件|鉚|自動門|門弓|木業|窗簾|廣告材料|招牌|天花板|防水|橡膠|溶劑|配電|電料|自控|OMRON/],
+  ['家具／居家／戶外', /家具|傢飾|傢俱|寢具|毛巾|家居|家用品|露營|戶外|釣具|運動|健身|自行車|單車|泳|睡袋|抱枕|坐墊|床|行李箱|杯瓶|球類|防護具/],
+  ['服飾／配件', /服飾|襪|手套|內衣|睡衣|紡織|布|鞋|包包|成衣|飾品|皮件|珠寶|眼鏡/],
+  ['日用品／清潔／包材', /日用|日化|百貨|居家|生活用品|民生用品|禮品|禮贈|餐具|廚具|雜貨|綜合|批發平台|貿易|塑膠|煙火|備品|包裝材料|衛生耗材|飯店用品|旅館|航空用品/]
+];
+const CC_INDUSTRIES = CC_IND_RULES.map(function (r) { return r[0]; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).concat(['其他']);
+function indNorm(raw) {
+  const s = String(raw || '').trim();
+  if (!s || /^(-|#N\/A|N\/A|下單)$/i.test(s) || /(有限公司|股份有限公司|實業)$/.test(s)) return { industry: null, extra: '' };
+  if (CC_INDUSTRIES.indexOf(s) >= 0) return { industry: s, extra: '' };
+  for (let i = 0; i < CC_IND_RULES.length; i++) if (CC_IND_RULES[i][1].test(s)) return { industry: CC_IND_RULES[i][0], extra: s };
+  return { industry: '其他', extra: s };
+}
+
+async function getAll(db, path) {
+  const out = [];
+  for (let i = 0; i < 50; i += 3) {
+    const pages = await Promise.all([0, 1, 2].map(j => db.get(path + `&limit=1000&offset=${(i + j) * 1000}`)));
+    let done = false;
+    for (const d of pages) { out.push(...(d || [])); if (!d || d.length < 1000) { done = true; break; } }
+    if (done) break;
+  }
+  return out;
+}
+async function loadUniverse(db) {
+  const [L, leads, contacts, accs, ccs] = await Promise.all([
+    lookups(db),
+    getAll(db, 'leads?select=id,name,company,tax_id,stage_id,user_id,user_name,updated_at&order=id'),
+    getAll(db, 'contacts?select=lead_id,name,phone,email&order=id'),
+    getAll(db, 'accounts?select=id,lead_id,name,status&order=id'),
+    getAll(db, 'cold_calls?select=id,company,phone,email,status,owner_name,lead_id,industry,updated_at&order=id')
+  ]);
+  const accBy = {}; accs.forEach(a => { if (a.lead_id) accBy[a.lead_id] = a; });
+  const CC_ST = { new: '未打', callback: '再聯絡', interested: '進開發', converted: '已轉線索', rejected: '結案', invalid: '結案' };
+  const recs = [];
+  leads.forEach(l => {
+    const acc = accBy[l.id], st = L.stageName(l.stage_id) || '';
+    const kind = acc ? (acc.status === 'terminated' ? '終止合作客戶' : '合作中客戶') : (st === '結案' ? '結案線索' : '開發中線索');
+    const cs = contacts.filter(c => c.lead_id === l.id);
+    recs.push({ kind, id: l.id, name: l.name, status: acc ? (acc.status === 'terminated' ? '終止合作' : '合作中') : st, owner: l.user_name || L.userName(l.user_id) || null,
+      cos: [normCo(l.name), normCo(l.company)].filter(Boolean), phones: cs.map(c => normPhone(c.phone)).filter(Boolean), emails: cs.map(c => normEmail(c.email)).filter(Boolean), tax: normTax(l.tax_id),
+      raw: { tax_id: l.tax_id || null, phone: (cs.find(c => c.phone) || {}).phone || null, email: (cs.find(c => c.email) || {}).email || null } });
+  });
+  accs.forEach(a => { if (!a.lead_id) recs.push({ kind: a.status === 'terminated' ? '終止合作客戶' : '合作中客戶', id: a.id, name: a.name, status: '合作中', owner: null, cos: [normCo(a.name)].filter(Boolean), phones: [], emails: [], tax: '', raw: {} }); });
+  ccs.forEach(c => {
+    if (c.lead_id && leads.some(l => l.id === c.lead_id)) return; // 已轉線索的以線索為準
+    recs.push({ kind: '陌開名單', id: c.id, name: c.company, status: CC_ST[c.status] || c.status || '', owner: c.owner_name || '公海', industry: c.industry || null,
+      cos: [normCo(c.company)].filter(Boolean), phones: [normPhone(c.phone)].filter(Boolean), emails: [normEmail(c.email)].filter(Boolean), tax: '', raw: { phone: c.phone || null, email: c.email || null } });
+  });
+  const idx = { co: new Map(), phone: new Map(), email: new Map(), tax: new Map() };
+  const put = (m, k, r) => { if (!k) return; if (!m.has(k)) m.set(k, []); m.get(k).push(r); };
+  recs.forEach(r => { r.cos.forEach(k => put(idx.co, k, r)); r.phones.forEach(k => put(idx.phone, k, r)); r.emails.forEach(k => put(idx.email, k, r)); put(idx.tax, r.tax, r); });
+  return { L, recs, idx };
+}
+function matchOne(U, it, origin, noFuzzy) {
+  const hits = new Map();
+  const add = (r, by, conf) => { const k = r.kind + r.id; const h = hits.get(k); if (h) { if (!h.by.includes(by)) h.by.push(by); if (conf === 'exact') h.confidence = 'exact'; } else hits.set(k, { r, by: [by], confidence: conf }); };
+  const co = normCo(it.company || it.name), ph = normPhone(it.phone), em = normEmail(it.email), tx = normTax(it.tax_id);
+  if (tx) (U.idx.tax.get(tx) || []).forEach(r => add(r, '統編', 'exact'));
+  if (ph) (U.idx.phone.get(ph) || []).forEach(r => add(r, '電話', 'exact'));
+  if (em) (U.idx.email.get(em) || []).forEach(r => add(r, 'Email', 'exact'));
+  if (co) (U.idx.co.get(co) || []).forEach(r => add(r, '公司名', 'exact'));
+  if (!noFuzzy && co && co.length >= 3 && hits.size === 0) {
+    U.recs.forEach(r => { if (r.cos.some(k => k.length >= 3 && k !== co && (k.includes(co) || co.includes(k)))) add(r, '名稱相近', 'similar'); });
+  }
+  const matches = [...hits.values()].slice(0, 5).map(h => ({
+    where: h.r.kind, name: h.r.name, status: h.r.status, owner: h.r.owner, matched_by: h.by, confidence: h.confidence,
+    crm_link: h.r.kind === '陌開名單' ? null : origin + '/#lead=' + h.r.id, id: h.r.id
+  }));
+  const exact = matches.some(m => m.confidence === 'exact');
+  return { input: it.company || it.name || it.phone || it.email || it.tax_id, result: exact ? 'exists' : matches.length ? 'maybe' : 'new', matches };
+}
+async function checkDuplicates({ db, url }, b) {
+  let items = Array.isArray(b.items) ? b.items : [];
+  if (typeof b.text === 'string' && b.text.trim()) items = items.concat(b.text.split(/\n+/).map(x => x.trim()).filter(Boolean).map(x => ({ company: x })));
+  items = items.map(x => typeof x === 'string' ? { company: x } : x).filter(x => x && (x.company || x.name || x.phone || x.email || x.tax_id));
+  if (!items.length) throw new HttpError(400, '請給 items（公司名／電話／Email／統編）');
+  if (items.length > 2000) throw new HttpError(400, '一次最多 2000 筆');
+  const U = await loadUniverse(db);
+  const results = items.map(it => matchOne(U, it, url.origin, items.length > 400));
+  const c = { exists: 0, maybe: 0, new: 0 }; results.forEach(r => c[r.result]++);
+  return {
+    total: results.length, summary: { 已存在: c.exists, 可能重複: c.maybe, 全新: c.new },
+    new_items: results.filter(r => r.result === 'new').map(r => r.input),
+    results: results.length > 300 ? results.filter(r => r.result !== 'new') : results,
+    note: results.length > 300 ? '筆數多，results 只列已存在／可能重複；全新的見 new_items' : undefined,
+    hint: '已存在＝公司名、電話、Email 或統編完全對上；可能重複＝名稱互相包含，請人工判斷'
+  };
+}
+async function exportNames({ db, url }) {
+  const src = url.searchParams.get('source') || 'all';
+  const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10) || 0);
+  const limit = Math.min(3000, Math.max(1, parseInt(url.searchParams.get('limit') || '2000', 10) || 2000));
+  const U = await loadUniverse(db);
+  let rows = U.recs;
+  if (src === 'cold_calls') rows = rows.filter(r => r.kind === '陌開名單');
+  else if (src === 'leads') rows = rows.filter(r => r.kind !== '陌開名單');
+  const page = rows.slice(offset, offset + limit).map(r => ({ type: r.kind, company: r.name, key: r.cos[0] || '', phone: r.raw.phone || null, email: r.raw.email || null, tax_id: r.raw.tax_id || null, status: r.status, owner: r.owner }));
+  return { total: rows.length, offset, count: page.length, next_offset: offset + page.length < rows.length ? offset + page.length : null, key_rule: 'key＝公司名去掉「股份有限公司／有限公司／企業社／商行／實業／公司／台灣」與空白標點後的小寫，用來比對重複', rows: page };
+}
+async function importColdCalls({ db, me, url }, b) {
+  const items = (Array.isArray(b.items) ? b.items : []).filter(x => x && (x.company || x.phone));
+  if (!items.length) throw new HttpError(400, '請給 items（至少要有公司名或電話）');
+  if (items.length > 1000) throw new HttpError(400, '一次最多 1000 筆');
+  if (!b.confirm) {
+    const U = await loadUniverse(db);
+    const rs = items.map(it => matchOne(U, it, url.origin));
+    const seen0 = new Set(); let selfDup = 0;
+    items.forEach((it, i) => { const k = normPhone(it.phone) || normCo(it.company); if (rs[i].result === 'exists') return; if (!k || seen0.has(k)) { selfDup++; rs[i].result = 'exists'; } else seen0.add(k); });
+    return { preview: true, will_add: rs.filter(r => r.result !== 'exists').length, duplicate_in_batch: selfDup, skip_existing: rs.filter(r => r.result === 'exists').length, maybe_duplicate: rs.filter(r => r.result === 'maybe').map(r => ({ input: r.input, like: r.matches.map(m => m.where + '：' + m.name) })), hint: '這是預覽，還沒寫入。跟使用者確認後帶 confirm=true 再呼叫一次' };
+  }
+  const U = await loadUniverse(db);
+  const seen = new Set(), now = new Date().toISOString(), rows = [], skipped = [];
+  const assign = b.assign_to_me === true;
+  items.forEach(it => {
+    const r = matchOne(U, it, url.origin);
+    const key = normPhone(it.phone) || normCo(it.company);
+    if (r.result === 'exists' || !key || seen.has(key)) { skipped.push(it.company || it.phone); return; }
+    seen.add(key);
+    const ind = indNorm(it.industry);
+    const note = [String(it.note || '').trim(), ind.extra].filter(Boolean).join('\n') || null;
+    const g = String(it.grade || '').trim().toUpperCase().charAt(0);
+    rows.push({ company: it.company || '（未填公司）', phone: it.phone || null, contact_name: it.contact_name || null, title: it.title || null,
+      industry: ind.industry, city: it.city || null, email: it.email || null, source: it.source || b.source || 'AI 找名單', note,
+      grade: 'ABC'.includes(g) && g ? g : null, batch: b.batch || ('AI ' + todayTW()), status: 'new', attempts: 0,
+      owner_id: assign ? me.id : null, owner_name: assign ? me.name : null, created_by: me.id, created_at: now, updated_at: now });
+  });
+  for (let i = 0; i < rows.length; i += 200) await db.insert('cold_calls', rows.slice(i, i + 200));
+  return { added: rows.length, skipped: skipped.length, skipped_items: skipped.slice(0, 50), batch: rows[0]?.batch || b.batch || null, where: assign ? '已加進你的陌開名單池' : '已加進公海' };
 }
 
 async function lookups(db) {
