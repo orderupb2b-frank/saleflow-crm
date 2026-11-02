@@ -188,7 +188,7 @@ async function api(request, env, url, ectx) {
 
 // ───────────────────────── 名單比對／去重／匯入陌開 ─────────────────────────
 // 給 AI 找名單時用：先問「這些公司我們有沒有」，或把全部名單撈出來在外面去重
-const normCo = s => String(s || '').replace(/股份有限公司|有限公司|企業社|工作室|商行|實業|公司|\(股\)|（股）|台灣|臺灣|[\s\-_.,，、・·()（）]/g, '').toLowerCase();
+const normCo = s => String(s || '').replace(/(台灣|臺灣)?分公司|股份有限公司|有限公司|企業社|工作室|商行|實業|公司|\(股\)|（股）|台灣|臺灣|[\s\-_.,，、・·()（）]/g, '').toLowerCase();
 const normPhone = s => { let d = String(s || '').replace(/\D/g, ''); if (d.startsWith('886')) d = '0' + d.slice(3); return d.length >= 8 ? d : ''; };
 const normEmail = s => String(s || '').trim().toLowerCase();
 const normTax = s => { const d = String(s || '').replace(/\D/g, ''); return d.length === 8 ? d : ''; };
