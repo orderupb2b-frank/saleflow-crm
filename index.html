@@ -4876,7 +4876,7 @@ async function colDrop(e, stageId) {
   const srcEl = dragSrcEl, srcId = dragSrcId;
   dragSrcEl = null; dragSrcId = null;
   if (!srcEl || !srcId) { if (ph) ph.remove(); return; }
-  srcEl.classList.remove('dragging');
+  srcEl.classList.remove('dragging'); setTimeout(function () { document.querySelectorAll('.kanban-card.dragging').forEach(c => c.classList.remove('dragging')); }, 60);
   const lead = leadsData.find(l => l.id == srcId);
   if (!lead) { if (ph) ph.remove(); return; }
   const srcStage = lead.stage_id;
