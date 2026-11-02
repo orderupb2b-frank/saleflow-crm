@@ -1484,10 +1484,10 @@ let _mcQ = '', _mcKind = 'mine', _mcMore = 0;
 let _mcF = { stage: [], owner: '', ctag: [], due: '', grade: [] }, _mcSort = 'smart';
 const MC_SORTS = [['smart', '該聯絡優先'], ['recent', '最近動過'], ['next', '下次聯絡日'], ['name', '公司名'], ['amount', '預計金額']];
 function mcFCount() { return _mcF.stage.length + (_mcF.owner ? 1 : 0) + _mcF.ctag.length + (_mcF.due ? 1 : 0) + _mcF.grade.length; }
-function mcTog(k, v) { const a = _mcF[k]; const i = a.indexOf(v); if (i >= 0) a.splice(i, 1); else a.push(v); _mcMore = 0; mcDraw(); mcFilterSheet(); }
-function mcSet(k, v) { _mcF[k] = _mcF[k] === v ? '' : v; if (k === 'owner' && _mcF.owner && _mcKind === 'mine') _mcKind = 'all'; _mcMore = 0; mcDraw(); if (document.getElementById('mcSheet')) mcFilterSheet(); }
+function mcTog(k, v) { const a = _mcF[k]; const i = a.indexOf(v); if (i >= 0) a.splice(i, 1); else a.push(v); _mcMore = 0; mcDraw(); if (modalIsOpen()) mcFilterSheet(); }
+function mcSet(k, v) { _mcF[k] = _mcF[k] === v ? '' : v; if (k === 'owner' && _mcF.owner && _mcKind === 'mine') _mcKind = 'all'; _mcMore = 0; mcDraw(); if (modalIsOpen() && document.getElementById('mcSheet')) mcFilterSheet(); }
 function mcOwnerSel(v) { mcSet('owner', v); }
-function mcClearF() { _mcF = { stage: [], owner: '', ctag: [], due: '', grade: [] }; _mcMore = 0; mcDraw(); mcFilterSheet(); }
+function mcClearF() { _mcF = { stage: [], owner: '', ctag: [], due: '', grade: [] }; _mcSort = 'smart'; _mcMore = 0; mcDraw(); if (modalIsOpen()) mcFilterSheet(); }
 function mcFilterSheet() {
   const chip = function (on, js, label) { return '<button type="button" class="ml-chip' + (on ? ' on' : '') + '" style="height:36px" onclick="' + js + '">' + label + '</button>'; };
   const grp = function (t, h) { return '<div class="form-label" style="margin:12px 0 6px">' + t + '</div><div style="display:flex;flex-wrap:wrap;gap:6px">' + h + '</div>'; };
@@ -1498,7 +1498,7 @@ function mcFilterSheet() {
   h += grp('業務', usersData.map(function (u) { return chip(_mcF.owner === u.id, 'mcSet(\'owner\',\'' + u.id + '\')', esc(u.full_name || u.email || '')); }).join(''));
   h += grp('排序', MC_SORTS.map(function (o) { return chip(_mcSort === o[0], '_mcSort=\'' + o[0] + '\';mcDraw();mcFilterSheet()', o[1]); }).join(''));
   const body = document.getElementById('modalBody');
-  if (body && document.getElementById('mcSheet')) { body.querySelector('#mcSheet').innerHTML = h; return; }
+  if (body && modalIsOpen() && document.getElementById('mcSheet')) { body.querySelector('#mcSheet').innerHTML = h; return; }
   openModal('篩選・排序', '<div id="mcSheet">' + h + '</div>', [{ label: '清除', cls: 'btn-ghost', action: mcClearF }, { label: '完成', cls: 'btn-primary', action: closeModal }]);
 }
 function mcDueMatch(nd) {
@@ -4084,7 +4084,8 @@ function gsOpen(i) {
 // 記錄聯絡的選公司：先列今天該聯絡的和最近碰過的，通常不用打字
 function gsRecentHtml() {
   const today = nowDateStr();
-  const mine = leadsData.filter(function (l) { return l.user_id === currentUser.id || window.isAdmin; });
+  const src = leadsData.length ? leadsData : (_mCache ? _mCache.leads : []);
+  const mine = src.filter(function (l) { return l.user_id === currentUser.id || (window.isAdmin && !isMobile()); });
   const due = mine.filter(function (l) { return l.next_contact_date && String(l.next_contact_date).slice(0, 10) <= today; })
     .sort(function (a, b) { return String(a.next_contact_date).localeCompare(String(b.next_contact_date)); });
   const recent = mine.filter(function (l) { return due.indexOf(l) < 0; })
@@ -6341,10 +6342,11 @@ async function saveQuickLog() {
     await db.from('leads').update(upd).eq('id', lead.id);
     Object.assign(lead, upd);
     const cp = window._cp && window._cp.lead && window._cp.lead.id === lead.id ? window._cp.lead : null; if (cp) Object.assign(cp, upd);
-    closeModal(); _ql = null;
+    closeModal(); _ql = null; mInvalidate();
     toast('已記錄' + (nx && q.next !== 'keep' ? '・下次 ' + nx.slice(5).replace('-', '/') : '') + stageMsg, 'success');
     if (currentPage === 'company' && currentLeadId === lead.id) refreshCompany();
     else if (currentPage === 'today') renderToday();
+    else if (currentPage === 'mtoday' || currentPage === 'mclients' || currentPage === 'mme') { mInvalidate(); mLoadFresh().then(mRedraw); }
     else if (isLeadsPage()) { if (window.innerWidth <= 768) renderLeadsMobile(); else filterLeads(); }
   } finally { if (_ql) _ql.busy = false; }
 }
@@ -6531,10 +6533,29 @@ async function openEditActivity(actId, leadId) {
 
 // ── Voice-to-text (mobile-friendly) ──
 let _recognition = null;
+function voiceBtnIdle(btnEl) {
+  if (!btnEl) return;
+  btnEl.textContent = btnEl.id === 'qlVoice' ? '🎤 再說一段' : btnEl.classList.contains('il-mic') ? '🎤' : '🎤 語音輸入';
+  btnEl.classList.remove('btn-danger'); btnEl.classList.remove('rec');
+  if (!btnEl.classList.contains('ql-mic-big') && !btnEl.classList.contains('btn-ghost')) btnEl.classList.add('btn-secondary');
+}
+function voiceStopAll() {
+  const r = _recognition; _recognition = null;
+  if (r) { try { r.onend = null; r.onresult = null; r.abort(); } catch (e) {} voiceBtnIdle(r._btn); }
+}
 function startVoiceInput(targetId, btnEl) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  // Already recording → stop
-  if (_recognition) { try { _recognition.stop(); } catch(e){} return; }
+  // 正在錄這顆 → 停；錄的是別的（或卡住的舊錄音）→ 全部清掉重來
+  if (_recognition) {
+    const r = _recognition;
+    if (r._btn === btnEl && r._target === targetId && document.body.contains(btnEl)) {
+      try { r.stop(); } catch (e) {}
+      // iPhone 有時不會回 onend，1.5 秒後強制復原，避免按鈕卡死
+      setTimeout(function () { if (_recognition === r) voiceStopAll(); }, 1500);
+      return;
+    }
+    voiceStopAll();
+  }
   if (!SR) {
     toast('這個瀏覽器沒有語音按鈕，用鍵盤上的 🎤 一樣能說', 'error');
     const t0 = document.getElementById(targetId); if (t0) t0.focus();
@@ -6544,25 +6565,28 @@ function startVoiceInput(targetId, btnEl) {
   if (!ta) return;
   const rec = new SR();
   rec.lang = 'zh-TW';
-  rec.continuous = true;
+  rec.continuous = !/iPhone|iPad|iPod/.test(navigator.userAgent);
   rec.interimResults = true;
+  rec._btn = btnEl; rec._target = targetId;
   _recognition = rec;
   const baseText = ta.value ? (ta.value.endsWith('\n') ? ta.value : ta.value + '\n') : '';
-  if (btnEl) { btnEl.textContent = '⏹ 說完了，按一下'; btnEl.classList.remove('btn-secondary'); btnEl.classList.add('btn-danger'); btnEl.classList.add('rec'); }
-  rec.onresult = (e) => {
+  if (btnEl) { btnEl.textContent = btnEl.classList.contains('il-mic') ? '⏹' : '⏹ 說完了，按一下'; btnEl.classList.remove('btn-secondary'); btnEl.classList.add('btn-danger'); btnEl.classList.add('rec'); }
+  rec.onresult = function (e) {
+    if (_recognition !== rec) return;
     let txt = '';
     for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
     ta.value = baseText + txt;
     try { ta.dispatchEvent(new Event('input')); } catch (_) {}
   };
-  rec.onerror = (e) => {
-    if (e.error !== 'aborted' && e.error !== 'no-speech') toast('語音辨識錯誤：' + (e.error || ''), 'error');
+  rec.onerror = function (e) {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast('麥克風沒有開權限，請到瀏覽器設定允許', 'error');
+    else if (e.error !== 'aborted' && e.error !== 'no-speech') toast('語音辨識錯誤：' + (e.error || ''), 'error');
   };
-  rec.onend = () => {
-    _recognition = null;
-    if (btnEl) { btnEl.textContent = btnEl.id === 'qlVoice' ? '🎤 再說一段' : '🎤 語音輸入'; btnEl.classList.remove('btn-danger'); btnEl.classList.remove('rec'); btnEl.classList.add('btn-secondary'); }
+  rec.onend = function () {
+    if (_recognition === rec) _recognition = null;
+    voiceBtnIdle(btnEl);
   };
-  try { rec.start(); } catch(e) { toast('無法啟動語音輸入', 'error'); _recognition = null; }
+  try { rec.start(); } catch (e) { _recognition = null; voiceBtnIdle(btnEl); toast('無法啟動語音輸入，再按一次試試', 'error'); }
 }
 
 async function renderDrawerNotes(leadId) {
@@ -9496,8 +9520,9 @@ function openModal(title, bodyHTML, buttons) {
   document.getElementById('modalOverlay').style.display = 'flex';
 }
 
+function modalIsOpen() { const o = document.getElementById('modalOverlay'); return !!o && (o.style.display === 'flex' || o.style.display === 'block'); }
 function closeModal() {
-  if (typeof _recognition !== 'undefined' && _recognition) { try { _recognition.stop(); } catch(e){} _recognition = null; }
+  if (typeof _recognition !== 'undefined' && _recognition) voiceStopAll();
   document.getElementById('modalOverlay').style.display = 'none';
 }
 
