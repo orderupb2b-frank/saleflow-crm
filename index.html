@@ -479,6 +479,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 .kanban-card.dragging { opacity: 0.4; }
 .kanban-card.drag-over { border-color: var(--accent); background: var(--accent-glow); }
 .kanban-col.drag-over-col .kanban-cards { background: var(--accent-glow); border-radius: 6px; }
+.drag-placeholder { height:4px; background:var(--accent); border-radius:2px; margin:3px 2px; pointer-events:none; }
 .onb-board { display:flex; gap:8px; overflow-x:auto; padding-bottom:12px; align-items:flex-start; }
 .onb-board .kanban-col { flex:1 1 0; min-width:140px; width:auto; max-height:calc(100vh - 170px); }
 .onb-board .kanban-cards { padding:6px; }
@@ -490,6 +491,18 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 @media (max-width:768px){ .hide-mobile { display:none !important; } }
 /* ── 手機版：客戶是中心 ── */
 .bnav-rec { position:relative; }
+.mc-top { display:flex; gap:8px; align-items:center; }
+.mc-top .m-search { flex:1; }
+.mc-fbtn { position:relative; flex:0 0 46px; height:46px; border-radius:12px; border:1px solid var(--border); background:var(--bg2); color:var(--text2); font-size:20px; cursor:pointer; }
+.mc-fbtn.on { border-color:var(--accent); color:var(--accent); background:var(--accent-glow); }
+.mc-fbtn b { position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; border-radius:9px; background:var(--accent); color:#fff; font-size:11px; line-height:18px; font-family:var(--mono); }
+.mc-tabs { display:grid; grid-template-columns:repeat(5,1fr); margin:10px 0 0; border-bottom:1px solid var(--border); }
+.mc-tab { background:none; border:0; border-bottom:2px solid transparent; padding:10px 0 9px; font:inherit; font-size:14px; color:var(--text3); cursor:pointer; white-space:nowrap; }
+.mc-tab.on { color:var(--text); font-weight:700; border-bottom-color:var(--accent); }
+.mc-bar { display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-height:40px; padding:6px 0; }
+.mc-n { font-size:12.5px; color:var(--text3); margin-right:2px; }
+.mc-tag { display:inline-flex; align-items:center; height:26px; padding:0 9px; border-radius:13px; border:0; background:var(--accent-glow); color:var(--accent); font:inherit; font-size:12.5px; cursor:pointer; }
+.mc-sort { background:none; border:0; font:inherit; font-size:12.5px; color:var(--text2); cursor:pointer; padding:4px 0 4px 8px; }
 select.ml-chip.m-owner { appearance:none; -webkit-appearance:none; padding:6px 26px 6px 12px; background-image:linear-gradient(45deg,transparent 50%,currentColor 50%),linear-gradient(135deg,currentColor 50%,transparent 50%); background-position:calc(100% - 13px) 55%,calc(100% - 9px) 55%; background-size:4px 4px; background-repeat:no-repeat; height:auto; font-size:13px; }
 select.ml-chip.m-owner.on { background-color:var(--accent); }
 .bnav-big { width:56px; height:56px; border-radius:50%; background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; font-size:24px; margin-top:-22px; box-shadow:0 6px 18px rgba(47,91,234,.35); }
@@ -1487,19 +1500,19 @@ function mcFCount() { return _mcF.stage.length + (_mcF.owner ? 1 : 0) + _mcF.cta
 function mcTog(k, v) { const a = _mcF[k]; const i = a.indexOf(v); if (i >= 0) a.splice(i, 1); else a.push(v); _mcMore = 0; mcDraw(); if (modalIsOpen()) mcFilterSheet(); }
 function mcSet(k, v) { _mcF[k] = _mcF[k] === v ? '' : v; if (k === 'owner' && _mcF.owner && _mcKind === 'mine') _mcKind = 'all'; _mcMore = 0; mcDraw(); if (modalIsOpen() && document.getElementById('mcSheet')) mcFilterSheet(); }
 function mcOwnerSel(v) { mcSet('owner', v); }
-function mcClearF() { _mcF = { stage: [], owner: '', ctag: [], due: '', grade: [] }; _mcSort = 'smart'; _mcMore = 0; mcDraw(); if (modalIsOpen()) mcFilterSheet(); }
+function mcClearF() { _mcF = { stage: [], owner: '', ctag: [], due: '', grade: [] }; _mcMore = 0; mcDraw(); if (modalIsOpen()) mcFilterSheet(); }
 function mcFilterSheet() {
   const chip = function (on, js, label) { return '<button type="button" class="ml-chip' + (on ? ' on' : '') + '" style="height:36px" onclick="' + js + '">' + label + '</button>'; };
   const grp = function (t, h) { return '<div class="form-label" style="margin:12px 0 6px">' + t + '</div><div style="display:flex;flex-wrap:wrap;gap:6px">' + h + '</div>'; };
-  let h = grp('下次聯絡', [['overdue', '逾期'], ['today', '今天'], ['week', '7 天內'], ['none', '沒排']].map(function (d) { return chip(_mcF.due === d[0], 'mcSet(\'due\',\'' + d[0] + '\')', d[1]); }).join(''));
+  let h = grp('業務', usersData.map(function (u) { return chip(_mcF.owner === u.id, 'mcSet(\'owner\',\'' + u.id + '\')', esc(u.full_name || u.email || '')); }).join(''));
+  h += grp('下次聯絡', [['overdue', '逾期'], ['today', '今天'], ['week', '7 天內'], ['none', '沒排']].map(function (d) { return chip(_mcF.due === d[0], 'mcSet(\'due\',\'' + d[0] + '\')', d[1]); }).join(''));
   h += grp('顏色', '<span class="ctag-filter" style="display:inline-flex;gap:8px;align-items:center">' + CTAGS.map(function (c) { return '<button type="button" class="ctag on ctag-' + c + (_mcF.ctag.indexOf(c) >= 0 ? ' act' : '') + '" style="width:26px;height:26px" onclick="mcTog(\'ctag\',\'' + c + '\')"></button>'; }).join('') + '</span>');
   if (_mcKind !== 'cc' && _mcKind !== 'acc') h += grp('階段', stagesData.map(function (st) { return chip(_mcF.stage.indexOf(st.id) >= 0, 'mcTog(\'stage\',\'' + st.id + '\')', esc(st.name)); }).join(''));
   if (_mcKind === 'cc' || _mcKind === 'all') h += grp('陌開等級', ['A', 'B', 'C'].map(function (g) { return chip(_mcF.grade.indexOf(g) >= 0, 'mcTog(\'grade\',\'' + g + '\')', g); }).join(''));
-  h += grp('業務', usersData.map(function (u) { return chip(_mcF.owner === u.id, 'mcSet(\'owner\',\'' + u.id + '\')', esc(u.full_name || u.email || '')); }).join(''));
-  h += grp('排序', MC_SORTS.map(function (o) { return chip(_mcSort === o[0], '_mcSort=\'' + o[0] + '\';mcDraw();mcFilterSheet()', o[1]); }).join(''));
+
   const body = document.getElementById('modalBody');
   if (body && modalIsOpen() && document.getElementById('mcSheet')) { body.querySelector('#mcSheet').innerHTML = h; return; }
-  openModal('篩選・排序', '<div id="mcSheet">' + h + '</div>', [{ label: '清除', cls: 'btn-ghost', action: mcClearF }, { label: '完成', cls: 'btn-primary', action: closeModal }]);
+  openModal('篩選', '<div id="mcSheet">' + h + '</div>', [{ label: '清除', cls: 'btn-ghost', action: mcClearF }, { label: '完成', cls: 'btn-primary', action: closeModal }]);
 }
 function mcDueMatch(nd) {
   const d = _mcF.due; if (!d) return true;
@@ -1510,13 +1523,18 @@ function mcDueMatch(nd) {
 }
 async function renderMClients(opt) {
   const content = document.getElementById('content');
-  content.innerHTML = '<input class="m-search" id="mcQ" type="search" placeholder="公司、聯絡人、電話、統編" value="' + esc(_mcQ) + '" oninput="_mcQ=this.value;_mcMore=0;clearTimeout(window._mcT);window._mcT=setTimeout(mcDraw,120)" autocomplete="off">'
-    + '<div class="m-chips" id="mcChips"></div><div class="m-card" id="mcList"><div class="loading" style="height:80px"><span class="dot-pulse">載入中</span></div></div>';
+  content.innerHTML = '<div class="mc-top"><input class="m-search" id="mcQ" type="search" placeholder="公司、聯絡人、電話、統編" value="' + esc(_mcQ) + '" oninput="_mcQ=this.value;_mcMore=0;clearTimeout(window._mcT);window._mcT=setTimeout(mcDraw,120)" autocomplete="off">'
+    + '<button type="button" class="mc-fbtn" id="mcFBtn" onclick="mcFilterSheet()" aria-label="篩選排序">⚙︎</button></div>'
+    + '<div class="mc-tabs" id="mcChips"></div><div class="mc-bar" id="mcBar"></div><div class="m-card" id="mcList"><div class="loading" style="height:80px"><span class="dot-pulse">載入中</span></div></div>';
   await mLoad();
   if (currentPage !== 'mclients') return;
   mcDraw();
 }
 function mcKind(k) { _mcKind = k; _mcMore = 0; mcDraw(); }
+function mcSortSheet() {
+  openModal('排序', '<div style="display:flex;flex-direction:column;gap:8px">' + MC_SORTS.map(function (o) { return '<button class="btn ' + (_mcSort === o[0] ? 'btn-primary' : 'btn-secondary') + '" style="height:46px;justify-content:flex-start" onclick="_mcSort=\'' + o[0] + '\';closeModal();_mcMore=0;mcDraw()">' + o[1] + '</button>'; }).join('') + '</div>', []);
+  document.getElementById('modalFooter').style.display = 'none';
+}
 function mcSortKey(x) {
   const recent = String(99999999999999 - new Date(x.upd || 0).getTime());
   if (_mcSort === 'recent') return '0|' + recent;
@@ -1530,9 +1548,8 @@ function mcDraw() {
   const chips = document.getElementById('mcChips');
   const kinds = [['mine', '我的'], ['lead', '開發中'], ['acc', '合作中'], ['cc', '陌開'], ['all', '全部']];
   const fc = mcFCount();
-  if (chips) chips.innerHTML = '<button class="ml-chip' + (fc || _mcSort !== 'smart' ? ' on' : '') + '" style="border-style:dashed" onclick="mcFilterSheet()">' + (fc ? '篩選 ' + fc : '篩選') + ' ▾</button>'
-    + '<select class="ml-chip m-owner' + (_mcF.owner ? ' on' : '') + '" onchange="mcOwnerSel(this.value)"><option value="">全部業務</option>' + usersData.map(function (u) { return '<option value="' + u.id + '"' + (_mcF.owner === u.id ? ' selected' : '') + '>' + esc(u.full_name || u.email || '') + '</option>'; }).join('') + '</select>'
-    + kinds.map(function (k) { return '<button class="ml-chip' + (_mcKind === k[0] ? ' on' : '') + '" onclick="mcKind(\'' + k[0] + '\')">' + k[1] + '</button>'; }).join('');
+  if (chips) chips.innerHTML = kinds.map(function (k) { return '<button class="mc-tab' + (_mcKind === k[0] ? ' on' : '') + '" onclick="mcKind(\'' + k[0] + '\')">' + k[1] + '</button>'; }).join('');
+  const fb = document.getElementById('mcFBtn'); if (fb) { fb.classList.toggle('on', !!fc); fb.innerHTML = '⚙︎' + (fc ? '<b>' + fc + '</b>' : ''); }
   const q = _mcQ.trim().toLowerCase(), qd = q.replace(/\D/g, '');
   const hit = function (strs) { if (!q) return true; return strs.some(function (x) { x = String(x || ''); return x.toLowerCase().indexOf(q) >= 0 || (qd.length >= 3 && x.replace(/\D/g, '').indexOf(qd) >= 0); }); };
   const rows = [];
@@ -1566,6 +1583,20 @@ function mcDraw() {
   });
   rows.sort(function (a, b) { return a.s.localeCompare(b.s); });
   const lim = 50 + _mcMore;
+  const bar = document.getElementById('mcBar');
+  if (bar) {
+    const tag = function (label, js) { return '<button type="button" class="mc-tag" onclick="' + js + '">' + label + ' ✕</button>'; };
+    const uName = function (id) { const u = usersData.find(function (x) { return x.id === id; }); return u ? esc(u.full_name || u.email || '') : ''; };
+    const dueN = { overdue: '逾期', today: '今天', week: '7 天內', none: '沒排' };
+    let t = '';
+    if (_mcF.owner) t += tag(uName(_mcF.owner), "mcSet('owner','" + _mcF.owner + "')");
+    if (_mcF.due) t += tag(dueN[_mcF.due], "mcSet('due','" + _mcF.due + "')");
+    _mcF.stage.forEach(function (id) { t += tag(esc(getStageName(id) || ''), "mcTog('stage','" + id + "')"); });
+    _mcF.grade.forEach(function (g) { t += tag(g + ' 級', "mcTog('grade','" + g + "')"); });
+    _mcF.ctag.forEach(function (c) { t += '<button type="button" class="mc-tag" onclick="mcTog(\'ctag\',\'' + c + '\')"><span class="ctag on ctag-' + c + '" style="width:10px;height:10px;margin-right:4px"></span>✕</button>'; });
+    const sortName = (MC_SORTS.find(function (o) { return o[0] === _mcSort; }) || MC_SORTS[0])[1];
+    bar.innerHTML = '<span class="mc-n">' + rows.length + ' 筆</span>' + t + '<span style="flex:1"></span><button type="button" class="mc-sort" onclick="mcSortSheet()">' + sortName + ' ▾</button>';
+  }
   const poolNote = (_mcKind === 'cc' || _mcKind === 'all' || q) && !m.pool ? '<div class="m-row" style="color:var(--text3);cursor:default;font-size:12.5px;min-height:36px">公海名單載入中…</div>' : '';
   el.innerHTML = rows.length ? rows.slice(0, lim).map(function (r) { return r.h; }).join('') + (rows.length > lim ? '<button class="btn btn-ghost" style="width:100%;height:44px" onclick="_mcMore+=100;mcDraw()">再顯示（共 ' + rows.length + '）</button>' : '')
     : (poolNote || '<div class="m-row" style="color:var(--text3);cursor:default">' + (q ? '找不到「' + esc(_mcQ) + '」' : '沒有資料') + '</div>');
@@ -4633,54 +4664,11 @@ function createKanbanCard(lead) {
   });
   card.addEventListener('dragend', () => {
     card.classList.remove('dragging');
+    document.querySelectorAll('.kanban-card.dragging').forEach(c => c.classList.remove('dragging'));
     dragSrcId = null;
     dragSrcEl = null;
     document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
     document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over'));
-  });
-  card.addEventListener('dragover', e => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!dragSrcEl || dragSrcEl === card) return;
-    const srcStage = dragSrcEl.closest('.kanban-col')?.dataset.stageId;
-    const tgtStage = card.closest('.kanban-col')?.dataset.stageId;
-    if (srcStage !== tgtStage) return;
-    document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
-    const ph = document.createElement('div');
-    ph.className = 'drag-placeholder';
-    ph.style.cssText = 'height:3px;background:var(--accent);border-radius:2px;margin:2px 0;pointer-events:none';
-    const rect = card.getBoundingClientRect();
-    if (e.clientY < rect.top + rect.height / 2) card.parentElement.insertBefore(ph, card);
-    else card.parentElement.insertBefore(ph, card.nextSibling);
-  });
-  card.addEventListener('drop', async e => {
-    e.preventDefault();
-    e.stopPropagation();
-    document.querySelectorAll('.drag-placeholder').forEach(p => p.remove());
-    if (!dragSrcEl) return;
-    const srcStage = dragSrcEl.closest('.kanban-col')?.dataset.stageId;
-    const tgtStage = card.closest('.kanban-col')?.dataset.stageId;
-    if (!tgtStage) return;
-    if (srcStage === tgtStage && dragSrcEl !== card) {
-      // Same col: insert based on mouse Y position
-      const rect = card.getBoundingClientRect();
-      if (e.clientY < rect.top + rect.height / 2) card.parentElement.insertBefore(dragSrcEl, card);
-      else card.parentElement.insertBefore(dragSrcEl, card.nextSibling);
-      await saveColOrder(tgtStage);
-    } else if (srcStage !== tgtStage) {
-      // Cross-col: change stage
-      const lead = leadsData.find(l => l.id === dragSrcId);
-      if (lead) {
-        lead.stage_id = tgtStage;
-        await db.from('leads').update({ stage_id: tgtStage, updated_at: new Date().toISOString() }).eq('id', dragSrcId);
-        toast('已移至「' + (stagesData.find(s=>s.id===tgtStage)?.name||'') + '」', 'success');
-        afterStageChanged(lead.id, tgtStage);
-        dragSrcId = null; dragSrcEl = null;
-        renderKanban(document.getElementById('leadSearch')?.value || '');
-        return;
-      }
-    }
-    dragSrcId = null; dragSrcEl = null;
   });
   card.addEventListener('click', e => { if (e.target.closest('select,button,a,input')) return; openLeadDrawer(lead.id); });
   return card;
@@ -4693,11 +4681,10 @@ async function saveColOrder(stageId) {
   const updates = [];
   cards.forEach((c, i) => {
     const lead = leadsData.find(l => l.id === c.dataset.id);
-    if (lead) { lead.sort_order = i; updates.push({id: c.dataset.id, sort_order: i}); }
+    if (lead && lead.sort_order !== i) { lead.sort_order = i; updates.push({ id: c.dataset.id, sort_order: i }); }
   });
-  for (const u of updates) {
-    await db.from('leads').update({ sort_order: u.sort_order }).eq('id', u.id);
-  }
+  const rs = await Promise.all(updates.map(u => db.from('leads').update({ sort_order: u.sort_order }).eq('id', u.id)));
+  if (rs.some(r => r && r.error)) toast('排序沒存成功，重新整理後再試一次', 'error');
 }
 
 function filterLeads() {
@@ -4861,39 +4848,52 @@ async function batchUpdateField(field, selectId) {
 }
 
 
+function kbAfterCard(cardsEl, y) {
+  const list = [...cardsEl.querySelectorAll('.kanban-card:not(.dragging)')];
+  for (const c of list) { const r = c.getBoundingClientRect(); if (y < r.top + r.height / 2) return c; }
+  return null;
+}
 function colDragOver(e, el) {
+  if (!dragSrcEl) return;
   e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.kanban-col.drag-over-col').forEach(c => { if (c !== el.closest('.kanban-col')) c.classList.remove('drag-over-col'); });
   el.closest('.kanban-col').classList.add('drag-over-col');
+  let ph = document.querySelector('.drag-placeholder');
+  if (!ph) { ph = document.createElement('div'); ph.className = 'drag-placeholder'; }
+  const before = kbAfterCard(el, e.clientY);
+  if (before) { if (ph.nextSibling !== before || ph.parentElement !== el) el.insertBefore(ph, before); }
+  else if (ph.parentElement !== el || ph.nextSibling) el.appendChild(ph);
 }
 function colDragLeave(e, el) {
-  if (!el.contains(e.relatedTarget)) el.closest('.kanban-col').classList.remove('drag-over-col');
+  if (!el.contains(e.relatedTarget)) { el.closest('.kanban-col').classList.remove('drag-over-col'); const ph = el.querySelector('.drag-placeholder'); if (ph) ph.remove(); }
 }
 async function colDrop(e, stageId) {
   e.preventDefault();
   document.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('drag-over-col'));
-  if (!dragSrcId) return;
-  const lead = leadsData.find(l => l.id == dragSrcId);
-  if (!lead) return;
-  const oldStage = stagesData.find(s => s.id === lead.stage_id);
-  const newStage = stagesData.find(s => s.id === stageId);
-  if (lead.stage_id === stageId) return;
-
-  // Auto-convert check
-  if (newStage?.name === '簽約進件' && !convertedLeadIds.has(lead.id)) {
-    await updateLeadStage(lead, stageId);
-    navigate('leads');
-    openConvertModal(lead.id);
-  } else {
-    await updateLeadStage(lead, stageId);
-    navigate('leads');
-  }
+  const el = document.getElementById('col-' + stageId);
+  const ph = document.querySelector('.drag-placeholder');
+  const srcEl = dragSrcEl, srcId = dragSrcId;
+  dragSrcEl = null; dragSrcId = null;
+  if (!srcEl || !srcId) { if (ph) ph.remove(); return; }
+  srcEl.classList.remove('dragging');
+  const lead = leadsData.find(l => l.id == srcId);
+  if (!lead) { if (ph) ph.remove(); return; }
+  const srcStage = lead.stage_id;
+  if (el) { if (ph && ph.parentElement === el) el.insertBefore(srcEl, ph); else el.appendChild(srcEl); }
+  if (ph) ph.remove();
+  if (srcStage === stageId) { await saveColOrder(stageId); return; }
+  // 換欄：先存位置（畫面已就位），再改階段
+  saveColOrder(stageId);
+  await updateLeadStage(lead, stageId);
+  afterStageChanged(lead.id, stageId);
+  renderKanban(document.getElementById('leadSearch')?.value || '');
 }
 
 async function updateLeadStage(lead, stageId) {
   await db.from('leads').update({ stage_id: stageId, updated_at: new Date().toISOString() }).eq('id', lead.id);
   lead.stage_id = stageId;
   toast(`已移至「${stagesData.find(s=>s.id===stageId)?.name}」`, 'success');
-  if (getStageName(stageId) === '結案') setTimeout(function () { askLostReason(lead.id); }, 300);
 }
 
 async function convertToAccount(lead) {
