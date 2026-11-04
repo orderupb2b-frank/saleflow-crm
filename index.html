@@ -491,6 +491,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 @media (max-width:768px){ .hide-mobile { display:none !important; } }
 /* ── 手機版：客戶是中心 ── */
 .bnav-rec { position:relative; }
+.form-input.err { border-color:var(--red) !important; box-shadow:0 0 0 2px rgba(220,38,38,.15); }
 .mc-top { display:flex; gap:8px; align-items:center; }
 .mc-top .m-search { flex:1; }
 .mc-fbtn { position:relative; flex:0 0 46px; height:46px; border-radius:12px; border:1px solid var(--border); background:var(--bg2); color:var(--text2); font-size:20px; cursor:pointer; }
@@ -6043,19 +6044,18 @@ async function startDealFromQuote(leadId) {
     seen[no] = 1; return true;
   });
   if (!open.length) {
-    openModal('先建立報價單', '<div style="font-size:13.5px;line-height:1.7">成交要從報價單轉，這家還沒有可成交的報價。</div>', [
-      { label: '取消', cls: 'btn-secondary', action: closeModal },
-      { label: '🧾 建立報價', cls: 'btn-primary', action: function () { closeModal(); openQuoteForLead(leadId); } }
-    ]);
+    openModal('怎麼成交？', '<div style="display:flex;flex-direction:column;gap:8px">'
+      + '<button class="btn btn-secondary" style="height:52px;justify-content:flex-start" onclick="closeModal();openQuoteForLead(\'' + leadId + '\')">🧾　先用系統做報價單</button>'
+      + '<button class="btn btn-secondary" style="height:52px;justify-content:flex-start" onclick="closeModal();openOwnQuoteDeal(\'' + leadId + '\')">📎　用自己做的報價單成交</button></div>',
+      [{ label: '取消', cls: 'btn-secondary', action: closeModal }]);
     return;
   }
-  if (open.length === 1) { dealFromQuote(leadId, open[0].noteId); return; }
   openModal('用哪一張報價成交？', open.map(function (r) {
     const sm = r.summary || {};
     return '<button class="btn btn-secondary" style="width:100%;justify-content:space-between;margin-bottom:8px;text-align:left" onclick="closeModal();dealFromQuote(\'' + leadId + '\',\'' + r.noteId + '\')">'
       + '<span><b>' + esc(sm.quoteNo || '報價單') + '</b> ' + quoteKindBadge(r) + '<br><span style="font-size:11.5px;color:var(--text3)">' + esc(sm.planName || '—') + '・' + esc(sm.date || fmtDate(r.savedAt)) + '</span></span>'
       + '<span style="font-family:var(--mono)">$' + fmtNum(sm.subtotal || 0) + '</span></button>';
-  }).join(''), [{ label: '取消', cls: 'btn-secondary', action: closeModal }]);
+  }).join('') + '<button class="btn btn-ghost" style="width:100%;justify-content:flex-start" onclick="closeModal();openOwnQuoteDeal(\'' + leadId + '\')">📎　用自己做的報價單成交</button>', [{ label: '取消', cls: 'btn-secondary', action: closeModal }]);
 }
 
 function drawerConvertHtml(lead) {
@@ -7124,6 +7124,140 @@ async function saveQuickDeal() {
     }
     closeModal(); _qd = null;
     toast(ok ? '✅ 已成交：' + (q.lead.name || '') : '已成交，但回簽檔上傳失敗，請到客戶頁補傳', ok ? 'success' : 'error');
+    goToAccount(acc.id);
+  } finally { _dealBusy = false; }
+}
+// ════════ 自製報價單成交：附檔＋回答必填問題，系統照答案算成交單 ════════
+let _od = null;
+async function openOwnQuoteDeal(leadId) {
+  if (!dealTypesData.length || !usersData.length) await loadGlobalData();
+  const [leadR, accR] = await Promise.all([db.from('leads').select('*').eq('id', leadId).maybeSingle(), db.from('accounts').select('id').eq('lead_id', leadId).maybeSingle()]);
+  const lead = leadR.data; if (!lead) { toast('找不到這家客戶', 'error'); return; }
+  let hasDeals = false;
+  if (accR.data) { const c = await db.from('contracts').select('id', { count: 'exact', head: true }).eq('account_id', accR.data.id); hasDeals = (c.count || 0) > 0; }
+  _od = { lead: lead, hasDeals: hasDeals, kind: hasDeals ? 'renewal' : 'new', months: 12, pay: 'once', files: [] };
+  let salesOpts = '';
+  usersData.forEach(function (u) { salesOpts += '<option value="' + u.id + '"' + (u.id === (lead.user_id || currentUser.id) ? ' selected' : '') + '>' + esc(u.full_name || u.email || '') + '</option>'; });
+  const plans = dealTypesData.map(function (d) { return '<option value="' + esc(d.name) + '">'; }).join('');
+  const chip = function (grp, v, label, on) { return '<button type="button" class="df-chip' + (on ? ' on' : '') + '" data-v="' + v + '" onclick="odSet(\'' + grp + '\',\'' + v + '\')">' + label + '</button>'; };
+  const money = function (id, label, hint) { return '<div class="form-group" id="odG_' + id + '"><label class="form-label">' + label + '</label><input class="form-input" id="od_' + id + '" type="number" min="0" inputmode="numeric" placeholder="' + (hint || '沒有就填 0') + '" oninput="odCalc()"></div>'; };
+  openModal('📎 自製報價單成交：' + (lead.name || ''), ''
+    + '<div class="form-group"><label class="form-label">類型 *</label><div style="display:flex;gap:6px;flex-wrap:wrap" id="od_kind">'
+    +   chip('kind', 'new', hasDeals ? '加購／新方案' : '新簽約', _od.kind === 'new') + chip('kind', 'renewal', '續約', _od.kind === 'renewal') + chip('kind', 'custom', '客製案', false)
+    + '</div></div>'
+    + '<div class="form-group"><label class="form-label" id="od_planL">方案 *</label><input class="form-input" id="od_plan" list="odPlans" placeholder="例：Growth 成長版"><datalist id="odPlans">' + plans + '</datalist></div>'
+    + '<div id="od_subBlock">'
+    +   '<div class="form-group"><label class="form-label">合約期間 *</label><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center" id="od_months">'
+    +     chip('months', '12', '1 年', true) + chip('months', '24', '2 年', false) + chip('months', '36', '3 年', false) + chip('months', 'x', '其他', false)
+    +     '<input class="form-input" id="od_monthsX" type="number" min="1" placeholder="幾個月" style="display:none;width:110px" oninput="odCalc()"></div></div>'
+    +   '<div class="form-row">' + money('monthly', '月費（未稅、折後）*', '例：3680') + '<div class="form-group"><label class="form-label">啟用日 *</label><input class="form-input" id="od_start" type="date" value="' + nowDateStr() + '" oninput="odCalc()"></div></div>'
+    + '</div>'
+    + '<div class="form-row">' + money('setup', '導入建置費（未稅）*') + money('custom', '客製開發費（未稅）*') + '</div>'
+    + money('addon', '其他加購（未稅）', '沒有可空白')
+    + '<div class="qd-head" style="margin:4px 0 12px"><span class="qd-amt" id="od_total">$0</span><span style="font-size:12px;color:var(--text3)" id="od_totalSub">未稅合計</span></div>'
+    + '<div class="form-row">'
+    +   '<div class="form-group"><label class="form-label">簽約日 *</label><input class="form-input" id="od_signed" type="date" value="' + nowDateStr() + '"></div>'
+    +   '<div class="form-group"><label class="form-label">業績歸屬</label><select class="form-select" id="od_sales">' + salesOpts + '</select></div>'
+    + '</div>'
+    + '<div class="form-group"><label class="form-label">付款</label><div style="display:flex;gap:6px" id="od_pay">' + chip('pay', 'once', '一次付清', true) + chip('pay', 'half', '兩期 50／50', false) + '</div></div>'
+    + '<div class="form-group"><label class="form-label">客戶簽回的報價單 *</label><div class="qd-file" id="odFile" onclick="odPickFile()">📎 選擇檔案（PDF 或照片）</div></div>'
+    + '<div class="form-group"><label class="form-label">備註</label><input class="form-input" id="od_note" placeholder="特殊條件、贈送、優惠（選填）"></div>', [
+    { label: '取消', cls: 'btn-secondary', action: closeModal },
+    { label: '✅ 確認成交', cls: 'btn-primary', action: saveOwnQuoteDeal }
+  ]);
+  document.getElementById('modalBox').style.maxWidth = '540px';
+  odSet('kind', _od.kind);
+}
+function odSet(grp, v) {
+  if (!_od) return;
+  _od[grp] = grp === 'months' ? v : v;
+  document.querySelectorAll('#od_' + grp + ' .df-chip').forEach(function (b) { b.classList.toggle('on', b.dataset.v === v); });
+  if (grp === 'months') { const x = document.getElementById('od_monthsX'); x.style.display = v === 'x' ? '' : 'none'; if (v === 'x') x.focus(); }
+  if (grp === 'kind') {
+    const cus = v === 'custom';
+    document.getElementById('od_subBlock').style.display = cus ? 'none' : '';
+    document.getElementById('od_planL').textContent = cus ? '專案名稱 *' : '方案 *';
+    document.getElementById('od_plan').placeholder = cus ? '例：ERP 串接客製' : '例：Growth 成長版';
+    document.getElementById('odG_setup').style.display = v === 'renewal' ? 'none' : '';
+    document.getElementById('odG_custom').querySelector('label').textContent = cus ? '客製開發費（未稅）*' : '客製開發費（未稅）*';
+  }
+  odCalc();
+}
+function odNum(id) { const el = document.getElementById('od_' + id); if (!el || el.offsetParent === null) return null; const v = String(el.value).trim(); return v === '' ? NaN : Number(v); }
+function odMonths() { return _od.months === 'x' ? parseInt(document.getElementById('od_monthsX').value, 10) || 0 : parseInt(_od.months, 10); }
+function odCalc() {
+  if (!_od) return;
+  const sub = _od.kind === 'custom' ? 0 : (Number(odNum('monthly')) || 0) * odMonths();
+  const t = sub + (Number(odNum('setup')) || 0) + (Number(odNum('custom')) || 0) + (Number(odNum('addon')) || 0);
+  const el = document.getElementById('od_total'); if (el) el.textContent = '$' + fmtNum(t);
+  const st = document.getElementById('od_start'), sb = document.getElementById('od_totalSub');
+  if (sb) sb.textContent = '未稅合計' + (_od.kind !== 'custom' && st && st.value && odMonths() ? '・合約 ' + fmtDateSlash(st.value) + ' – ' + fmtDateSlash(addDaysStr(addMonthsStr(st.value, odMonths()), -1)) : '');
+}
+function addMonthsStr(ds, n) { const p = String(ds).split('-').map(Number); const d = new Date(p[0], p[1] - 1 + n, p[2]); return d.getFullYear() + '-' + _pad2(d.getMonth() + 1) + '-' + _pad2(d.getDate()); }
+function odPickFile() {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.multiple = true; inp.accept = 'application/pdf,image/*,.doc,.docx,.xls,.xlsx,.pages,.numbers';
+  inp.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+  document.body.appendChild(inp);
+  inp.onchange = function () {
+    const fs = Array.from(inp.files || []); inp.remove(); if (!fs.length || !_od) return;
+    _od.files = fs; const el = document.getElementById('odFile'); if (!el) return;
+    el.className = 'qd-file ok'; el.innerHTML = fs.map(function (f) { return '📄 ' + esc(f.name); }).join('<br>') + '<div style="font-size:11px;color:var(--text3);margin-top:4px">點這裡重選</div>';
+  };
+  inp.click();
+}
+async function saveOwnQuoteDeal() {
+  if (_dealBusy || !_od) return;
+  const o = _od, cus = o.kind === 'custom', ren = o.kind === 'renewal';
+  const bad = function (id, msg) { const el = document.getElementById(id); if (el) { el.classList.add('err'); el.focus && el.focus(); setTimeout(function () { el.classList.remove('err'); }, 2500); } toast(msg, 'error'); };
+  const plan = document.getElementById('od_plan').value.trim();
+  if (!plan) return bad('od_plan', cus ? '請填專案名稱' : '請填方案');
+  const months = cus ? 0 : odMonths();
+  if (!cus && !(months > 0)) return bad('od_monthsX', '請選合約期間');
+  const monthly = cus ? null : odNum('monthly');
+  if (!cus && !(monthly > 0)) return bad('od_monthly', '請填月費');
+  const setup = ren ? 0 : odNum('setup'), custom = odNum('custom'), addon = odNum('addon');
+  if (!ren && isNaN(setup)) return bad('od_setup', '導入建置費要填，沒有就填 0');
+  if (isNaN(custom)) return bad('od_custom', '客製開發費要填，沒有就填 0');
+  if (cus && !(custom > 0)) return bad('od_custom', '客製案請填客製開發費');
+  const start = cus ? null : document.getElementById('od_start').value;
+  if (!cus && !start) return bad('od_start', '請填啟用日');
+  const signed = document.getElementById('od_signed').value;
+  if (!signed) return bad('od_signed', '請填簽約日');
+  if (!o.files.length) { const el = document.getElementById('odFile'); if (el) el.classList.add('err'); toast('請附上客戶簽回的報價單', 'error'); return; }
+  const items = [];
+  if (!cus) items.push({ name: plan + ' 月費 $' + fmtNum(monthly) + ' × ' + months + ' 個月', amount: Math.round(monthly * months), bonus_type: ren ? 'renewal' : 'standard', src: 'sub' });
+  if (setup > 0) items.push({ name: '導入建置費', amount: Math.round(setup), bonus_type: 'standard', src: 'setup' });
+  if (custom > 0) items.push({ name: cus ? plan : '客製開發費', amount: Math.round(custom), bonus_type: 'custom', src: 'custom' });
+  if (addon > 0) items.push({ name: '其他加購', amount: Math.round(addon), bonus_type: 'standard', src: 'addon' });
+  const total = items.reduce(function (a, it) { return a + it.amount; }, 0);
+  const salesSel = document.getElementById('od_sales');
+  const note = document.getElementById('od_note').value.trim();
+  const dt = dealTypesData.find(function (d) { return d.name === plan; });
+  _dealBusy = true;
+  try {
+    const acc = await convertToAccount(o.lead);
+    if (!acc) return;
+    const payload = {
+      account_id: acc.id, user_id: currentUser.id, created_at: new Date().toISOString(),
+      name: plan, deal_category: ren ? '續約' : cus ? '客製案件' : (o.hasDeals ? '加購專案' : '主約'),
+      plan_content: (dt && dt.content_template) || null,
+      amount: total, monthly_fee: cus ? null : monthly, items: items, installments: qdInst(o.pay, total, signed),
+      quote_note_id: null, sales_user_id: salesSel.value,
+      sales_user_name: salesSel.options[salesSel.selectedIndex] ? salesSel.options[salesSel.selectedIndex].text : '',
+      signed_date: signed, start_date: start, end_date: cus ? null : addDaysStr(addMonthsStr(start, months), -1), remind_days: 30,
+      note: ['自製報價單成交', note].filter(Boolean).join('：')
+    };
+    const ins = await db.from('contracts').insert(payload).select('id').single();
+    if (ins.error) { toast('成交儲存失敗：' + ins.error.message, 'error'); return; }
+    const ok = await uploadDealFiles(ins.data.id, acc.id, o.files, o.lead.id, true);
+    const wonStage = stagesData.find(function (s) { return s.name === '簽約進件'; });
+    if (wonStage && o.lead.stage_id !== wonStage.id) {
+      await db.from('leads').update({ stage_id: wonStage.id, updated_at: new Date().toISOString() }).eq('id', o.lead.id);
+      const ld = leadsData.find(function (l) { return l.id === o.lead.id; }); if (ld) ld.stage_id = wonStage.id;
+    }
+    closeModal(); _od = null; mInvalidate();
+    toast(ok ? '✅ 已成交：' + (o.lead.name || '') + '・$' + fmtNum(total) : '已成交，但檔案上傳失敗，請到客戶頁補傳', ok ? 'success' : 'error');
     goToAccount(acc.id);
   } finally { _dealBusy = false; }
 }
