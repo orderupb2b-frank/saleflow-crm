@@ -3869,7 +3869,7 @@ function renderLeadsMobile() {
   if (mlScope === null) mlScope = (!window.isAdmin && leadsData.some(function (l) { return l.user_id === currentUser.id; })) ? 'mine' : 'all';
   const closed = stagesData.find(function (s) { return s.name === '結案'; });
   const isOpen = function (l) { return !convertedLeadIds.has(l.id) && (!closed || l.stage_id !== closed.id); };
-  const inScope = function (l) { return mlScope === 'all' ? true : mlScope === 'mine' ? l.user_id === currentUser.id : !l.user_id; };
+  const inScope = function (l) { return mlScope === 'all' ? true : mlScope === 'mine' ? l.user_id === currentUser.id : mlScope === 'none' ? !l.user_id : l.user_id === mlScope; };
   const scoped = leadsData.filter(inScope);
   let list;
   if (mlQuery) list = leadsData.filter(function (l) { return leadMatches(l, mlQuery); });
@@ -3884,7 +3884,11 @@ function renderLeadsMobile() {
   });
   const cnt = function (f) { return leadsData.filter(function (l) { return f(l) && isOpen(l); }).length; };
   const seg = [['mine', '我的', cnt(function (l) { return l.user_id === currentUser.id; })], ['all', '全部', cnt(function () { return true; })], ['none', '未指派', cnt(function (l) { return !l.user_id; })]]
-    .map(function (x) { return '<button class="ml-chip' + (mlScope === x[0] ? ' on' : '') + '" onclick="mlSet(\'scope\',\'' + x[0] + '\')">' + x[1] + '<b>' + x[2] + '</b></button>'; }).join('');
+    .map(function (x) { return '<button class="ml-chip' + (mlScope === x[0] ? ' on' : '') + '" onclick="mlSet(\'scope\',\'' + x[0] + '\')">' + x[1] + '<b>' + x[2] + '</b></button>'; }).join('')
+    + (function () { const ids = {}; leadsData.forEach(function (l) { if (l.user_id && l.user_id !== currentUser.id && isOpen(l)) ids[l.user_id] = l.user_name || userNameById(l.user_id, ''); });
+        const keys = Object.keys(ids); if (!keys.length) return '';
+        const isU = ['mine', 'all', 'none'].indexOf(mlScope) < 0;
+        return '<select class="ml-chip m-owner' + (isU ? ' on' : '') + '" onchange="mlSet(\'scope\',this.value||\'all\')"><option value="">其他業務</option>' + keys.map(function (k) { return '<option value="' + k + '"' + (mlScope === k ? ' selected' : '') + '>' + esc(ids[k]) + '・' + leadsData.filter(function (l) { return l.user_id === k && isOpen(l); }).length + '</option>'; }).join('') + '</select>'; })();
   const stageChips = [['open', '進行中', scoped.filter(isOpen).length]]
     .concat(stagesData.filter(function (s) { return s.name !== '結案' && s.name !== '簽約進件'; }).map(function (s) { return [s.id, s.name, scoped.filter(function (l) { return l.stage_id === s.id && !convertedLeadIds.has(l.id); }).length]; }))
     .concat([['won', '已成交', scoped.filter(function (l) { return convertedLeadIds.has(l.id); }).length]])
@@ -4573,7 +4577,7 @@ function renderKanban(searchStr = '') {
   const seg = '<div class="ml-chips ml-seg" style="margin:0">'
     + '<button class="ml-chip' + (kanbanFilterUser === currentUser.id ? ' on' : '') + '" onclick="setKanbanFilter(\'user\',currentUser.id)">我的<b>' + mineN + '</b></button>'
     + '<button class="ml-chip' + (kanbanFilterUser === 'all' ? ' on' : '') + '" onclick="setKanbanFilter(\'user\',\'all\')">全部<b>' + allN + '</b></button>'
-    + (window.isAdmin ? '<select class="form-select" style="width:auto;padding:0 24px 0 8px;font-size:12px;height:28px" onchange="setKanbanFilter(\'user\',this.value)">' + userOptions.map(function (o) { return '<option value="' + o.val + '"' + (kanbanFilterUser === o.val ? ' selected' : '') + '>' + esc(o.label) + '</option>'; }).join('') + '</select>' : '')
+    + '<select class="form-select" style="width:auto;padding:0 24px 0 8px;font-size:12px;height:28px" onchange="setKanbanFilter(\'user\',this.value)">' + userOptions.map(function (o) { return '<option value="' + o.val + '"' + (kanbanFilterUser === o.val ? ' selected' : '') + '>' + esc(o.label) + '</option>'; }).join('') + '</select>'
     + '</div>';
   content.innerHTML = '<div class="kanban-filters">' + seg + ctagFilterHtml() + '</div><div id="kanban-board"></div>';
 
