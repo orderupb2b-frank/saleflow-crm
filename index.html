@@ -491,6 +491,25 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); font
 @media (max-width:768px){ .hide-mobile { display:none !important; } }
 /* ── 手機版：客戶是中心 ── */
 .bnav-rec { position:relative; }
+.img-strip { display:none; gap:6px; flex-wrap:wrap; margin:6px 0 2px; }
+.img-th { position:relative; width:64px; height:64px; border-radius:8px; overflow:hidden; border:1px solid var(--border); background:var(--bg3); }
+.img-th img { width:100%; height:100%; object-fit:cover; display:block; }
+.img-th button { position:absolute; top:2px; right:2px; width:20px; height:20px; border-radius:10px; border:0; background:rgba(0,0,0,.6); color:#fff; font-size:11px; line-height:20px; padding:0; cursor:pointer; }
+.il-tools { position:absolute; right:4px; top:6px; display:flex; gap:2px; }
+.il-box .il-ta { padding-right:78px; }
+.ql-ta { padding-right:84px; }
+.il-tools .il-mic { position:static; }
+.img-btn { padding:2px 8px; }
+.tl-imgs { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 2px; }
+.tl-img { width:96px; height:96px; border-radius:8px; overflow:hidden; border:1px solid var(--border); background:var(--bg3); cursor:zoom-in; }
+.tl-img img { width:100%; height:100%; object-fit:cover; display:block; }
+.tl-img.img-missing { cursor:default; }
+.tl-imgs .tl-img:only-child { width:auto; height:auto; max-width:min(320px,100%); max-height:240px; }
+.tl-imgs .tl-img:only-child img { width:auto; max-width:100%; max-height:240px; height:auto; object-fit:contain; }
+.img-view { position:fixed; inset:0; z-index:10050; background:rgba(10,12,16,.92); display:flex; align-items:center; justify-content:center; cursor:zoom-out; }
+.img-view img { max-width:94vw; max-height:88vh; border-radius:6px; box-shadow:0 10px 40px rgba(0,0,0,.5); cursor:pointer; }
+.img-view-n { position:absolute; top:16px; left:50%; transform:translateX(-50%); color:#fff; font-size:13px; opacity:.8; }
+.img-view-dl { position:absolute; bottom:18px; left:50%; transform:translateX(-50%); color:#fff; font-size:13px; opacity:.85; text-decoration:underline; }
 .form-input.err { border-color:var(--red) !important; box-shadow:0 0 0 2px rgba(220,38,38,.15); }
 .mc-top { display:flex; gap:8px; align-items:center; }
 .mc-top .m-search { flex:1; }
@@ -3789,17 +3808,114 @@ async function setLeadColor(id, c) {
   if (ctagFilter.size && isLeadsPage()) { if (window.innerWidth <= 768) renderLeadsMobile(); else filterLeads(); }
 }
 
+// ════════ 紀錄附圖：貼上／拖曳／選照片，壓縮後上傳 ════════
+const _imgs = { il: [], ql: [] };
+function imgStripHtml(k) { return '<div class="img-strip" id="imgs_' + k + '"></div>'; }
+function imgBtnHtml(k) { return '<button type="button" class="btn btn-ghost btn-sm img-btn" onclick="imgPick(\'' + k + '\')" title="加圖片（也可以直接貼上）">🖼</button>'; }
+function imgPick(k) {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true;
+  inp.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+  document.body.appendChild(inp);
+  inp.onchange = function () { const fs = Array.from(inp.files || []); inp.remove(); imgAdd(k, fs); };
+  inp.click();
+}
+function imgPaste(e, k) {
+  const items = (e.clipboardData && e.clipboardData.items) || [];
+  const fs = [];
+  for (let i = 0; i < items.length; i++) if (items[i].kind === 'file' && /^image\//.test(items[i].type)) { const f = items[i].getAsFile(); if (f) fs.push(f); }
+  if (fs.length) { e.preventDefault(); imgAdd(k, fs); }
+}
+function imgDrop(e, k) {
+  const fs = Array.from((e.dataTransfer && e.dataTransfer.files) || []).filter(function (f) { return /^image\//.test(f.type); });
+  if (fs.length) { e.preventDefault(); imgAdd(k, fs); }
+}
+function imgAdd(k, files) {
+  files.forEach(function (f) {
+    if (_imgs[k].length >= 9) { toast('一筆最多 9 張', 'error'); return; }
+    if (f.size > 25 * 1024 * 1024) { toast(f.name + ' 太大了', 'error'); return; }
+    _imgs[k].push({ file: f, url: URL.createObjectURL(f) });
+  });
+  imgDraw(k);
+}
+function imgDel(k, i) { const x = _imgs[k][i]; if (x) URL.revokeObjectURL(x.url); _imgs[k].splice(i, 1); imgDraw(k); }
+function imgClear(k) { _imgs[k].forEach(function (x) { URL.revokeObjectURL(x.url); }); _imgs[k] = []; imgDraw(k); }
+function imgDraw(k) {
+  const el = document.getElementById('imgs_' + k); if (!el) return;
+  el.innerHTML = _imgs[k].map(function (x, i) { return '<div class="img-th"><img src="' + x.url + '" alt=""><button type="button" onclick="imgDel(\'' + k + '\',' + i + ')" aria-label="移除">✕</button></div>'; }).join('');
+  el.style.display = _imgs[k].length ? 'flex' : 'none';
+}
+// 長邊縮到 1600、轉 JPEG，手機照片從 5MB 變 300KB 左右
+function imgCompress(file) {
+  return new Promise(function (resolve) {
+    if (/gif$/i.test(file.type) || file.size < 250 * 1024) { resolve({ blob: file, type: file.type || 'image/jpeg' }); return; }
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = function () {
+      const m = 1600, r = Math.min(1, m / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * r); c.height = Math.round(img.height * r);
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob(function (b) { resolve(b && b.size < file.size ? { blob: b, type: 'image/jpeg' } : { blob: file, type: file.type || 'image/jpeg' }); }, 'image/jpeg', 0.82);
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); resolve({ blob: file, type: file.type || 'image/jpeg' }); };
+    img.src = url;
+  });
+}
+async function imgUploadAll(k, leadId) {
+  const list = _imgs[k]; if (!list.length) return [];
+  const out = [];
+  for (const x of list) {
+    const c = await imgCompress(x.file);
+    const ext = c.type === 'image/png' ? 'png' : c.type === 'image/gif' ? 'gif' : c.type === 'image/webp' ? 'webp' : 'jpg';
+    const path = (leadId || 'misc') + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+    const up = await db.storage.from('log-images').upload(path, c.blob, { contentType: c.type, upsert: false });
+    if (up.error) throw new Error('圖片上傳失敗：' + up.error.message);
+    out.push({ path: path });
+  }
+  return out;
+}
+// 時間軸：先放占位，再一次拿簽名網址補上
+async function imgFillTimeline(root) {
+  const els = Array.from((root || document).querySelectorAll('img[data-lpath]:not([src])'));
+  if (!els.length) return;
+  const paths = Array.from(new Set(els.map(function (e) { return e.dataset.lpath; })));
+  const r = await db.storage.from('log-images').createSignedUrls(paths, 3600);
+  const map = {}; (r.data || []).forEach(function (x) { if (x.signedUrl) map[x.path] = x.signedUrl; });
+  els.forEach(function (e) { const u = map[e.dataset.lpath]; if (u) e.src = u; else e.parentElement.classList.add('img-missing'); });
+}
+function tlImgsHtml(images) {
+  if (!Array.isArray(images) || !images.length) return '';
+  return '<div class="tl-imgs">' + images.map(function (im) { return '<div class="tl-img" onclick="imgView(this)"><img data-lpath="' + esc(im.path) + '" alt="" loading="lazy"></div>'; }).join('') + '</div>';
+}
+function imgView(el) {
+  const img = el.querySelector('img'); if (!img || !img.src) return;
+  const all = Array.from(el.parentElement.querySelectorAll('img')).map(function (i) { return i.src; }).filter(Boolean);
+  let i = Math.max(0, all.indexOf(img.src));
+  const ov = document.createElement('div'); ov.className = 'img-view';
+  const draw = function () { ov.innerHTML = '<img src="' + all[i] + '" alt="">' + (all.length > 1 ? '<div class="img-view-n">' + (i + 1) + ' / ' + all.length + '</div>' : '') + '<a class="img-view-dl" href="' + all[i] + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">開原圖</a>'; };
+  draw();
+  ov.onclick = function (e) {
+    if (all.length > 1 && e.target.tagName === 'IMG') { const r = e.target.getBoundingClientRect(); i = (i + (e.clientX < r.left + r.width / 2 ? all.length - 1 : 1)) % all.length; draw(); return; }
+    ov.remove(); document.removeEventListener('keydown', key);
+  };
+  const key = function (e) { if (e.key === 'Escape') ov.click(); else if (e.key === 'ArrowRight' && all.length > 1) { i = (i + 1) % all.length; draw(); } else if (e.key === 'ArrowLeft' && all.length > 1) { i = (i + all.length - 1) % all.length; draw(); } };
+  document.addEventListener('keydown', key);
+  document.body.appendChild(ov);
+}
+
 // 公司頁時間軸上方的行內記錄：打字、Enter 就存（結果／下次有預設）
 let _il = null;
 function inlineLogHtml(lead) {
   const curNext = lead.next_contact_date ? String(lead.next_contact_date).slice(0, 10) : '';
   const keepNext = curNext && curNext > nowDateStr() ? curNext : '';
   _il = { lead: lead, result: 'call', next: keepNext ? 'keep' : 7, nextDate: keepNext || addDaysStr(nowDateStr(), 7), stage: true };
+  _imgs.il.forEach(function (x) { URL.revokeObjectURL(x.url); }); _imgs.il = [];
   const res = QL_RESULTS.concat([['note', '備註']]).map(function (r) { return '<button type="button" class="df-chip' + (r[0] === 'call' ? ' on' : '') + '" data-v="' + r[0] + '" onclick="ilSet(\'result\',\'' + r[0] + '\')">' + r[1] + '</button>'; }).join('');
   const nx = (keepNext ? [['keep', keepNext.slice(5).replace('-', '/')]] : []).concat(QL_NEXT).map(function (n) { return '<button type="button" class="df-chip' + (String(n[0]) === String(_il.next) ? ' on' : '') + '" data-v="' + n[0] + '" onclick="ilSet(\'next\',\'' + n[0] + '\')">' + n[1] + '</button>'; }).join('');
   return '<div class="il-box">'
-    + '<div style="position:relative"><textarea class="form-textarea il-ta" id="ilText" placeholder="打一句，Enter 就存" onkeydown="ilKey(event)" oninput="ilGrow(this)"></textarea>'
-    + '<button type="button" class="btn btn-ghost btn-sm il-mic" onclick="startVoiceInput(\'ilText\', this)">🎤</button></div>'
+    + '<div style="position:relative" ondragover="event.preventDefault()" ondrop="imgDrop(event,\'il\')"><textarea class="form-textarea il-ta" id="ilText" placeholder="打一句，Enter 就存（可直接貼圖）" onkeydown="ilKey(event)" oninput="ilGrow(this)" onpaste="imgPaste(event,\'il\')"></textarea>'
+    + '<span class="il-tools">' + imgBtnHtml('il') + '<button type="button" class="btn btn-ghost btn-sm il-mic" onclick="startVoiceInput(\'ilText\', this)">🎤</button></span></div>'
+    + imgStripHtml('il')
     + '<div class="il-row"><span id="ilRes">' + res + '</span><span class="il-sep"></span><span style="font-size:12px;color:var(--text3)">下次</span><span id="ilNext">' + nx + '</span>'
     + '<input type="date" class="form-input" id="ilDate" style="display:none;width:auto;height:30px;padding:2px 8px" value="' + _il.nextDate + '" onchange="_il.nextDate=this.value">'
     + '<span style="flex:1"></span><span id="ilStage" style="font-size:12px;color:var(--text3)"></span>'
@@ -3829,17 +3945,21 @@ async function saveInlineLog() {
   if (!_il || _il.busy) return;
   const q = _il, lead = q.lead, ta = document.getElementById('ilText');
   let content = (ta.value || '').trim();
-  if (!content) { if (q.result === 'missed') content = '沒接通'; else { ta.focus(); return; } }
+  const hasImg = _imgs.il.length > 0;
+  if (!content) { if (q.result === 'missed') content = '沒接通'; else if (hasImg) content = ''; else { ta.focus(); return; } }
   q.busy = true;
   try {
+    let images = null;
+    if (hasImg) { toast('圖片上傳中…', 'info'); try { images = await imgUploadAll('il', lead.id); } catch (e) { toast(e.message, 'error'); return; } }
     if (q.result === 'note') {
-      const r = await db.from('notes').insert({ content: content, lead_id: lead.id, user_id: currentUser.id, created_at: new Date().toISOString() });
+      const r = await db.from('notes').insert(Object.assign({ content: content, lead_id: lead.id, user_id: currentUser.id, created_at: new Date().toISOString() }, images ? { images: images } : {}));
       if (r.error) { toast('存不進去：' + r.error.message, 'error'); return; }
-      ta.value = ''; ilGrow(ta); toast('已加備註', 'success'); renderCompanyTimeline(lead.id); return;
+      ta.value = ''; ilGrow(ta); imgClear('il'); toast('已加備註', 'success'); renderCompanyTimeline(lead.id); return;
     }
     const type = q.result === 'visit' ? 'visit' : q.result === 'msg' ? 'email' : 'call';
-    const r1 = await db.from('activities').insert({ type: type, content: content, lead_id: lead.id, user_id: currentUser.id, created_at: new Date().toISOString() });
+    const r1 = await db.from('activities').insert(Object.assign({ type: type, content: content, lead_id: lead.id, user_id: currentUser.id, created_at: new Date().toISOString() }, images ? { images: images } : {}));
     if (r1.error) { toast('存不進去：' + r1.error.message, 'error'); return; }
+    imgClear('il');
     const upd = { updated_at: new Date().toISOString() };
     const nx = q.next === null ? null : q.nextDate;
     if (q.next !== 'keep') upd.next_contact_date = nx;
@@ -5888,7 +6008,7 @@ async function renderCompanyTimeline(leadId) {
   (aR.data || []).forEach(function (a) {
     const t = ACTIVITY_TYPES[a.type] || ACTIVITY_TYPES['note'];
     const ct = contacts.find(c => c.id === a.contact_id);
-    items.push({ k: 'act', at: a.created_at, ico: t.icon, color: t.color, title: t.label + (ct ? ' · ' + esc(ct.name) : ''), text: a.content || '', who: who(a.user_id),
+    items.push({ k: 'act', at: a.created_at, ico: t.icon, color: t.color, title: t.label + (ct ? ' · ' + esc(ct.name) : ''), text: a.content || '', imgs: a.images, who: who(a.user_id),
       acts: '<button class="btn btn-ghost btn-sm btn-icon" onclick="openEditActivity(\'' + a.id + '\',\'' + leadId + '\')">✏️</button><button class="btn btn-ghost btn-sm btn-icon" onclick="deleteActivity(\'' + a.id + '\',\'' + leadId + '\')">🗑</button>' });
   });
   const seen = {};
@@ -5902,7 +6022,7 @@ async function renderCompanyTimeline(leadId) {
         text: (sm.planName || '') + (sm.months ? '・' + sm.months + ' 個月' : '') + '・' + quoteMoney(sm.grand, sm.currency || 'TWD'), who: who(n.user_id),
         acts: '<button class="btn btn-ghost btn-sm" onclick="openQuoteForLead(\'' + leadId + '\',\'' + n.id + '\')">開啟</button>' });
     } else {
-      items.push({ k: 'act', at: n.created_at, ico: '💬', color: '#94a3b8', title: '備註', text: n.content || '', who: who(n.user_id),
+      items.push({ k: 'act', at: n.created_at, ico: '💬', color: '#94a3b8', title: '備註', text: n.content || '', imgs: n.images, who: who(n.user_id),
         acts: '<button class="btn btn-ghost btn-sm btn-icon" onclick="deleteNote(\'' + n.id + '\',\'' + leadId + '\',\'lead\')">🗑</button>' });
     }
   });
@@ -5915,11 +6035,13 @@ async function renderCompanyTimeline(leadId) {
   });
   const shown = items.filter(function (i) { return _cpFilter === 'all' || i.k === _cpFilter; }).sort(function (a, b) { return new Date(b.at) - new Date(a.at); });
   if (!shown.length) { el.innerHTML = '<div class="empty-state" style="padding:18px"><div class="empty-text">還沒有紀錄。打完電話、拜訪完，記一筆吧！</div></div>'; return; }
+  setTimeout(function () { imgFillTimeline(el); }, 0);
   el.innerHTML = shown.map(function (i, idx) {
     return '<div class="tl-item"' + (idx >= 20 ? ' data-more="1" style="display:none"' : '') + '>'
       + '<div class="tl-ico" style="background:' + i.color + '22;color:' + i.color + '">' + i.ico + '</div>'
       + '<div class="tl-body"><div class="tl-title">' + i.title + '</div>'
       + (i.text ? '<div class="tl-text">' + esc(i.text) + '</div>' : '')
+      + tlImgsHtml(i.imgs)
       + '<div class="tl-meta">' + fmtDate(i.at) + (i.who ? '・' + esc(i.who) : '') + '</div></div>'
       + (i.acts ? '<div style="display:flex;gap:2px;align-items:flex-start">' + i.acts + '</div>' : '')
       + '</div>';
@@ -6272,6 +6394,7 @@ async function openQuickLog(leadId) {
   const curNext = lead.next_contact_date ? String(lead.next_contact_date).slice(0, 10) : '';
   const keepNext = curNext && curNext > nowDateStr() ? curNext : '';
   _ql = { lead: lead, result: 'call', next: keepNext ? 'keep' : 7, nextDate: keepNext || addDaysStr(nowDateStr(), 7), stage: true };
+  _imgs.ql.forEach(function (x) { URL.revokeObjectURL(x.url); }); _imgs.ql = [];
   const resBtns = QL_RESULTS.map(function (r) { return '<button type="button" class="df-chip' + (r[0] === 'call' ? ' on' : '') + '" data-v="' + r[0] + '" onclick="qlSet(\'result\',\'' + r[0] + '\')">' + r[1] + '</button>'; }).join('');
   const nextBtns = QL_NEXT.map(function (n) { return '<button type="button" class="df-chip' + (String(n[0]) === String(_ql.next) ? ' on' : '') + '" data-v="' + n[0] + '" onclick="qlSet(\'next\',\'' + n[0] + '\')">' + n[1] + '</button>'; }).join('');
   const st = getStageName(lead.stage_id) || '';
@@ -6279,8 +6402,9 @@ async function openQuickLog(leadId) {
     + '<div style="font-size:12px;color:var(--text3);margin:-6px 0 10px">' + esc(st) + (lead.user_name ? '・' + esc(lead.user_name) : '') + '</div>'
     + '<div class="ql-res" id="qlRes">' + resBtns + '</div>'
     + '<button type="button" class="ql-mic-big" id="qlVoice" onclick="startVoiceInput(\'qlText\', this)">🎤 按一下，開始說</button>'
-    + '<div style="position:relative"><textarea class="form-textarea ql-ta" id="qlText" placeholder="一句話就好" onkeydown="qlKey(event)" oninput="qlAutoPick(this.value)"></textarea>'
-    + '<button type="button" class="btn btn-ghost btn-sm hide-mobile" style="position:absolute;right:6px;bottom:6px;padding:2px 8px" onclick="startVoiceInput(\'qlText\', this)">🎤</button></div>'
+    + '<div style="position:relative" ondragover="event.preventDefault()" ondrop="imgDrop(event,\'ql\')"><textarea class="form-textarea ql-ta" id="qlText" placeholder="一句話就好（可直接貼圖）" onkeydown="qlKey(event)" oninput="qlAutoPick(this.value)" onpaste="imgPaste(event,\'ql\')"></textarea>'
+    + '<span style="position:absolute;right:6px;bottom:6px;display:flex;gap:2px">' + imgBtnHtml('ql') + '<button type="button" class="btn btn-ghost btn-sm hide-mobile" style="padding:2px 8px" onclick="startVoiceInput(\'qlText\', this)">🎤</button></span></div>'
+    + imgStripHtml('ql')
     + '<div class="ql-row"><span style="font-size:12.5px;color:var(--text3);margin-right:2px">下次</span><span id="qlNext">' + (keepNext ? '<button type="button" class="df-chip on" data-v="keep" onclick="qlSet(\'next\',\'keep\')">' + keepNext.slice(5).replace('-', '/') + '</button>' : '') + nextBtns + '</span>'
     + '<input type="date" class="form-input" id="qlDate" style="display:none;width:auto;height:34px;padding:2px 8px" value="' + _ql.nextDate + '" onchange="_ql.nextDate=this.value"></div>'
     + '<div class="ql-stage" id="qlStage"></div>', [
@@ -6332,12 +6456,15 @@ async function saveQuickLog() {
   if (!_ql || _ql.busy) return;
   const q = _ql, lead = q.lead;
   let content = (document.getElementById('qlText').value || '').trim();
-  if (!content) { if (q.result === 'missed') content = '沒接通'; else { toast('寫一句就好', 'error'); document.getElementById('qlText').focus(); return; } }
+  const hasImg = _imgs.ql.length > 0;
+  if (!content) { if (q.result === 'missed') content = '沒接通'; else if (!hasImg) { toast('寫一句就好', 'error'); document.getElementById('qlText').focus(); return; } }
   if (q.next === 'pick' && !q.nextDate) { toast('選個日期', 'error'); return; }
   q.busy = true;
   try {
+    let images = null;
+    if (hasImg) { toast('圖片上傳中…', 'info'); try { images = await imgUploadAll('ql', lead.id); } catch (e) { toast(e.message, 'error'); return; } }
     const type = q.result === 'visit' ? 'visit' : q.result === 'msg' ? 'email' : 'call';
-    const r1 = await db.from('activities').insert({ type: type, content: content, lead_id: lead.id, user_id: currentUser.id, created_at: new Date().toISOString() });
+    const r1 = await db.from('activities').insert(Object.assign({ type: type, content: content, lead_id: lead.id, user_id: currentUser.id, created_at: new Date().toISOString() }, images ? { images: images } : {}));
     if (r1.error) { toast('存不進去：' + r1.error.message, 'error'); return; }
     const upd = { updated_at: new Date().toISOString() };
     const nx = q.next === null ? null : q.nextDate;
