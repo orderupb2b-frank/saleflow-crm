@@ -989,7 +989,6 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .wk-tbl { width:100%; border-collapse:collapse; font-size:13px; }
 .wk-tbl td { padding:7px 6px; border-top:1px solid var(--border); vertical-align:top; }
 .wk-tbl tr:first-child td { border-top:0; }
-.wk-tbl td.wk-mut { white-space:nowrap; }
 .wk-num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .wk-co { cursor:pointer; color:var(--text); font-weight:500; }
 .wk-co:hover { color:var(--accent); }
@@ -1007,17 +1006,21 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .wk-funnel.sm .wk-fs b { font-size:16px; }
 .wk-rate { flex-shrink:0; font-size:12px; color:var(--accent); font-weight:600; min-width:34px; text-align:center; }
 .wk-rate::after { content:'→'; display:block; color:var(--text3); font-weight:400; }
-.wk-arrows { display:flex; gap:0; overflow-x:auto; scrollbar-width:none; padding-right:8px; }
-.wk-arrows::-webkit-scrollbar { display:none; }
+.wk-arrows { display:flex; gap:0; overflow-x:auto; padding-bottom:2px; }
 .wk-arrow { position:relative; flex:1; min-width:86px; height:58px; border:0; background:var(--bg3); color:var(--text); font:inherit; cursor:pointer; padding:0 8px 0 22px; text-align:center;
   clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%); margin-right:-8px; }
 .wk-arrow:first-child { clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%); padding-left:10px; border-radius:8px 0 0 8px; }
-.wk-arrow.wait { margin-left:18px; clip-path:none; border-radius:8px; padding:0 10px; background:var(--bg4); }
+.wk-arrow.won { background:var(--green-bg); }
+.wk-arrow.won b { color:var(--green); }
+.wk-arrow.side { flex:0 0 76px; min-width:76px; clip-path:none; border-radius:8px; padding:0 8px; background:var(--bg4); margin-right:6px; }
+.wk-arrow.side.lost b { color:var(--red); }
+.wk-agap { flex:0 0 14px; }
 .wk-arrow b { display:block; font-size:20px; line-height:1.1; font-variant-numeric:tabular-nums; }
 .wk-arrow span { font-size:12px; color:var(--text2); }
 .wk-arrow em { position:absolute; top:5px; right:18px; font-style:normal; font-size:11px; color:var(--green); }
-.wk-arrow.wait em { right:8px; }
-.wk-arrow.on { background:var(--accent); color:#fff; }
+.wk-arrow.side em { right:8px; }
+.wk-arrow.on, .wk-arrow.won.on, .wk-arrow.side.on { background:var(--accent); color:#fff; }
+.wk-arrow.on b { color:#fff !important; }
 .wk-arrow.on span { color:rgba(255,255,255,.85); }
 .wk-arrow.on em { color:#fff; }
 .wk-list { margin-top:12px; background:var(--bg3); border-radius:8px; padding:6px 10px; }
@@ -1033,6 +1036,60 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
   .wk-grid { grid-template-columns:1fr; }
   .wk-n { font-size:22px; }
   .wk-arrow { min-width:76px; }
+}
+
+.wk-tiles.six { grid-template-columns:repeat(6,1fr); }
+.wk-d { font-size:11.5px; font-weight:600; margin-left:6px; color:var(--text3); vertical-align:middle; }
+.wk-d.up { color:var(--green); } .wk-d.dn { color:var(--red); }
+.wk-bad { color:var(--red); } .wk-warn { color:var(--yellow); }
+.wk-mini { font-size:11.5px; color:var(--text3); margin:10px 0 5px; }
+.wk-seg { display:inline-flex; background:var(--bg3); border-radius:7px; padding:2px; margin-left:auto; }
+.wk-h .wk-seg { margin-left:6px; }
+.wk-seg button { border:0; background:none; color:var(--text2); font:inherit; font-size:12px; padding:3px 10px; border-radius:5px; cursor:pointer; }
+.wk-seg button.on { background:var(--bg2); color:var(--text); box-shadow:0 1px 2px rgba(0,0,0,.2); }
+.wk-team { width:100%; border-collapse:collapse; font-size:13px; }
+.wk-team th, .wk-team td { padding:8px 6px; text-align:center; border-top:1px solid var(--border); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.wk-team thead th { border-top:0; color:var(--text3); font-weight:500; font-size:12px; }
+.wk-team tbody th { text-align:left; font-weight:600; }
+.wk-team tbody tr { cursor:pointer; } .wk-team tbody tr:hover { background:var(--bg3); }
+.wk-wf { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.wk-wfs { background:var(--bg3); border-radius:8px; padding:10px 12px; }
+.wk-wft { font-size:12px; color:var(--text2); }
+.wk-wfr { font-size:22px; font-weight:700; margin:2px 0; color:var(--accent); font-variant-numeric:tabular-nums; }
+.wk-panel { margin-top:12px; background:var(--bg3); border-radius:8px; padding:10px 12px; }
+.wk-fchips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+.wk-fchip { border:1px solid var(--border); background:var(--bg2); color:var(--text2); font:inherit; font-size:12.5px; border-radius:16px; padding:4px 11px; cursor:pointer; display:inline-flex; gap:6px; align-items:baseline; }
+.wk-fchip b { font-size:14px; color:var(--text); }
+.wk-fchip.bad b { color:var(--red); } .wk-fchip.warn b { color:var(--yellow); } .wk-fchip.good b { color:var(--green); }
+.wk-fchip.on { border-color:var(--accent); background:var(--accent-glow); color:var(--text); }
+.wk-fchip.static { cursor:default; }
+.wk-leads thead th { font-size:11px; color:var(--text3); font-weight:500; text-align:right; padding:2px 6px; }
+.wk-leads td:not(:first-child) { white-space:nowrap; text-align:right; width:1%; }
+.wk-why { text-align:right; }
+.wk-why span { display:inline-block; font-size:11.5px; padding:1px 7px; border-radius:9px; background:var(--red-bg); color:var(--red); margin:1px 0 1px 4px; white-space:nowrap; }
+.wk-log { max-height:460px; overflow-y:auto; }
+.wk-logi { display:grid; grid-template-columns:110px 1fr; gap:10px; padding:8px 0; border-top:1px solid var(--border); font-size:13px; }
+.wk-logc { color:var(--text2); white-space:pre-wrap; margin-top:2px; font-size:12.5px; }
+.wq-top { display:flex; align-items:center; gap:8px; margin:-4px 0 12px; }
+.wq-tabs { display:flex; gap:2px; background:var(--bg3); border-radius:8px; padding:2px; }
+.wq-tabs button { border:0; background:none; color:var(--text2); font:inherit; font-size:12.5px; padding:5px 12px; border-radius:6px; cursor:pointer; }
+.wq-tabs button.on { background:var(--bg2); color:var(--text); }
+.wq-body { max-height:60vh; overflow-y:auto; }
+.wq-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; }
+.wq-f span { display:block; font-size:11.5px; color:var(--text3); margin-bottom:2px; }
+.wq-f > div { font-size:13.5px; }
+.wq-sel { height:32px; font-size:13px; padding:0 8px; }
+.wq-flags { margin:12px 0 0; }
+.wq-flags .wk-flag { font-size:18px; }
+.wq-last { margin-top:12px; background:var(--bg3); border-radius:8px; padding:10px 12px; font-size:13px; white-space:pre-wrap; }
+.wq-act { padding:9px 0; border-top:1px solid var(--border); font-size:13px; }
+.wq-act:first-child { border-top:0; }
+.wq-c { white-space:pre-wrap; margin-top:3px; }
+@media (max-width:768px) {
+  .wk-tiles.six { grid-template-columns:repeat(3,1fr); }
+  .wk-wf { grid-template-columns:1fr 1fr; }
+  .wq-grid { grid-template-columns:1fr; }
+  .wk-logi { grid-template-columns:1fr; gap:2px; }
 }
 </style>
 <script>
@@ -1087,7 +1144,7 @@ document.addEventListener('DOMContentLoaded',function(){var b=document.getElemen
     <div class="nav-search" onclick="openGlobalSearch()">🔍 搜尋公司、聯絡人、電話…<kbd>⌘K</kbd></div>
     <nav class="sidebar-nav">
       <div class="nav-section">
-        <div class="nav-item active" onclick="navigate('today')" id="nav-home">
+        <div class="nav-item active" onclick="navigate('weekly')" id="nav-home">
           <span class="nav-icon">📊</span><span class="nav-text">Dashboard</span>
         </div>
         <div class="nav-item" onclick="navigate('ccpool')" id="nav-cc">
@@ -1375,7 +1432,7 @@ function isMobile() { return window.innerWidth <= 768; }
 const M_MAP = { today: 'mtoday', leadlist: 'mclients', accounts: 'mclients', contacts: 'mclients', performance: 'mme' };
 function navigate(page, opt) {
   if (isMobile() && M_MAP[page]) page = M_MAP[page];
-  if (!isMobile() && page === 'mtoday') page = 'today';
+  if (!isMobile() && (page === 'mtoday' || page === 'today' || page === 'dashboard')) page = 'weekly';
   if (!isMobile() && page === 'mclients') page = 'leadlist';
   if (!isMobile() && page === 'mme') page = 'performance';
   currentPage = page;
@@ -1388,7 +1445,7 @@ function navigate(page, opt) {
 }
 // ── 五個區塊：Dashboard／開發看板／導入看板／列表清單／工具箱 ──
 const SECTIONS = [
-  { key: 'home', label: 'Dashboard', pages: [['today', '今天'], ['weekly', '週會'], ['dashboard', '數據'], ['performance', '業績']] },
+  { key: 'home', label: 'Dashboard', pages: [['weekly', '週會'], ['performance', '業績'], ['today', '今天', 'hidden'], ['dashboard', '數據', 'hidden']] },
   { key: 'cc', label: '陌開', pages: [['ccpool', '公海'], ['ccboard', '陌開進度'], ['ccstats', '統計'], ['coldcall', '開打', 'hidden'], ['cclist', '名單', 'hidden']] },
   { key: 'pipe', label: '開發看板', pages: [['leads', '']] },
   { key: 'onb', label: '導入看板', pages: [['onboard', '']] },
@@ -1422,7 +1479,7 @@ function openMoreMenu() {
     + b('weekly', '📋', '週會') + b('leads', '🗂', '開發看板')
     + b('onboard', '🚀', '導入看板')
     + b('ccboard', '📞', '陌開進度') + b('ccpool', '🌊', '公海')
-    + b('ccstats', '📈', '陌開統計') + b('dashboard', '📊', '數據')
+    + b('ccstats', '📈', '陌開統計')
     + b('performance', '💰', '業績明細') + b('bonus', '🧮', '獎金試算')
     + b('quotes', '🧾', '報價單') + b('decks', '📽', '簡報')
     + b('feed', '📰', '動態') + b('settings', '⚙️', '設定')
@@ -2041,6 +2098,7 @@ function ccIndNorm(raw) {
   for (let i = 0; i < CC_IND_RULES.length; i++) if (CC_IND_RULES[i][1].test(s)) return { industry: CC_IND_RULES[i][0], extra: s };
   return { industry: '其他', extra: s };
 }
+function leadIndGuess(name) { const s = String(name || '').replace(/(股份)?有限公司|企業社|工作室|商行|實業/g, ''); for (let i = 0; i < CC_IND_RULES.length; i++) if (CC_IND_RULES[i][1].test(s)) return CC_IND_RULES[i][0]; return null; }
 function ccIndDatalist() { return '<datalist id="ccIndList">' + CC_INDUSTRIES.map(function (v) { return '<option value="' + v + '">'; }).join('') + '</datalist>'; }
 // 遊戲化：各行為得分（即時由 call_logs 算出，不另存分數）
 const CC_POINTS = { call: 1, connected: 5, interested: 20, converted: 50 };
@@ -2427,6 +2485,7 @@ async function ccDoConvert(c) {
       stage_id: document.getElementById('cvStage').value || null,
       source_id: document.getElementById('cvSource').value || null,
       product_type: document.getElementById('cvIndustry').value.trim() || null,
+      industry: (function () { const v = ccIndNorm(document.getElementById('cvIndustry').value).industry; return v && v !== '其他' ? v : leadIndGuess(name); })(),
       user_id: c.owner_id || currentUser.id,
       user_name: c.owner_name || myName,
       next_contact_date: document.getElementById('cvNext').value || null,
@@ -4491,7 +4550,7 @@ async function runLostReport() {
 }
 
 // ════════════════════════ 業務週會（週六～週五）════════════════════════
-let _wk = { start: null, tab: 'all', data: null, cache: {}, open: {} };
+let _wk = { start: null, tab: 'all', data: null, cache: {}, st: null, chip: null, mx: 'rep', fn: 'week', logOpen: false, reg: [] };
 function wkSat(d) { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 1) % 7)); return t.toISOString().slice(0, 10); }
 function wkAdd(d, n) { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); }
 async function wkFetch(start, force) {
@@ -4502,6 +4561,8 @@ async function wkFetch(start, force) {
   if (!r.ok) throw new Error(j.error || r.status);
   _wk.cache[start] = j; return j;
 }
+// 名單清單登記：按鈕只帶編號，避免把 id 陣列塞進 HTML
+function wkReg(ids, title) { _wk.reg.push({ ids: ids || [], title: title || '' }); return _wk.reg.length - 1; }
 async function renderWeekly(force) {
   const thisSat = wkSat(nowDateStr());
   if (!_wk.start) _wk.start = wkAdd(thisSat, -7);
@@ -4510,10 +4571,11 @@ async function renderWeekly(force) {
   let d;
   try { d = await wkFetch(_wk.start, force); } catch (e) { el.innerHTML = '<div class="empty-state">讀取失敗：' + esc(e.message) + '</div>'; return; }
   if (currentPage !== 'weekly') return;
-  _wk.data = d;
+  _wk.data = d; _wk.reg = [];
   if (_wk.tab !== 'all' && !d.reps.some(function (r) { return r.user_id === _wk.tab; })) _wk.tab = 'all';
   const tabs = [['all', '整體']].concat(d.reps.map(function (r) { return [r.user_id, r.rep]; }));
   const ti = tabs.findIndex(function (t) { return t[0] === _wk.tab; });
+  const st = el.scrollTop;
   el.innerHTML = '<div class="wk">'
     + '<div class="wk-head">'
     + '<button class="btn btn-ghost btn-sm" onclick="wkGo(-7)">‹</button><b class="wk-range">' + esc(d.week.label) + '</b>'
@@ -4524,54 +4586,83 @@ async function renderWeekly(force) {
     + (_wk.tab === 'all' ? wkOverall(d) : wkRep(d, d.reps.find(function (r) { return r.user_id === _wk.tab; })))
     + '<div class="wk-foot">' + (ti < tabs.length - 1 ? '<button class="btn btn-secondary" onclick="wkTab(\'' + tabs[ti + 1][0] + '\')">下一位：' + esc(tabs[ti + 1][1]) + ' →</button>' : '') + '</div>'
     + '</div>';
+  el.scrollTop = st;
 }
-function wkGo(n) { _wk.start = wkAdd(_wk.start, n); _wk.open = {}; renderWeekly(); }
-function wkTab(t) { _wk.tab = t; _wk.open = {}; renderWeekly(); document.getElementById('content').scrollTop = 0; }
+function wkRedraw() { renderWeekly(); }
+function wkGo(n) { _wk.start = wkAdd(_wk.start, n); _wk.st = null; _wk.chip = null; renderWeekly(); }
+function wkTab(t) { _wk.tab = t; _wk.st = null; _wk.chip = null; _wk.logOpen = false; renderWeekly(); document.getElementById('content').scrollTop = 0; }
+function wkSet(k, v) { _wk[k] = v; wkRedraw(); }
 function wkPct(v) { return v == null ? '—' : v + '%'; }
+function wkMoney(n) { if (!n) return ''; return n >= 10000 ? '$' + (Math.round(n / 1000) / 10) + '萬' : '$' + fmtNum(n); }
+function wkDelta(c, p, badUp) {
+  if (p == null) return '';
+  const d = c - p; if (!d) return '<span class="wk-d">持平</span>';
+  const good = badUp ? d < 0 : d > 0;
+  return '<span class="wk-d ' + (good ? 'up' : 'dn') + '">' + (d > 0 ? '▲' : '▼') + Math.abs(d) + '</span>';
+}
 function wkTile(n, label, sub, cls) { return '<div class="wk-tile ' + (cls || '') + '"><div class="wk-n">' + n + '</div><div class="wk-l">' + label + '</div>' + (sub ? '<div class="wk-s">' + sub + '</div>' : '') + '</div>'; }
-function wkIds(ids) { return encodeURIComponent(JSON.stringify(ids || [])); }
 function wkPopBtn(ids, title, inner, cls) {
   if (!ids || !ids.length) return '<span class="' + (cls || '') + ' wk-zero">' + inner + '</span>';
-  return '<button class="wk-link ' + (cls || '') + '" onclick="wkPop(\'' + esc(title).replace(/'/g, '') + '\',\'' + wkIds(ids) + '\')">' + inner + '</button>';
+  return '<button class="wk-link ' + (cls || '') + '" onclick="wkPop(' + wkReg(ids, title) + ')">' + inner + '</button>';
 }
-function wkBar(rows, total) {
-  const C = ['var(--accent)', 'var(--purple)', 'var(--yellow)', 'var(--cyan)', 'var(--red)', 'var(--green)', 'var(--text3)'];
-  if (!rows.length) return '<div class="wk-none">—</div>';
-  return '<div class="wk-sbar">' + rows.map(function (r, i) { return '<span style="flex:' + r.n + ';background:' + C[i % C.length] + '"></span>'; }).join('') + '</div>'
-    + '<div class="wk-legend">' + rows.map(function (r, i) { return '<span><i style="background:' + C[i % C.length] + '"></i>' + esc(r.reason) + ' <b>' + r.n + '</b> <em>' + r.pct + '%</em></span>'; }).join('') + '</div>';
+function wkSeg(key, opts) { return '<span class="wk-seg">' + opts.map(function (o) { return '<button class="' + (_wk[key] === o[0] ? 'on' : '') + '" onclick="wkSet(\'' + key + '\',\'' + o[0] + '\')">' + o[1] + '</button>'; }).join('') + '</span>'; }
+const WK_C = ['var(--accent)', 'var(--purple)', 'var(--yellow)', 'var(--cyan)', 'var(--red)', 'var(--green)', 'var(--text3)'];
+function wkBar(rows) {
+  if (!rows || !rows.length) return '<div class="wk-none">—</div>';
+  return '<div class="wk-sbar">' + rows.map(function (r, i) { return '<span style="flex:' + r.n + ';background:' + WK_C[i % WK_C.length] + '"></span>'; }).join('') + '</div>'
+    + '<div class="wk-legend">' + rows.map(function (r, i) { return '<span><i style="background:' + WK_C[i % WK_C.length] + '"></i>' + esc(r.reason) + ' <b>' + r.n + '</b> <em>' + r.pct + '%</em></span>'; }).join('') + '</div>';
 }
-function wkFunnel(f, small) {
-  const st = ['新名單', '約Demo', '有望成交', '議價中', '簽約進件'];
-  return '<div class="wk-funnel' + (small ? ' sm' : '') + '">' + st.map(function (s, i) {
-    return (i ? '<div class="wk-rate">' + wkPct(f.steps[i - 1].rate) + '</div>' : '') + '<div class="wk-fs"><b>' + (f.reached[s] || 0) + '</b><span>' + (s === '簽約進件' ? '成交' : s) + '</span></div>';
+function wkFunnelCard(f12, fw, small) {
+  const head = '<div class="wk-h">轉換率 ' + wkSeg('fn', [['week', '這週'], ['12w', '近 12 週']]) + '</div>';
+  if (_wk.fn === '12w') {
+    const st = ['新名單', '約Demo', '有望成交', '議價中', '簽約進件'];
+    return head + '<div class="wk-funnel' + (small ? ' sm' : '') + '">' + st.map(function (s, i) {
+      return (i ? '<div class="wk-rate">' + wkPct(f12.steps[i - 1].rate) + '</div>' : '') + '<div class="wk-fs"><b>' + (f12.reached[s] || 0) + '</b><span>' + (s === '簽約進件' ? '成交' : s) + '</span></div>';
+    }).join('') + '</div>';
+  }
+  return head + '<div class="wk-wf">' + fw.map(function (s) {
+    return '<div class="wk-wfs"><div class="wk-wft">' + esc(s.from) + ' → ' + (s.to === '簽約進件' ? '成交' : esc(s.to)) + '</div>'
+      + '<div class="wk-wfr">' + wkPct(s.rate) + '</div>'
+      + '<div class="wk-mut">' + wkPopBtn(s.leads, s.from + ' 推進', s.advanced) + ' / ' + s.base
+      + (s.wait ? '・等待 ' + s.wait : '') + (s.lost ? '・結案 ' + s.lost : '') + '</div></div>';
   }).join('') + '</div>';
 }
+function wkMatrix(cols, rows, labelKey, colTotals, total) {
+  const mx = Math.max.apply(null, rows.map(function (r) { return Math.max.apply(null, cols.map(function (c) { return r.cells[c].length; })); }).concat([1]));
+  return '<div class="wk-scroll"><table class="wk-mx"><thead><tr><th></th>' + cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '<th>合計</th></tr></thead><tbody>'
+    + rows.map(function (r) {
+      return '<tr><th>' + esc(r[labelKey]) + '</th>' + cols.map(function (c) {
+        const ids = r.cells[c], a = ids.length / mx;
+        return '<td style="background:rgba(108,140,255,' + (ids.length ? (0.08 + a * 0.42).toFixed(2) : 0) + ')">' + wkPopBtn(ids, r[labelKey] + '・' + c, ids.length || '') + '</td>';
+      }).join('') + '<td class="wk-tot">' + r.total + '</td></tr>';
+    }).join('')
+    + (colTotals ? '<tr class="wk-tot"><th>合計</th>' + cols.map(function (c) { return '<td>' + colTotals[c] + '</td>'; }).join('') + '<td>' + total + '</td></tr>' : '')
+    + '</tbody></table></div>';
+}
+
+// ── 整體 ──
 function wkOverall(d) {
   const o = d.overall, adm = d.viewer.role === 'admin';
   const maxSrc = Math.max.apply(null, o.new_leads.by_source.map(function (g) { return g.n; }).concat([1]));
   const src = o.new_leads.by_source.map(function (g) {
     const reps = Object.keys(g.by_rep || {}).map(function (k) { return '<span class="wk-chip">' + esc(k) + ' ' + g.by_rep[k] + '</span>'; }).join('');
-    return '<div class="wk-hrow"><span class="wk-hl">' + esc(g.source) + '</span><div class="wk-hbar"><span style="width:' + (g.n / maxSrc * 100) + '%"></span></div>'
-      + wkPopBtn(g.leads, g.source + ' 新線索', g.n, 'wk-hn') + '</div>' + (reps ? '<div class="wk-sub">' + reps + '</div>' : '');
+    return '<div class="wk-hrow"><span class="wk-hl' + (g.source === '未填來源' ? ' wk-warn' : '') + '">' + esc(g.source) + '</span><div class="wk-hbar"><span style="width:' + (g.n / maxSrc * 100) + '%"></span></div>'
+      + wkPopBtn(g.leads, g.source + '・新線索', g.n, 'wk-hn') + '</div>' + (reps ? '<div class="wk-sub">' + reps + '</div>' : '');
   }).join('');
   const maxA = Math.max.apply(null, o.assigned.by_rep.map(function (g) { return g.n; }).concat([1]));
   const asg = o.assigned.by_rep.length ? o.assigned.by_rep.map(function (g) {
-    return '<div class="wk-hrow"><span class="wk-hl">' + esc(g.rep) + '</span><div class="wk-hbar"><span style="width:' + (g.n / maxA * 100) + '%"></span></div>' + wkPopBtn(g.leads, g.rep + ' 分配', g.n, 'wk-hn') + '</div>';
+    return '<div class="wk-hrow"><span class="wk-hl">' + esc(g.rep) + '</span><div class="wk-hbar"><span style="width:' + (g.n / maxA * 100) + '%"></span></div>' + wkPopBtn(g.leads, g.rep + '・分配', g.n, 'wk-hn') + '</div>';
   }).join('') : '<div class="wk-none">—</div>';
-  const deals = o.deals.list.length ? '<table class="wk-tbl"><tbody>' + o.deals.list.map(function (x) {
-    return '<tr><td>' + (x.lead_id ? '<a class="wk-co" onclick="openCompany(\'' + x.lead_id + '\')">' + esc(x.company) + '</a>' : esc(x.company)) + '</td><td class="wk-mut">' + esc(x.owner) + '</td>'
-      + '<td>' + esc(x.category || '') + (x.items.length ? '<div class="wk-mut">' + x.items.map(esc).join('・') + '</div>' : '') + '</td>'
-      + (adm ? '<td class="wk-num">' + (x.amount ? '$' + fmtNum(x.amount) : '') + '</td>' : '') + '</tr>';
-  }).join('') + '</tbody></table>' : '<div class="wk-none">—</div>';
-  const m = o.open, mx = Math.max.apply(null, m.rows.map(function (r) { return Math.max.apply(null, m.cols.map(function (c) { return r.cells[c].length; })); }).concat([1]));
-  const matrix = '<div class="wk-scroll"><table class="wk-mx"><thead><tr><th></th>' + m.cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '<th>合計</th></tr></thead><tbody>'
-    + m.rows.map(function (r) {
-      return '<tr><th>' + esc(r.rep) + '</th>' + m.cols.map(function (c) {
-        const ids = r.cells[c], a = ids.length / mx;
-        return '<td style="background:rgba(108,140,255,' + (ids.length ? (0.08 + a * 0.42).toFixed(2) : 0) + ')">' + wkPopBtn(ids, r.rep + '・' + c, ids.length || '') + '</td>';
-      }).join('') + '<td class="wk-tot">' + r.total + '</td></tr>';
-    }).join('')
-    + '<tr class="wk-tot"><th>合計</th>' + m.cols.map(function (c) { return '<td>' + m.col_totals[c] + '</td>'; }).join('') + '<td>' + m.total + '</td></tr></tbody></table></div>';
+  const deals = wkDealsTable(o.deals.list, adm, true);
+  const T = o.team;
+  const tcol = [['activities', '活動'], ['companies', '接觸'], ['calls', '撥打'], ['cold_converted', '陌開轉'], ['assigned', '分配'], ['demo_in', '新約Demo'], ['deals', '成交'], ['lost', '結案'], ['open', '進行中'], ['overdue', '逾期'], ['first_touch_hours', '首聯(時)']];
+  const team = T.length ? '<div class="wk-scroll"><table class="wk-team"><thead><tr><th></th>' + tcol.map(function (c) { return '<th>' + c[1] + '</th>'; }).join('') + '</tr></thead><tbody>'
+    + T.map(function (r) { return '<tr onclick="wkTab(\'' + r.user_id + '\')"><th>' + esc(r.rep) + '</th>' + tcol.map(function (c) { const v = r[c[0]]; return '<td class="' + (c[0] === 'overdue' && v ? 'wk-bad' : '') + '">' + (v == null || v === 0 ? '<span class="wk-zero">' + (v == null ? '—' : 0) + '</span>' : v) + '</td>'; }).join('') + '</tr>'; }).join('')
+    + '</tbody></table></div>' : '';
+  const m = o.open;
+  const mxHtml = _wk.mx === 'ind' ? wkMatrix(m.cols, m.by_industry, 'key', m.col_totals, m.total) : wkMatrix(m.cols, m.rows, 'rep', m.col_totals, m.total);
+  const ren = o.renewals.length ? o.renewals.map(function (r) { return '<tr><td>' + wkCo(r.lead_id, r.company) + '</td><td class="wk-mut">' + esc(r.owner) + '</td><td class="wk-num ' + (r.days < 0 ? 'wk-bad' : r.days <= 14 ? 'wk-warn' : '') + '">' + (r.days < 0 ? '過期 ' + (-r.days) + ' 天' : r.days + ' 天') + '</td></tr>'; }).join('') : '';
+  const due = o.dues.length ? o.dues.map(function (r) { return '<tr><td>' + wkCo(r.lead_id, r.company) + '<div class="wk-mut">' + esc(r.label) + '</div></td><td class="wk-mut">' + esc(r.owner) + '</td>' + (adm ? '<td class="wk-num">' + wkMoney(r.amount) + '</td>' : '') + '<td class="wk-num ' + (r.days < 0 ? 'wk-bad' : '') + '">' + (r.days < 0 ? '逾期 ' + (-r.days) + ' 天' : r.days === 0 ? '今天' : r.days + ' 天') + '</td></tr>'; }).join('') : '';
   return '<div class="wk-tiles">'
     + wkTile(o.new_leads.total, '新線索') + wkTile(o.assigned.total, '分配') + wkTile(o.deals.companies, '成交', '', 'good') + wkTile(o.lost.total, '結案', '', 'bad')
     + '</div><div class="wk-grid">'
@@ -4580,64 +4671,210 @@ function wkOverall(d) {
     + '<div class="card"><div class="wk-h">成交</div>' + deals + '</div>'
     + '<div class="card"><div class="wk-h">結案原因 ' + wkPopBtn(o.lost.leads, '本週結案', '<span class="wk-mut">' + o.lost.total + ' 間 ›</span>') + '</div>' + wkBar(o.lost.reasons) + '</div>'
     + '</div>'
-    + '<div class="card wk-wide"><div class="wk-h">進行中 <span class="wk-mut">' + m.total + '</span></div>' + matrix + '</div>'
-    + '<div class="card wk-wide"><div class="wk-h">轉換率 <span class="wk-mut">近 12 週</span></div>' + wkFunnel(o.funnel_12w) + '</div>';
+    + (team ? '<div class="card wk-wide"><div class="wk-h">業務對照</div>' + team + '</div>' : '')
+    + '<div class="card wk-wide"><div class="wk-h">進行中 <span class="wk-mut">' + m.total + '</span><span style="flex:1"></span>' + wkSeg('mx', [['rep', '業務'], ['ind', '產業']]) + '</div>' + mxHtml + '</div>'
+    + '<div class="card wk-wide">' + wkFunnelCard(o.funnel_12w, o.funnel_week) + '</div>'
+    + ((ren || due) ? '<div class="wk-grid">'
+      + '<div class="card"><div class="wk-h">續約提醒</div>' + (ren ? '<table class="wk-tbl"><tbody>' + ren + '</tbody></table>' : '<div class="wk-none">—</div>') + '</div>'
+      + '<div class="card"><div class="wk-h">待收款 <span class="wk-mut">逾期＋14 天內</span></div>' + (due ? '<table class="wk-tbl"><tbody>' + due + '</tbody></table>' : '<div class="wk-none">—</div>') + '</div>'
+      + '</div>' : '');
 }
+function wkCo(id, name) { return id ? '<a class="wk-co" onclick="wkQuick(\'' + id + '\')">' + esc(name || '') + '</a>' : esc(name || ''); }
+function wkDealsTable(list, adm, withOwner) {
+  if (!list.length) return '<div class="wk-none">—</div>';
+  return '<table class="wk-tbl"><tbody>' + list.map(function (x) {
+    return '<tr><td>' + wkCo(x.lead_id, x.company) + '</td>' + (withOwner ? '<td class="wk-mut">' + esc(x.owner) + '</td>' : '')
+      + '<td>' + esc(x.category || '') + (x.items.length ? '<div class="wk-mut">' + x.items.map(esc).join('・') + '</div>' : '') + '</td>'
+      + (adm ? '<td class="wk-num">' + (x.amount ? '$' + fmtNum(x.amount) : '') + '</td>' : '') + '</tr>';
+  }).join('') + '</tbody></table>';
+}
+
+// ── 各業務 ──
 function wkRep(d, r) {
   if (!r) return '';
-  const c = r.cold, a = r.assigned, p = r.pipeline;
+  const c = r.cold, a = r.assigned, p = r.pipeline, k = r.kpi.cur, kp = r.kpi.prev, adm = d.viewer.role === 'admin';
   const prog = function (n, t) { return t ? '<div class="wk-prog"><span style="width:' + Math.min(100, n / t * 100) + '%;background:' + (n >= t ? 'var(--green)' : 'var(--accent)') + '"></span></div>' : ''; };
+  const tiles = '<div class="wk-tiles six">'
+    + wkTile(k.activities + wkDelta(k.activities, kp.activities), '活動', '接觸 ' + k.companies + ' 家')
+    + wkTile(k.demo_in + wkDelta(k.demo_in, kp.demo_in), '新約 Demo', '', 'good')
+    + wkTile(k.deals + wkDelta(k.deals, kp.deals), '成交', '', 'good')
+    + wkTile(k.lost + wkDelta(k.lost, kp.lost, true), '結案', '', 'bad')
+    + wkTile(p.open, '進行中', p.overdue ? '<span class="wk-bad">逾期 ' + p.overdue + '</span>' : '')
+    + wkTile(p.expected_hot ? wkMoney(p.expected_hot) : '—', '有望＋議價 預估', '')
+    + '</div>';
   const cold = '<div class="card"><div class="wk-h">陌開</div><div class="wk-tiles in">'
-    + wkTile(c.called + (c.target_week ? '<small>/' + c.target_week + '</small>' : ''), '打了', prog(c.called, c.target_week) + (c.dials > c.called ? c.dials + ' 通' : ''))
+    + wkTile(c.called + (c.target_week ? '<small>/' + c.target_week + '</small>' : '') + wkDelta(k.called, kp.called), '打了', prog(c.called, c.target_week) + (c.dials > c.called ? c.dials + ' 通' : ''))
     + wkTile(wkPopBtn(c.converted_leads, r.rep + '・陌開轉線索', c.converted) + (c.conv_target_week ? '<small>/' + c.conv_target_week + '</small>' : ''), '轉線索', prog(c.converted, c.conv_target_week) + '轉換 ' + wkPct(c.conv_rate) + (c.rate_target ? '・目標 ' + c.rate_target + '%' : ''), 'good')
-    + wkTile(c.ended, '結束', '', 'bad') + '</div>' + (c.end_reasons.length ? wkBar(c.end_reasons) : '') + '</div>';
+    + wkTile(c.ended, '結束', '', 'bad') + '</div>'
+    + (c.outcomes.length ? '<div class="wk-mini">通話結果</div>' + wkBar(c.outcomes) : '')
+    + (c.end_reasons.length ? '<div class="wk-mini">結束原因</div>' + wkBar(c.end_reasons) : '') + '</div>';
   const asg = '<div class="card"><div class="wk-h">分配名單</div><div class="wk-tiles in">'
-    + wkTile(wkPopBtn(a.leads, r.rep + '・本週分配', a.n), '分配') + wkTile(a.reached_demo, '約到 Demo', a.n ? wkPct(Math.round(a.reached_demo * 100 / a.n)) : '', 'good') + wkTile(a.lost, '結案', '', 'bad')
-    + '</div>' + (a.lost_reasons.length ? wkBar(a.lost_reasons) : '')
-    + '<div class="wk-note">近 12 週 ' + a.last_12w.n + ' 筆・約 Demo ' + wkPct(a.last_12w.demo_rate) + '・結案 ' + wkPct(a.last_12w.lost_rate) + '</div></div>';
-  const arrows = '<div class="wk-arrows">' + p.stages.map(function (s) {
-    const on = _wk.open[s.stage];
-    return '<button class="wk-arrow' + (on ? ' on' : '') + (s.stage === '等待' ? ' wait' : '') + '" onclick="wkToggle(\'' + s.stage + '\')"><b>' + s.n + '</b><span>' + esc(s.stage) + '</span>' + (s.moved_in ? '<em>+' + s.moved_in + '</em>' : '') + '</button>';
-  }).join('') + '</div>';
-  const lists = p.stages.filter(function (s) { return _wk.open[s.stage]; }).map(function (s) {
-    return '<div class="wk-list"><div class="wk-lh">' + esc(s.stage) + '</div>' + wkLeadRows(s.leads, true) + '</div>';
-  }).join('');
-  const flags = [p.key ? '⭐ ' + p.key : '', p.help ? '🆘 ' + p.help : '', p.overdue ? '<span style="color:var(--red)">逾期 ' + p.overdue + '</span>' : '', p.no_next_date ? '沒排下次 ' + p.no_next_date : ''].filter(Boolean).join('　');
-  const dev = '<div class="card wk-wide"><div class="wk-h">開發 <span class="wk-mut">' + p.open + '</span><span style="flex:1"></span><span class="wk-mut" style="font-weight:400">' + flags + '</span></div>'
-    + arrows + lists
-    + '<div class="wk-h" style="margin-top:14px">轉換率 <span class="wk-mut">近 12 週</span></div>' + wkFunnel(r.funnel_12w, true) + '</div>';
-  return '<div class="wk-grid">' + cold + asg + '</div>' + dev;
+    + wkTile(wkPopBtn(a.leads, r.rep + '・本週分配', a.n), '分配', a.not_touched.length ? '<span class="wk-bad">' + wkPopBtn(a.not_touched, '分配後還沒聯絡', a.not_touched.length + ' 筆沒聯絡') + '</span>' : '')
+    + wkTile(a.reached_demo, '約到 Demo', a.n ? wkPct(Math.round(a.reached_demo * 100 / a.n)) : '', 'good')
+    + wkTile(a.lost, '結案', '', 'bad') + '</div>' + (a.lost_reasons.length ? wkBar(a.lost_reasons) : '')
+    + '<div class="wk-note">近 12 週 ' + a.last_12w.n + ' 筆・約 Demo ' + wkPct(a.last_12w.demo_rate) + '・結案 ' + wkPct(a.last_12w.lost_rate)
+    + (a.first_touch_hours_median != null ? '・首次聯絡 ' + wkHours(a.first_touch_hours_median) : '') + (r.cycle_days_median != null ? '・成交週期 ' + r.cycle_days_median + ' 天' : '') + '</div></div>';
+  // 開發箭頭
+  const arrows = p.stages.filter(function (s) { return s.stage !== '等待'; }).map(function (s) { return wkArrow(s.stage, s.n, s.moved_in); }).join('')
+    + wkArrow('成交', p.won.n, 0, 'won')
+    + '<span class="wk-agap"></span>'
+    + p.stages.filter(function (s) { return s.stage === '等待'; }).map(function (s) { return wkArrow(s.stage, s.n, s.moved_in, 'side'); }).join('')
+    + wkArrow('結案', p.lost.n, 0, 'side lost');
+  const panel = _wk.st ? wkStagePanel(r, adm) : '';
+  const flags = [p.key ? '⭐ ' + p.key : '', p.help ? '🆘 ' + p.help : '', p.no_next_date ? '沒排下次 ' + p.no_next_date : ''].filter(Boolean).join('　');
+  const dev = '<div class="card wk-wide"><div class="wk-h">開發 <span class="wk-mut">' + p.open + '</span><span style="flex:1"></span><span class="wk-mut">' + flags + '</span></div>'
+    + '<div class="wk-arrows">' + arrows + '</div>' + panel + '</div>';
+  const att = r.attention.length ? '<table class="wk-tbl wk-leads"><tbody>' + r.attention.map(function (x) {
+    const L = d.leads[x.lead] || {};
+    return '<tr><td>' + wkCo(x.lead, L.name) + '<div class="wk-mut">' + esc(L.stage || '') + (L.expected ? '・' + wkMoney(L.expected) : '') + '</div></td><td class="wk-why">' + x.why.map(function (w) { return '<span>' + esc(w) + '</span>'; }).join('') + '</td></tr>';
+  }).join('') + '</tbody></table>' : '<div class="wk-none">沒有</div>';
+  const ind = p.by_industry.length ? wkMatrix(p.stages.map(function (s) { return s.stage; }), p.by_industry, 'key') : '<div class="wk-none">—</div>';
+  const log = r.activity.n ? '<div class="card wk-wide"><div class="wk-h" style="cursor:pointer" onclick="wkSet(\'logOpen\',' + (!_wk.logOpen) + ')">本週紀錄 <span class="wk-mut">' + r.activity.n + '</span>'
+    + '<span class="wk-mut" style="font-weight:400">' + r.activity.by_type.map(function (t) { return esc(t.type) + ' ' + t.n; }).join('・') + '</span><span style="flex:1"></span><span class="wk-mut">' + (_wk.logOpen ? '收起' : '展開') + '</span></div>'
+    + (_wk.logOpen ? '<div class="wk-log">' + r.activity.log.map(function (x) {
+      return '<div class="wk-logi"><div class="wk-mut">' + esc(x.when.slice(5)) + '・' + esc(x.type) + '</div><div>' + (x.lead ? wkCo(x.lead, x.company) : esc(x.company || '')) + '<div class="wk-logc">' + esc(x.content) + '</div></div></div>';
+    }).join('') + '</div>' : '') + '</div>' : '';
+  return tiles + '<div class="wk-grid">' + cold + asg + '</div>' + dev
+    + '<div class="wk-grid"><div class="card"><div class="wk-h">需要關注</div>' + att + '</div>'
+    + '<div class="card"><div class="wk-h">產業 × 階段</div>' + ind + '</div></div>'
+    + '<div class="card wk-wide">' + wkFunnelCard(r.funnel_12w, r.funnel_week, true) + '</div>' + log;
 }
-function wkToggle(st) { _wk.open[st] = !_wk.open[st]; renderWeekly(); }
-function wkLeadRows(ids, withFlag) {
+function wkHours(h) { return h < 48 ? h + ' 小時' : Math.round(h / 24) + ' 天'; }
+function wkArrow(st, n, moved, cls) {
+  return '<button class="wk-arrow ' + (cls || '') + (_wk.st === st ? ' on' : '') + '" onclick="wkPickStage(\'' + st + '\')"><b>' + n + '</b><span>' + esc(st) + '</span>' + (moved ? '<em>+' + moved + '</em>' : '') + '</button>';
+}
+function wkPickStage(st) { _wk.st = _wk.st === st ? null : st; _wk.chip = null; wkRedraw(); }
+function wkStagePanel(r, adm) {
+  const p = r.pipeline, st = _wk.st;
+  if (st === '成交') return '<div class="wk-panel">' + wkDealsTable(p.won.list, adm, false) + '</div>';
+  if (st === '結案') return '<div class="wk-panel">' + wkBar(p.lost.reasons) + '<div style="margin-top:8px">' + wkLeadRows(p.lost.leads, { lost: true }) + '</div></div>';
+  const s = p.stages.find(function (x) { return x.stage === st; }); if (!s) return '';
+  const chip = _wk.chip != null ? s.focus[_wk.chip] : null;
+  const chips = s.focus.map(function (f, i) {
+    return '<button class="wk-fchip ' + f.tone + (_wk.chip === i ? ' on' : '') + '" onclick="wkSet(\'chip\',' + (_wk.chip === i ? 'null' : i) + ')"><b>' + f.n + '</b>' + esc(f.label) + '</button>';
+  }).join('') + (s.expected ? '<span class="wk-fchip static"><b>' + wkMoney(s.expected) + '</b>預估</span>' : '');
+  const showExp = st === '有望成交' || st === '議價中';
+  return '<div class="wk-panel">' + (chips ? '<div class="wk-fchips">' + chips + '</div>' : '') + wkLeadRows(chip ? chip.leads : s.leads, { exp: showExp, quote: showExp, stay: true }) + '</div>';
+}
+// opt: { pop: 在 popup 裡（多顯示階段、負責人）, exp, quote, stay, lost }
+function wkLeadRows(ids, opt) {
+  opt = opt || {};
   const L = _wk.data.leads;
   if (!ids || !ids.length) return '<div class="wk-none">—</div>';
   const rank = function (x) { return x.flag === 'help' ? 0 : x.flag === 'key' ? 1 : x.overdue ? 2 : 3; };
-  const rows = ids.map(function (id) { return Object.assign({ id: id }, L[id] || {}); }).sort(function (a, b) { return rank(a) - rank(b) || (b.days_since_touch || 0) - (a.days_since_touch || 0); });
-  return '<table class="wk-tbl wk-leads"><tbody>' + rows.map(function (x) {
+  const rows = ids.map(function (id) { return Object.assign({ id: id }, L[id] || {}); }).sort(function (a, b) { return rank(a) - rank(b) || (b.days_since_touch == null ? 999 : b.days_since_touch) - (a.days_since_touch == null ? 999 : a.days_since_touch); });
+  const back = opt.pop != null ? opt.pop : -1;
+  return '<table class="wk-tbl wk-leads"><thead><tr><th></th><th>下次</th><th>沒聯絡</th>' + (opt.stay ? '<th>停留</th>' : '') + (opt.exp ? '<th>預估</th>' : '') + (opt.quote ? '<th>報價</th>' : '') + '<th></th></tr></thead><tbody>' + rows.map(function (x) {
     const nd = x.next ? x.next.slice(5).replace('-', '/') : '';
-    return '<tr data-id="' + x.id + '"><td><a class="wk-co" onclick="closeModal();openCompany(\'' + x.id + '\')">' + esc(x.name || '') + '</a>'
-      + (withFlag ? '' : '<div class="wk-mut">' + esc(x.owner || '') + '・' + esc(x.stage || '') + '</div>') + (x.lost_reason && !withFlag ? '<div class="wk-mut">' + esc(x.lost_reason) + '</div>' : '') + '</td>'
-      + '<td class="wk-mut" title="下次聯絡">' + (nd ? '<span' + (x.overdue ? ' style="color:var(--red)"' : '') + '>' + nd + '</span>' : '') + '</td>'
-      + '<td class="wk-mut" title="多久沒聯絡">' + (x.days_since_touch != null ? x.days_since_touch + '天' : '') + '</td>'
-      + '<td class="wk-flags"><button class="wk-flag' + (x.flag === 'key' ? ' on' : '') + '" title="重點" onclick="wkFlag(\'' + x.id + '\',\'key\')">⭐</button><button class="wk-flag' + (x.flag === 'help' ? ' on' : '') + '" title="需協助" onclick="wkFlag(\'' + x.id + '\',\'help\')">🆘</button></td></tr>';
+    const sub = [opt.pop != null ? x.stage : '', opt.pop != null ? x.owner : '', x.industry && x.industry !== '未分類' ? x.industry : ''].filter(Boolean).join('・');
+    return '<tr data-id="' + x.id + '"><td><a class="wk-co" onclick="wkQuick(\'' + x.id + '\',' + back + ')">' + esc(x.name || '') + '</a>'
+      + (sub ? '<div class="wk-mut">' + esc(sub) + '</div>' : '') + (opt.lost && x.lost_reason ? '<div class="wk-mut">' + esc(x.lost_reason) + '</div>' : '') + '</td>'
+      + '<td class="wk-mut">' + (nd ? '<span' + (x.overdue ? ' class="wk-bad"' : '') + '>' + nd + '</span>' : '') + '</td>'
+      + '<td class="wk-mut">' + (x.days_since_touch != null ? '<span class="' + (x.days_since_touch >= 14 ? 'wk-bad' : x.days_since_touch >= 7 ? 'wk-warn' : '') + '">' + x.days_since_touch + '天</span>' : '<span class="wk-warn">沒有</span>') + '</td>'
+      + (opt.stay ? '<td class="wk-mut">' + (x.days_in_stage != null ? x.days_in_stage + '天' : '') + '</td>' : '')
+      + (opt.exp ? '<td class="wk-mut">' + wkMoney(x.expected) + '</td>' : '')
+      + (opt.quote ? '<td class="wk-mut">' + (x.quoted ? '✓' : '') + '</td>' : '')
+      + '<td class="wk-flags">' + wkFlagBtns(x) + '</td></tr>';
   }).join('') + '</tbody></table>';
 }
-function wkPop(title, enc) {
-  const ids = JSON.parse(decodeURIComponent(enc));
-  openModal(title + '（' + ids.length + '）', wkLeadRows(ids, false));
+function wkFlagBtns(x) {
+  return '<button class="wk-flag' + (x.flag === 'key' ? ' on' : '') + '" data-f="key" title="重點" onclick="wkFlag(\'' + x.id + '\',\'key\')">⭐</button>'
+    + '<button class="wk-flag' + (x.flag === 'help' ? ' on' : '') + '" data-f="help" title="需協助" onclick="wkFlag(\'' + x.id + '\',\'help\')">🆘</button>';
+}
+function wkPop(i) {
+  const g = _wk.reg[i]; if (!g) return;
+  openModal(g.title + '（' + g.ids.length + '）', wkLeadRows(g.ids, { pop: i }));
   document.getElementById('modalFooter').style.display = 'none';
   document.getElementById('modalBox').style.maxWidth = '640px';
 }
+
+// ── 客戶快速檢視（在 popup 裡看，不跳頁）──
+let _wq = null;
+async function wkQuick(id, back) {
+  _wq = { id: id, back: back != null && back >= 0 ? back : null, tab: 'sum', acts: null, contacts: null, lead: null };
+  const L = (_wk.data && _wk.data.leads[id]) || {};
+  openModal(L.name || '客戶', '<div class="loading"><span class="dot-pulse">載入中</span></div>');
+  document.getElementById('modalFooter').style.display = 'none';
+  document.getElementById('modalBox').style.maxWidth = '640px';
+  const [lr, ar, cr] = await Promise.all([
+    db.from('leads').select('*').eq('id', id).single(),
+    db.from('activities').select('type,content,created_at,user_id,images').eq('lead_id', id).order('created_at', { ascending: false }).limit(30),
+    db.from('contacts').select('name,role,title,phone,email').eq('lead_id', id).limit(20)
+  ]);
+  if (!_wq || _wq.id !== id) return;
+  _wq.lead = lr.data || {}; _wq.acts = ar.data || []; _wq.contacts = cr.data || [];
+  document.getElementById('modalTitle').textContent = _wq.lead.name || L.name || '客戶';
+  wqDraw();
+}
+function wqTab(t) { _wq.tab = t; wqDraw(); }
+function wqDraw() {
+  if (!_wq || !_wq.lead) return;
+  const l = _wq.lead, B = (_wk.data && _wk.data.leads[l.id]) || {};
+  const ACT = { email: 'Email', call: '電話', visit: '拜訪', event: '活動', note: '備註' };
+  const tabs = [['sum', '概要'], ['log', '紀錄 ' + _wq.acts.length], ['ct', '聯絡人 ' + _wq.contacts.length]];
+  let body = '';
+  if (_wq.tab === 'sum') {
+    const indOpts = '<option value="">—</option>' + (_wk.data ? _wk.data.industries : CC_INDUSTRIES).map(function (v) { return '<option' + (v === (l.industry || '') ? ' selected' : '') + '>' + esc(v) + '</option>'; }).join('');
+    const srcOpts = '<option value="">未填</option>' + sourcesData.map(function (s) { return '<option value="' + s.id + '"' + (s.id === l.source_id ? ' selected' : '') + '>' + esc(s.name) + '</option>'; }).join('');
+    const f = function (k, v) { return '<div class="wq-f"><span>' + k + '</span><div>' + v + '</div></div>'; };
+    const last = _wq.acts[0];
+    body = '<div class="wq-grid">'
+      + f('階段', esc(getStageName(l.stage_id)) + (B.days_in_stage != null ? ' <span class="wk-mut">' + B.days_in_stage + ' 天</span>' : ''))
+      + f('負責', esc(l.user_name || userNameById(l.user_id, '') || '—'))
+      + f('下次聯絡', l.next_contact_date ? '<span class="' + (B.overdue ? 'wk-bad' : '') + '">' + esc(l.next_contact_date) + '</span>' : '<span class="wk-mut">—</span>')
+      + f('上次聯絡', last ? esc(fmtDate(last.created_at).slice(0, 10)) + ' <span class="wk-mut">' + (B.days_since_touch != null ? B.days_since_touch + ' 天前' : '') + '</span>' : '<span class="wk-warn">沒有紀錄</span>')
+      + f('產業', '<select class="form-select wq-sel" onchange="wqSave(\'industry\',this.value||null)">' + indOpts + '</select>')
+      + f('來源', '<select class="form-select wq-sel" onchange="wqSave(\'source_id\',this.value||null)">' + srcOpts + '</select>')
+      + (l.expected_total ? f('預估', wkMoney(l.expected_total)) : '')
+      + (B.quoted ? f('報價', '✓') : '')
+      + (l.lost_reason ? f('結案原因', esc(l.lost_reason)) : '')
+      + '</div>'
+      + '<div class="wq-flags">' + wkFlagBtns({ id: l.id, flag: l.flag }) + '</div>'
+      + (last ? '<div class="wq-last"><div class="wk-mut">' + esc(fmtDate(last.created_at)) + '・' + esc(ACT[last.type] || last.type) + '・' + esc(userNameById(last.user_id, '')) + '</div>' + esc(String(last.content || '').slice(0, 400)) + '</div>' : '');
+  } else if (_wq.tab === 'log') {
+    body = _wq.acts.length ? _wq.acts.map(function (a) {
+      return '<div class="wq-act"><div class="wk-mut">' + esc(fmtDate(a.created_at)) + '・' + esc(ACT[a.type] || a.type) + '・' + esc(userNameById(a.user_id, '')) + (a.images && a.images.length ? '・🖼 ' + a.images.length : '') + '</div><div class="wq-c">' + esc(a.content || '') + '</div></div>';
+    }).join('') : '<div class="wk-none">沒有紀錄</div>';
+  } else {
+    body = _wq.contacts.length ? _wq.contacts.map(function (c) {
+      return '<div class="wq-act"><b>' + esc(c.name || '') + '</b> <span class="wk-mut">' + esc(c.role || c.title || '') + '</span><div class="wk-mut">'
+        + (c.phone ? '<a href="tel:' + esc(c.phone) + '">' + esc(c.phone) + '</a>' : '') + (c.phone && c.email ? '　' : '') + (c.email ? '<a href="mailto:' + esc(c.email) + '">' + esc(c.email) + '</a>' : '') + '</div></div>';
+    }).join('') : '<div class="wk-none">—</div>';
+  }
+  document.getElementById('modalBody').innerHTML = '<div class="wq">'
+    + '<div class="wq-top">' + (_wq.back != null ? '<button class="btn btn-ghost btn-sm" onclick="wkPop(' + _wq.back + ')">‹ 返回</button>' : '')
+    + '<div class="wq-tabs">' + tabs.map(function (t) { return '<button class="' + (_wq.tab === t[0] ? 'on' : '') + '" onclick="wqTab(\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('') + '</div>'
+    + '<span style="flex:1"></span><button class="btn btn-ghost btn-sm" onclick="closeModal();openCompany(\'' + l.id + '\')">完整頁 ›</button></div>'
+    + '<div class="wq-body">' + body + '</div></div>';
+}
+async function wqSave(field, val) {
+  const upd = {}; upd[field] = val;
+  const r = await db.from('leads').update(upd).eq('id', _wq.id);
+  if (r.error) { toast('沒存到：' + r.error.message, 'error'); return; }
+  _wq.lead[field] = val;
+  Object.keys(_wk.cache).forEach(function (k) {
+    const x = _wk.cache[k].leads[_wq.id]; if (!x) return;
+    if (field === 'industry') { x.industry = val || '未分類'; x.industry_set = !!val; }
+    if (field === 'source_id') { x.source_id = val; x.source = (sourcesData.find(function (s) { return s.id === val; }) || {}).name || '未填來源'; }
+  });
+  toast('已更新');
+}
 async function wkFlag(id, f) {
-  const x = _wk.data.leads[id]; if (!x) return;
+  const x = _wk.data.leads[id] || (_wq && _wq.id === id ? { flag: _wq.lead.flag } : null); if (!x) return;
   const nf = x.flag === f ? null : f;
   const r = await db.from('leads').update({ flag: nf }).eq('id', id);
   if (r.error) { toast('沒存到：' + r.error.message, 'error'); return; }
   Object.keys(_wk.cache).forEach(function (k) { const L = _wk.cache[k].leads; if (L[id]) L[id].flag = nf; });
-  const lead = (typeof leadsData !== 'undefined' ? leadsData : []).find(function (l) { return l.id === id; }); if (lead) lead.flag = nf;
-  document.querySelectorAll('tr[data-id="' + id + '"] .wk-flag').forEach(function (b) { b.classList.toggle('on', b.title === (nf === 'key' ? '重點' : nf === 'help' ? '需協助' : '')); });
-  if (_wk.tab !== 'all') { const r2 = _wk.data.reps.find(function (q) { return q.user_id === _wk.tab; }); if (r2) { const mine = r2.pipeline.stages.reduce(function (a, s) { return a.concat(s.leads); }, []); r2.pipeline.key = mine.filter(function (i) { return _wk.data.leads[i] && _wk.data.leads[i].flag === 'key'; }).length; r2.pipeline.help = mine.filter(function (i) { return _wk.data.leads[i] && _wk.data.leads[i].flag === 'help'; }).length; } }
+  if (_wq && _wq.id === id && _wq.lead) _wq.lead.flag = nf;
+  document.querySelectorAll('tr[data-id="' + id + '"] .wk-flag, .wq-flags .wk-flag').forEach(function (b) {
+    if (b.closest('.wq-flags') && (!_wq || _wq.id !== id)) return;
+    b.classList.toggle('on', b.dataset.f === nf);
+  });
+  if (_wk.data) _wk.data.reps.forEach(function (r2) {
+    const mine = r2.pipeline.stages.reduce(function (a, s) { return a.concat(s.leads); }, []);
+    r2.pipeline.key = mine.filter(function (i) { return _wk.data.leads[i] && _wk.data.leads[i].flag === 'key'; }).length;
+    r2.pipeline.help = mine.filter(function (i) { return _wk.data.leads[i] && _wk.data.leads[i].flag === 'help'; }).length;
+  });
 }
 
 // ── DASHBOARD ──
@@ -5950,6 +6187,7 @@ async function checkEditTaxIdDuplicate(leadId) {
 async function saveLead(andLog) {
   const name = document.getElementById('lName').value.trim();
   if (!name) { toast('先填公司名稱', 'error'); return; }
+  if (document.getElementById('lSource') && !document.getElementById('lSource').value) { toast('選一個來源', 'error'); return; }
   const taxId = document.getElementById('lTaxId')?.value.trim() || null;
   // 統編唯一性驗證（只在有填寫時才檢查）
   if (taxId) {
@@ -5972,6 +6210,7 @@ async function saveLead(andLog) {
     name,
     stage_id: document.getElementById('lStage')?.value || stagesData[0]?.id,
     source_id: document.getElementById('lSource')?.value || null,
+    industry: leadIndGuess(name),
     tax_id: taxId || null,
     need_types: selectedNeedTypes.length ? selectedNeedTypes : null,
     product_type: document.getElementById('lProductType')?.value.trim() || null,
@@ -7057,6 +7296,9 @@ async function openEditLeadModal(leadId) {
           ${stagesData.map(s=>`<option value="${s.id}"${s.id===lead.stage_id?' selected':''}>${esc(s.name)}</option>`).join('')}
         </select>
       </div>
+      <div class="form-group"><label class="form-label">產業</label>
+        <select class="form-select" id="elIndustry"><option value="">—</option>${CC_INDUSTRIES.map(v=>`<option${v===(lead.industry||'')?' selected':''}>${esc(v)}</option>`).join('')}</select>
+      </div>
       <div class="form-group"><label class="form-label">來源</label>
         <select class="form-select" id="elSource">
           <option value="">-- 選擇 --</option>
@@ -7118,6 +7360,7 @@ async function openEditLeadModal(leadId) {
         company: document.getElementById('elCompany').value.trim(),
         stage_id: document.getElementById('elStage').value,
         source_id: document.getElementById('elSource').value || null,
+        industry: document.getElementById('elIndustry')?.value || null,
         tax_id: elTaxId || null,
         need_types: selNT.length ? selNT : null,
         product_type: document.getElementById('elProductType')?.value.trim() || null,
