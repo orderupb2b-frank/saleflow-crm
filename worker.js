@@ -1304,6 +1304,17 @@ async function weeklyReport({ db, me, url }) {
   const teamWeek = funnelWeek(openLeads.concat(leads.filter(l => !isOpen(l) && (inWk(l.lost_at) || stageEvs(l).some(e => e.to_stage === WON && inWk(e.at))))));
   const leadsOut = {};
   for (const id of used) { const l = leadById.get(id); if (l) leadsOut[id] = brief(l); }
+  // 每家最新一筆紀錄（列表上快速看）
+  const idList = Object.keys(leadsOut);
+  for (let i = 0; i < idList.length; i += 80) {
+    const part = idList.slice(i, i + 80);
+    const rows = await db.get(`activities?select=lead_id,type,content,created_at&lead_id=in.(${part.join(',')})&order=created_at.desc&limit=2000`).catch(() => []);
+    for (const a of rows) {
+      const x = leadsOut[a.lead_id]; if (!x || x.last) continue;
+      const c = String(a.content || '').replace(AI_TAG, '').replace(/\s+/g, ' ').trim();
+      x.last = { when: toTW(a.created_at).slice(5, 10).replace('-', '/'), type: ACTIVITY_TYPES[a.type] || a.type, text: c.length > 90 ? c.slice(0, 90) + '…' : c };
+    }
+  }
   return {
     week: { from, to, label: `${from.slice(5).replace('-', '/')}（六）～ ${to.slice(5).replace('-', '/')}（五）` },
     viewer: { name: me.name, role: me.role },
