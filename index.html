@@ -989,6 +989,7 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .wk-tbl { width:100%; border-collapse:collapse; font-size:13px; }
 .wk-tbl td { padding:7px 6px; border-top:1px solid var(--border); vertical-align:top; }
 .wk-tbl tr:first-child td { border-top:0; }
+.wk-tbl td.wk-mut { white-space:nowrap; }
 .wk-num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .wk-co { cursor:pointer; color:var(--text); font-weight:500; }
 .wk-co:hover { color:var(--accent); }
@@ -1006,7 +1007,8 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .wk-funnel.sm .wk-fs b { font-size:16px; }
 .wk-rate { flex-shrink:0; font-size:12px; color:var(--accent); font-weight:600; min-width:34px; text-align:center; }
 .wk-rate::after { content:'→'; display:block; color:var(--text3); font-weight:400; }
-.wk-arrows { display:flex; gap:0; overflow-x:auto; padding-bottom:2px; }
+.wk-arrows { display:flex; gap:0; overflow-x:auto; scrollbar-width:none; padding-right:8px; }
+.wk-arrows::-webkit-scrollbar { display:none; }
 .wk-arrow { position:relative; flex:1; min-width:86px; height:58px; border:0; background:var(--bg3); color:var(--text); font:inherit; cursor:pointer; padding:0 8px 0 22px; text-align:center;
   clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%); margin-right:-8px; }
 .wk-arrow:first-child { clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%); padding-left:10px; border-radius:8px 0 0 8px; }
