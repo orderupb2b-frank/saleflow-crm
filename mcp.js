@@ -96,7 +96,7 @@ const TOOLS = [
     assign_to_me: { type: 'boolean', description: '直接放進使用者自己的名單池（預設 false＝公海）' },
     confirm: { type: 'boolean', description: '使用者確認後才設 true' }
   }, ['items'], false),
-  T('get_weekly_review', '業務週會資料（週六到週五）：整體新增線索與來源、分配、成交公司與方案、結案原因、進行中名單分布；各業務的陌開（目標／打了／轉成／結束與原因）、分配名單結果、各階段名單、近 12 週轉換率，以及當週活動紀錄內容', { week_start: S('該週任一天 YYYY-MM-DD（會自動對到週六）；省略＝上一個完整週') }),
+  T('get_weekly_review', '業務週會資料（週六到週五）：整體新增線索與來源、分配、成交公司與方案、結案原因、進行中名單分布；各業務的陌開（目標／打了／轉成／結束與原因）、分配名單結果、各階段名單與該盯的事、系統挑出的需要關注名單（含原因）、產業分布、跟前一週比較（kpi.prev）、這週與近 12 週轉換率、首次聯絡速度，以及當週活動紀錄內容', { week_start: S('該週任一天 YYYY-MM-DD（會自動對到週六）；省略＝上一個完整週') }),
   T('get_attention_report', '需要關注的案子：逾期未追、長期沒更新的進行中案子', { stale_days: { type: 'integer', description: '幾天沒動算停滯，預設 30' }, owner })
 ];
 const qs = (a, keys) => { const p = new URLSearchParams(); for (const k of keys) if (a[k] !== undefined && a[k] !== null && a[k] !== '') p.set(k, String(a[k])); const s = p.toString(); return s ? '?' + s : ''; };

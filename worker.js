@@ -1023,7 +1023,7 @@ async function weeklyReport({ db, me, url }) {
     db.get(`cc_kpis?select=user_id,kind,target,min_calls&month=eq.${month}`),
     db.rpc('weekly_deals', { p_from: addDays(from, -7), p_to: to }),
     db.get(`activities?select=user_id,lead_id,type,content,created_at&created_at=gte.${iso(P)}&created_at=lt.${iso(T)}&order=created_at&limit=5000`),
-    getAll(db, `activities?select=lead_id,created_at&created_at=gte.${iso(T - 200 * 864e5)}&lead_id=not.is.null&order=id`),
+    getAll(db, `activities?select=lead_id,created_at&created_at=gte.${iso(T - 200 * 864e5)}&lead_id=not.is.null&type=neq.note&order=id`),
     safe(getAll(db, `notes?select=lead_id&content=like.${encodeURIComponent(QUOTE_PREFIX)}*&order=id`)),
     safe(db.get('contracts?select=id,name,account_id,end_date,remind_days,signed_date,amount,installments,sales_user_id,user_id,accounts(name,lead_id,status)&limit=1000'))
   ]);
@@ -1044,7 +1044,7 @@ async function weeklyReport({ db, me, url }) {
   for (const e of events) { const a = evBy.get(e.lead_id); a ? a.push(e) : evBy.set(e.lead_id, [e]); }
   const actTimes = new Map(); // lead → 排序好的活動時間
   for (const a of touches) { const t = ms(a.created_at); const x = actTimes.get(a.lead_id); x ? x.push(t) : actTimes.set(a.lead_id, [t]); }
-  for (const a of acts) if (a.lead_id) { const t = ms(a.created_at); const x = actTimes.get(a.lead_id); x ? x.push(t) : actTimes.set(a.lead_id, [t]); }
+  for (const a of acts) if (a.lead_id && a.type !== 'note') { const t = ms(a.created_at); const x = actTimes.get(a.lead_id); x ? x.push(t) : actTimes.set(a.lead_id, [t]); }
   for (const v of actTimes.values()) v.sort((a, b) => a - b);
   const lastTouch = l => { const a = actTimes.get(l.id); return a ? a[a.length - 1] : null; };
   const firstTouchAfter = (id, t) => (actTimes.get(id) || []).find(x => x >= t) ?? null;
@@ -1165,14 +1165,14 @@ async function weeklyReport({ db, me, url }) {
   const renewals = [], dues = [];
   for (const c of cts || []) {
     const acc = c.accounts || {};
-    if (acc.status === 'terminated') continue;
+    if (acc.status === 'terminated' || /作廢/.test(c.name || '')) continue;
     const who = uname(c.sales_user_id || c.user_id);
     if (c.end_date) {
       const d = Math.round((Date.parse(c.end_date) - Date.parse(today)) / 864e5);
       if (d >= -14 && d <= (c.remind_days ?? 30)) renewals.push({ company: acc.name || c.name, owner: who, end_date: c.end_date, days: d, lead_id: acc.lead_id || null });
     }
     ctInst(c).forEach(p => {
-      if (p.paid_date) return;
+      if (p.paid_date || /作廢/.test(p.label || '')) return;
       const due = p.due_date || c.signed_date; if (!due) return;
       const d = Math.round((Date.parse(due) - Date.parse(today)) / 864e5);
       if (d <= 14) dues.push({ company: acc.name || c.name, owner: who, label: p.label || '', due_date: due, days: d, lead_id: acc.lead_id || null, ...(me.role === 'admin' ? { amount: Number(p.amount) || 0 } : {}) });
@@ -1310,7 +1310,7 @@ async function weeklyReport({ db, me, url }) {
     sources: sources.map(s => ({ id: s.id, name: s.name })), industries: CC_INDUSTRIES,
     overall: {
       new_leads: newLeads, assigned, deals: { companies: new Set(dealsWk.map(d => d.company)).size, list: dealsWk }, lost, open,
-      funnel_week: teamWeek, funnel_12w: funnel12(cohortLeads),
+      funnel_week: teamWeek, funnel_12w: funnel12(cohortLeads), week_tracked: T > Date.parse('2026-11-08T00:00:00+08:00'),
       team: reps.map(r => ({ rep: r.rep, user_id: r.user_id, ...r.kpi.cur, open: r.pipeline.open, overdue: r.pipeline.overdue, help: r.pipeline.help, first_touch_hours: r.assigned.first_touch_hours_median })),
       renewals, dues
     },
