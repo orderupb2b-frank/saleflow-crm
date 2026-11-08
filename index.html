@@ -948,6 +948,90 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .ml-log{width:38px;height:38px;border-radius:50%;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center}
 .tb-log{display:inline-flex}
 @media (max-width:768px){.tb-log{display:none}}
+/* ── 業務週會 ── */
+.wk { max-width: 1180px; margin: 0 auto; }
+.wk-head { display:flex; align-items:center; gap:6px; margin-bottom:10px; }
+.wk-range { font-size:15px; padding:0 4px; }
+.wk-tabs { display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; margin-bottom:14px; padding-bottom:2px; }
+.wk-tab { flex-shrink:0; height:32px; padding:0 14px; border-radius:16px; border:1px solid var(--border); background:var(--bg2); color:var(--text2); font:inherit; font-size:13px; cursor:pointer; }
+.wk-tab.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+.wk-tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:12px; }
+.wk-tiles.in { grid-template-columns:repeat(3,1fr); margin:0 0 12px; }
+.wk-tile { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; }
+.wk-tiles.in .wk-tile { background:var(--bg3); border:0; }
+.wk-n { font-size:26px; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; }
+.wk-n small { font-size:14px; color:var(--text3); font-weight:500; margin-left:2px; }
+.wk-tile.good .wk-n { color:var(--green); } .wk-tile.bad .wk-n { color:var(--red); }
+.wk-l { font-size:12px; color:var(--text2); margin-top:2px; }
+.wk-s { font-size:11.5px; color:var(--text3); margin-top:4px; }
+.wk-prog { height:4px; background:var(--bg4); border-radius:2px; overflow:hidden; margin:4px 0 3px; }
+.wk-prog span { display:block; height:100%; }
+.wk-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+.wk-wide { margin-bottom:12px; }
+.wk-h { display:flex; align-items:center; gap:8px; font-weight:600; font-size:14px; margin-bottom:10px; }
+.wk-mut { color:var(--text3); font-size:12px; font-weight:400; }
+.wk-none { color:var(--text3); font-size:13px; }
+.wk-note { font-size:12px; color:var(--text3); margin-top:10px; }
+.wk-hrow { display:flex; align-items:center; gap:10px; margin:6px 0; }
+.wk-hl { width:64px; font-size:13px; flex-shrink:0; }
+.wk-hbar { flex:1; height:8px; background:var(--bg3); border-radius:4px; overflow:hidden; }
+.wk-hbar span { display:block; height:100%; background:var(--accent); border-radius:4px; }
+.wk-hn { width:32px; text-align:right; font-weight:600; font-variant-numeric:tabular-nums; }
+.wk-sub { display:flex; gap:4px; flex-wrap:wrap; margin:-2px 0 6px 74px; }
+.wk-chip { font-size:11.5px; padding:1px 8px; border-radius:10px; background:var(--bg3); color:var(--text2); }
+.wk-link { background:none; border:0; padding:0; font:inherit; color:inherit; cursor:pointer; text-decoration:underline dotted var(--text3); text-underline-offset:3px; }
+.wk-link:hover { color:var(--accent); }
+.wk-zero { color:var(--text3); }
+.wk-sbar { display:flex; height:10px; border-radius:5px; overflow:hidden; gap:2px; }
+.wk-legend { display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:8px; font-size:12.5px; }
+.wk-legend i { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; }
+.wk-legend em { font-style:normal; color:var(--text3); }
+.wk-tbl { width:100%; border-collapse:collapse; font-size:13px; }
+.wk-tbl td { padding:7px 6px; border-top:1px solid var(--border); vertical-align:top; }
+.wk-tbl tr:first-child td { border-top:0; }
+.wk-num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.wk-co { cursor:pointer; color:var(--text); font-weight:500; }
+.wk-co:hover { color:var(--accent); }
+.wk-scroll { overflow-x:auto; }
+.wk-mx { border-collapse:separate; border-spacing:3px; font-size:13px; min-width:100%; }
+.wk-mx th { font-weight:500; color:var(--text2); font-size:12px; padding:4px 8px; white-space:nowrap; text-align:center; }
+.wk-mx tbody th { text-align:left; color:var(--text); font-size:13px; }
+.wk-mx td { text-align:center; height:34px; min-width:58px; border-radius:6px; font-weight:600; font-variant-numeric:tabular-nums; }
+.wk-mx td .wk-link { display:block; width:100%; height:34px; text-decoration:none; }
+.wk-mx td.wk-tot, .wk-mx tr.wk-tot td { color:var(--text2); font-weight:500; }
+.wk-funnel { display:flex; align-items:center; gap:4px; overflow-x:auto; }
+.wk-fs { flex:1; min-width:64px; text-align:center; background:var(--bg3); border-radius:8px; padding:8px 4px; }
+.wk-fs b { display:block; font-size:20px; font-variant-numeric:tabular-nums; }
+.wk-fs span { font-size:11.5px; color:var(--text2); }
+.wk-funnel.sm .wk-fs b { font-size:16px; }
+.wk-rate { flex-shrink:0; font-size:12px; color:var(--accent); font-weight:600; min-width:34px; text-align:center; }
+.wk-rate::after { content:'→'; display:block; color:var(--text3); font-weight:400; }
+.wk-arrows { display:flex; gap:0; overflow-x:auto; padding-bottom:2px; }
+.wk-arrow { position:relative; flex:1; min-width:86px; height:58px; border:0; background:var(--bg3); color:var(--text); font:inherit; cursor:pointer; padding:0 8px 0 22px; text-align:center;
+  clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%); margin-right:-8px; }
+.wk-arrow:first-child { clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%); padding-left:10px; border-radius:8px 0 0 8px; }
+.wk-arrow.wait { margin-left:18px; clip-path:none; border-radius:8px; padding:0 10px; background:var(--bg4); }
+.wk-arrow b { display:block; font-size:20px; line-height:1.1; font-variant-numeric:tabular-nums; }
+.wk-arrow span { font-size:12px; color:var(--text2); }
+.wk-arrow em { position:absolute; top:5px; right:18px; font-style:normal; font-size:11px; color:var(--green); }
+.wk-arrow.wait em { right:8px; }
+.wk-arrow.on { background:var(--accent); color:#fff; }
+.wk-arrow.on span { color:rgba(255,255,255,.85); }
+.wk-arrow.on em { color:#fff; }
+.wk-list { margin-top:12px; background:var(--bg3); border-radius:8px; padding:6px 10px; }
+.wk-lh { font-size:12px; color:var(--text2); padding:4px 0; }
+.wk-leads td { border-top-color:var(--border); }
+.wk-leads td:nth-child(2), .wk-leads td:nth-child(3) { white-space:nowrap; text-align:right; width:1%; }
+.wk-flags { white-space:nowrap; width:1%; text-align:right; }
+.wk-flag { border:0; background:none; cursor:pointer; font-size:15px; padding:2px 4px; opacity:.22; filter:grayscale(1); }
+.wk-flag.on { opacity:1; filter:none; }
+.wk-foot { display:flex; justify-content:flex-end; margin:4px 0 24px; }
+@media (max-width:768px) {
+  .wk-tiles { grid-template-columns:repeat(2,1fr); }
+  .wk-grid { grid-template-columns:1fr; }
+  .wk-n { font-size:22px; }
+  .wk-arrow { min-width:76px; }
+}
 </style>
 <script>
 (function(){var t;try{t=localStorage.getItem('sf_theme')}catch(e){}if(!t)t='light';document.documentElement.setAttribute('data-theme',t);})();
@@ -1302,7 +1386,7 @@ function navigate(page, opt) {
 }
 // ── 五個區塊：Dashboard／開發看板／導入看板／列表清單／工具箱 ──
 const SECTIONS = [
-  { key: 'home', label: 'Dashboard', pages: [['today', '今天'], ['dashboard', '數據'], ['performance', '業績']] },
+  { key: 'home', label: 'Dashboard', pages: [['today', '今天'], ['weekly', '週會'], ['dashboard', '數據'], ['performance', '業績']] },
   { key: 'cc', label: '陌開', pages: [['ccpool', '公海'], ['ccboard', '陌開進度'], ['ccstats', '統計'], ['coldcall', '開打', 'hidden'], ['cclist', '名單', 'hidden']] },
   { key: 'pipe', label: '開發看板', pages: [['leads', '']] },
   { key: 'onb', label: '導入看板', pages: [['onboard', '']] },
@@ -1333,7 +1417,8 @@ function openMoreMenu() {
   openModal('更多', ''
     + '<div style="font-size:12px;color:var(--text3);margin:-4px 0 8px">這些在電腦上比較好用</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 8px">'
-    + b('leads', '🗂', '開發看板') + b('onboard', '🚀', '導入看板')
+    + b('weekly', '📋', '週會') + b('leads', '🗂', '開發看板')
+    + b('onboard', '🚀', '導入看板')
     + b('ccboard', '📞', '陌開進度') + b('ccpool', '🌊', '公海')
     + b('ccstats', '📈', '陌開統計') + b('dashboard', '📊', '數據')
     + b('performance', '💰', '業績明細') + b('bonus', '🧮', '獎金試算')
@@ -1365,6 +1450,7 @@ async function renderPage(page) {
     case 'decks': await renderDecks(); break;
     case 'performance': await renderPerformance(); break;
     case 'dashboard': await renderDashboard(); break;
+    case 'weekly': await renderWeekly(); break;
     case 'leads': await renderLeads(); break;
     case 'leadlist': await renderLeads(); break;
     case 'bonus': await renderPerformance(); break;
@@ -4401,6 +4487,157 @@ async function runLostReport() {
   rows.forEach(function (r) { h += '<tr style="cursor:pointer" onclick="openCompany(\'' + r.id + '\')"><td>' + esc(r.name) + '</td><td style="font-size:12.5px">' + esc(r.lost_reason) + '</td><td style="font-size:12px">' + esc(r.user_name || '') + '</td><td style="font-size:12px">' + fmtDate(r.lost_at) + '</td></tr>'; });
   el.innerHTML = h + '</tbody></table></div>';
 }
+
+// ════════════════════════ 業務週會（週六～週五）════════════════════════
+let _wk = { start: null, tab: 'all', data: null, cache: {}, open: {} };
+function wkSat(d) { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 1) % 7)); return t.toISOString().slice(0, 10); }
+function wkAdd(d, n) { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); }
+async function wkFetch(start, force) {
+  if (!force && _wk.cache[start]) return _wk.cache[start];
+  const s = (await db.auth.getSession()).data.session;
+  const r = await fetch('/api/report/weekly?week_start=' + start, { headers: { Authorization: 'Bearer ' + s.access_token, 'X-Client': 'crm' } });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.status);
+  _wk.cache[start] = j; return j;
+}
+async function renderWeekly(force) {
+  const thisSat = wkSat(nowDateStr());
+  if (!_wk.start) _wk.start = wkAdd(thisSat, -7);
+  const el = document.getElementById('content');
+  if (!_wk.cache[_wk.start] || force) el.innerHTML = '<div class="loading"><span class="dot-pulse">載入中</span></div>';
+  let d;
+  try { d = await wkFetch(_wk.start, force); } catch (e) { el.innerHTML = '<div class="empty-state">讀取失敗：' + esc(e.message) + '</div>'; return; }
+  if (currentPage !== 'weekly') return;
+  _wk.data = d;
+  if (_wk.tab !== 'all' && !d.reps.some(function (r) { return r.user_id === _wk.tab; })) _wk.tab = 'all';
+  const tabs = [['all', '整體']].concat(d.reps.map(function (r) { return [r.user_id, r.rep]; }));
+  const ti = tabs.findIndex(function (t) { return t[0] === _wk.tab; });
+  el.innerHTML = '<div class="wk">'
+    + '<div class="wk-head">'
+    + '<button class="btn btn-ghost btn-sm" onclick="wkGo(-7)">‹</button><b class="wk-range">' + esc(d.week.label) + '</b>'
+    + '<button class="btn btn-ghost btn-sm" onclick="wkGo(7)"' + (_wk.start >= thisSat ? ' disabled' : '') + '>›</button>'
+    + (_wk.start !== wkAdd(thisSat, -7) ? '<button class="btn btn-ghost btn-sm" onclick="_wk.start=null;renderWeekly()">上週</button>' : '')
+    + '<span style="flex:1"></span><button class="btn btn-ghost btn-sm" title="重新整理" onclick="renderWeekly(true)">↻</button></div>'
+    + '<div class="wk-tabs">' + tabs.map(function (t) { return '<button class="wk-tab' + (t[0] === _wk.tab ? ' on' : '') + '" onclick="wkTab(\'' + t[0] + '\')">' + esc(t[1]) + '</button>'; }).join('') + '</div>'
+    + (_wk.tab === 'all' ? wkOverall(d) : wkRep(d, d.reps.find(function (r) { return r.user_id === _wk.tab; })))
+    + '<div class="wk-foot">' + (ti < tabs.length - 1 ? '<button class="btn btn-secondary" onclick="wkTab(\'' + tabs[ti + 1][0] + '\')">下一位：' + esc(tabs[ti + 1][1]) + ' →</button>' : '') + '</div>'
+    + '</div>';
+}
+function wkGo(n) { _wk.start = wkAdd(_wk.start, n); _wk.open = {}; renderWeekly(); }
+function wkTab(t) { _wk.tab = t; _wk.open = {}; renderWeekly(); document.getElementById('content').scrollTop = 0; }
+function wkPct(v) { return v == null ? '—' : v + '%'; }
+function wkTile(n, label, sub, cls) { return '<div class="wk-tile ' + (cls || '') + '"><div class="wk-n">' + n + '</div><div class="wk-l">' + label + '</div>' + (sub ? '<div class="wk-s">' + sub + '</div>' : '') + '</div>'; }
+function wkIds(ids) { return encodeURIComponent(JSON.stringify(ids || [])); }
+function wkPopBtn(ids, title, inner, cls) {
+  if (!ids || !ids.length) return '<span class="' + (cls || '') + ' wk-zero">' + inner + '</span>';
+  return '<button class="wk-link ' + (cls || '') + '" onclick="wkPop(\'' + esc(title).replace(/'/g, '') + '\',\'' + wkIds(ids) + '\')">' + inner + '</button>';
+}
+function wkBar(rows, total) {
+  const C = ['var(--accent)', 'var(--purple)', 'var(--yellow)', 'var(--cyan)', 'var(--red)', 'var(--green)', 'var(--text3)'];
+  if (!rows.length) return '<div class="wk-none">—</div>';
+  return '<div class="wk-sbar">' + rows.map(function (r, i) { return '<span style="flex:' + r.n + ';background:' + C[i % C.length] + '"></span>'; }).join('') + '</div>'
+    + '<div class="wk-legend">' + rows.map(function (r, i) { return '<span><i style="background:' + C[i % C.length] + '"></i>' + esc(r.reason) + ' <b>' + r.n + '</b> <em>' + r.pct + '%</em></span>'; }).join('') + '</div>';
+}
+function wkFunnel(f, small) {
+  const st = ['新名單', '約Demo', '有望成交', '議價中', '簽約進件'];
+  return '<div class="wk-funnel' + (small ? ' sm' : '') + '">' + st.map(function (s, i) {
+    return (i ? '<div class="wk-rate">' + wkPct(f.steps[i - 1].rate) + '</div>' : '') + '<div class="wk-fs"><b>' + (f.reached[s] || 0) + '</b><span>' + (s === '簽約進件' ? '成交' : s) + '</span></div>';
+  }).join('') + '</div>';
+}
+function wkOverall(d) {
+  const o = d.overall, adm = d.viewer.role === 'admin';
+  const maxSrc = Math.max.apply(null, o.new_leads.by_source.map(function (g) { return g.n; }).concat([1]));
+  const src = o.new_leads.by_source.map(function (g) {
+    const reps = Object.keys(g.by_rep || {}).map(function (k) { return '<span class="wk-chip">' + esc(k) + ' ' + g.by_rep[k] + '</span>'; }).join('');
+    return '<div class="wk-hrow"><span class="wk-hl">' + esc(g.source) + '</span><div class="wk-hbar"><span style="width:' + (g.n / maxSrc * 100) + '%"></span></div>'
+      + wkPopBtn(g.leads, g.source + ' 新線索', g.n, 'wk-hn') + '</div>' + (reps ? '<div class="wk-sub">' + reps + '</div>' : '');
+  }).join('');
+  const maxA = Math.max.apply(null, o.assigned.by_rep.map(function (g) { return g.n; }).concat([1]));
+  const asg = o.assigned.by_rep.length ? o.assigned.by_rep.map(function (g) {
+    return '<div class="wk-hrow"><span class="wk-hl">' + esc(g.rep) + '</span><div class="wk-hbar"><span style="width:' + (g.n / maxA * 100) + '%"></span></div>' + wkPopBtn(g.leads, g.rep + ' 分配', g.n, 'wk-hn') + '</div>';
+  }).join('') : '<div class="wk-none">—</div>';
+  const deals = o.deals.list.length ? '<table class="wk-tbl"><tbody>' + o.deals.list.map(function (x) {
+    return '<tr><td>' + (x.lead_id ? '<a class="wk-co" onclick="openCompany(\'' + x.lead_id + '\')">' + esc(x.company) + '</a>' : esc(x.company)) + '</td><td class="wk-mut">' + esc(x.owner) + '</td>'
+      + '<td>' + esc(x.category || '') + (x.items.length ? '<div class="wk-mut">' + x.items.map(esc).join('・') + '</div>' : '') + '</td>'
+      + (adm ? '<td class="wk-num">' + (x.amount ? '$' + fmtNum(x.amount) : '') + '</td>' : '') + '</tr>';
+  }).join('') + '</tbody></table>' : '<div class="wk-none">—</div>';
+  const m = o.open, mx = Math.max.apply(null, m.rows.map(function (r) { return Math.max.apply(null, m.cols.map(function (c) { return r.cells[c].length; })); }).concat([1]));
+  const matrix = '<div class="wk-scroll"><table class="wk-mx"><thead><tr><th></th>' + m.cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '<th>合計</th></tr></thead><tbody>'
+    + m.rows.map(function (r) {
+      return '<tr><th>' + esc(r.rep) + '</th>' + m.cols.map(function (c) {
+        const ids = r.cells[c], a = ids.length / mx;
+        return '<td style="background:rgba(108,140,255,' + (ids.length ? (0.08 + a * 0.42).toFixed(2) : 0) + ')">' + wkPopBtn(ids, r.rep + '・' + c, ids.length || '') + '</td>';
+      }).join('') + '<td class="wk-tot">' + r.total + '</td></tr>';
+    }).join('')
+    + '<tr class="wk-tot"><th>合計</th>' + m.cols.map(function (c) { return '<td>' + m.col_totals[c] + '</td>'; }).join('') + '<td>' + m.total + '</td></tr></tbody></table></div>';
+  return '<div class="wk-tiles">'
+    + wkTile(o.new_leads.total, '新線索') + wkTile(o.assigned.total, '分配') + wkTile(o.deals.companies, '成交', '', 'good') + wkTile(o.lost.total, '結案', '', 'bad')
+    + '</div><div class="wk-grid">'
+    + '<div class="card"><div class="wk-h">線索來源</div>' + src + '</div>'
+    + '<div class="card"><div class="wk-h">分配</div>' + asg + '</div>'
+    + '<div class="card"><div class="wk-h">成交</div>' + deals + '</div>'
+    + '<div class="card"><div class="wk-h">結案原因 ' + wkPopBtn(o.lost.leads, '本週結案', '<span class="wk-mut">' + o.lost.total + ' 間 ›</span>') + '</div>' + wkBar(o.lost.reasons) + '</div>'
+    + '</div>'
+    + '<div class="card wk-wide"><div class="wk-h">進行中 <span class="wk-mut">' + m.total + '</span></div>' + matrix + '</div>'
+    + '<div class="card wk-wide"><div class="wk-h">轉換率 <span class="wk-mut">近 12 週</span></div>' + wkFunnel(o.funnel_12w) + '</div>';
+}
+function wkRep(d, r) {
+  if (!r) return '';
+  const c = r.cold, a = r.assigned, p = r.pipeline;
+  const prog = function (n, t) { return t ? '<div class="wk-prog"><span style="width:' + Math.min(100, n / t * 100) + '%;background:' + (n >= t ? 'var(--green)' : 'var(--accent)') + '"></span></div>' : ''; };
+  const cold = '<div class="card"><div class="wk-h">陌開</div><div class="wk-tiles in">'
+    + wkTile(c.called + (c.target_week ? '<small>/' + c.target_week + '</small>' : ''), '打了', prog(c.called, c.target_week) + (c.dials > c.called ? c.dials + ' 通' : ''))
+    + wkTile(wkPopBtn(c.converted_leads, r.rep + '・陌開轉線索', c.converted) + (c.conv_target_week ? '<small>/' + c.conv_target_week + '</small>' : ''), '轉線索', prog(c.converted, c.conv_target_week) + '轉換 ' + wkPct(c.conv_rate) + (c.rate_target ? '・目標 ' + c.rate_target + '%' : ''), 'good')
+    + wkTile(c.ended, '結束', '', 'bad') + '</div>' + (c.end_reasons.length ? wkBar(c.end_reasons) : '') + '</div>';
+  const asg = '<div class="card"><div class="wk-h">分配名單</div><div class="wk-tiles in">'
+    + wkTile(wkPopBtn(a.leads, r.rep + '・本週分配', a.n), '分配') + wkTile(a.reached_demo, '約到 Demo', a.n ? wkPct(Math.round(a.reached_demo * 100 / a.n)) : '', 'good') + wkTile(a.lost, '結案', '', 'bad')
+    + '</div>' + (a.lost_reasons.length ? wkBar(a.lost_reasons) : '')
+    + '<div class="wk-note">近 12 週 ' + a.last_12w.n + ' 筆・約 Demo ' + wkPct(a.last_12w.demo_rate) + '・結案 ' + wkPct(a.last_12w.lost_rate) + '</div></div>';
+  const arrows = '<div class="wk-arrows">' + p.stages.map(function (s) {
+    const on = _wk.open[s.stage];
+    return '<button class="wk-arrow' + (on ? ' on' : '') + (s.stage === '等待' ? ' wait' : '') + '" onclick="wkToggle(\'' + s.stage + '\')"><b>' + s.n + '</b><span>' + esc(s.stage) + '</span>' + (s.moved_in ? '<em>+' + s.moved_in + '</em>' : '') + '</button>';
+  }).join('') + '</div>';
+  const lists = p.stages.filter(function (s) { return _wk.open[s.stage]; }).map(function (s) {
+    return '<div class="wk-list"><div class="wk-lh">' + esc(s.stage) + '</div>' + wkLeadRows(s.leads, true) + '</div>';
+  }).join('');
+  const flags = [p.key ? '⭐ ' + p.key : '', p.help ? '🆘 ' + p.help : '', p.overdue ? '<span style="color:var(--red)">逾期 ' + p.overdue + '</span>' : '', p.no_next_date ? '沒排下次 ' + p.no_next_date : ''].filter(Boolean).join('　');
+  const dev = '<div class="card wk-wide"><div class="wk-h">開發 <span class="wk-mut">' + p.open + '</span><span style="flex:1"></span><span class="wk-mut" style="font-weight:400">' + flags + '</span></div>'
+    + arrows + lists
+    + '<div class="wk-h" style="margin-top:14px">轉換率 <span class="wk-mut">近 12 週</span></div>' + wkFunnel(r.funnel_12w, true) + '</div>';
+  return '<div class="wk-grid">' + cold + asg + '</div>' + dev;
+}
+function wkToggle(st) { _wk.open[st] = !_wk.open[st]; renderWeekly(); }
+function wkLeadRows(ids, withFlag) {
+  const L = _wk.data.leads;
+  if (!ids || !ids.length) return '<div class="wk-none">—</div>';
+  const rank = function (x) { return x.flag === 'help' ? 0 : x.flag === 'key' ? 1 : x.overdue ? 2 : 3; };
+  const rows = ids.map(function (id) { return Object.assign({ id: id }, L[id] || {}); }).sort(function (a, b) { return rank(a) - rank(b) || (b.days_since_touch || 0) - (a.days_since_touch || 0); });
+  return '<table class="wk-tbl wk-leads"><tbody>' + rows.map(function (x) {
+    const nd = x.next ? x.next.slice(5).replace('-', '/') : '';
+    return '<tr data-id="' + x.id + '"><td><a class="wk-co" onclick="closeModal();openCompany(\'' + x.id + '\')">' + esc(x.name || '') + '</a>'
+      + (withFlag ? '' : '<div class="wk-mut">' + esc(x.owner || '') + '・' + esc(x.stage || '') + '</div>') + (x.lost_reason && !withFlag ? '<div class="wk-mut">' + esc(x.lost_reason) + '</div>' : '') + '</td>'
+      + '<td class="wk-mut" title="下次聯絡">' + (nd ? '<span' + (x.overdue ? ' style="color:var(--red)"' : '') + '>' + nd + '</span>' : '') + '</td>'
+      + '<td class="wk-mut" title="多久沒聯絡">' + (x.days_since_touch != null ? x.days_since_touch + '天' : '') + '</td>'
+      + '<td class="wk-flags"><button class="wk-flag' + (x.flag === 'key' ? ' on' : '') + '" title="重點" onclick="wkFlag(\'' + x.id + '\',\'key\')">⭐</button><button class="wk-flag' + (x.flag === 'help' ? ' on' : '') + '" title="需協助" onclick="wkFlag(\'' + x.id + '\',\'help\')">🆘</button></td></tr>';
+  }).join('') + '</tbody></table>';
+}
+function wkPop(title, enc) {
+  const ids = JSON.parse(decodeURIComponent(enc));
+  openModal(title + '（' + ids.length + '）', wkLeadRows(ids, false));
+  document.getElementById('modalFooter').style.display = 'none';
+  document.getElementById('modalBox').style.maxWidth = '640px';
+}
+async function wkFlag(id, f) {
+  const x = _wk.data.leads[id]; if (!x) return;
+  const nf = x.flag === f ? null : f;
+  const r = await db.from('leads').update({ flag: nf }).eq('id', id);
+  if (r.error) { toast('沒存到：' + r.error.message, 'error'); return; }
+  Object.keys(_wk.cache).forEach(function (k) { const L = _wk.cache[k].leads; if (L[id]) L[id].flag = nf; });
+  const lead = (typeof leadsData !== 'undefined' ? leadsData : []).find(function (l) { return l.id === id; }); if (lead) lead.flag = nf;
+  document.querySelectorAll('tr[data-id="' + id + '"] .wk-flag').forEach(function (b) { b.classList.toggle('on', b.title === (nf === 'key' ? '重點' : nf === 'help' ? '需協助' : '')); });
+  if (_wk.tab !== 'all') { const r2 = _wk.data.reps.find(function (q) { return q.user_id === _wk.tab; }); if (r2) { const mine = r2.pipeline.stages.reduce(function (a, s) { return a.concat(s.leads); }, []); r2.pipeline.key = mine.filter(function (i) { return _wk.data.leads[i] && _wk.data.leads[i].flag === 'key'; }).length; r2.pipeline.help = mine.filter(function (i) { return _wk.data.leads[i] && _wk.data.leads[i].flag === 'help'; }).length; } }
+}
+
 // ── DASHBOARD ──
 async function renderDashboard() {
   const [leadsRes, accsRes, contractsRes, activitiesRes] = await Promise.all([
@@ -6144,7 +6381,7 @@ function setLeadHash(leadId) { /* 網址由 histPush 管理 */ }
 
 // ── 瀏覽器「上一頁／下一頁」──
 // 每換一頁就推一筆紀錄：#/today、#/leads…；公司頁是 #lead=<id>
-const PAGE_KEYS = ['mtoday', 'mclients', 'mme', 'today', 'dashboard', 'leads', 'leadlist', 'bonus', 'quotes', 'accounts', 'onboard', 'performance', 'coldcall', 'ccboard', 'ccpool', 'cclist', 'ccstats', 'decks', 'contacts', 'settings', 'feed'];
+const PAGE_KEYS = ['mtoday', 'mclients', 'mme', 'today', 'weekly', 'dashboard', 'leads', 'leadlist', 'bonus', 'quotes', 'accounts', 'onboard', 'performance', 'coldcall', 'ccboard', 'ccpool', 'cclist', 'ccstats', 'decks', 'contacts', 'settings', 'feed'];
 let _histRouting = false;
 function histPush(hash, opt) {
   if (_histRouting) return;
