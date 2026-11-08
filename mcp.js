@@ -3,13 +3,14 @@
 // 其他路徑原樣交給 worker.js。工具一律轉呼叫既有的 /api，權限與邏輯完全共用。
 import app from './worker.js';
 
-const SERVER = { name: 'saleflow-crm', version: '1.5.0' };
+const SERVER = { name: 'saleflow-crm', version: '1.6.0' };
 const INSTRUCTIONS = `你在操作奧德上（OrderUp B2B）的 SaleFlow CRM。一律繁體中文、簡潔回覆。
 - 對話開始先呼叫 get_me 取得使用者、角色與今天日期（台北時間），相對日期都用它換算成 YYYY-MM-DD。
 - 記錄活動：search_leads 找公司 → 整理內容（重點、需求、下一步，不加料）→ 先向使用者複述公司、類型、聯絡人、內容、下次聯絡日並取得確認 → add_activity。
 - 開發主線：新名單 → 約Demo → 有望成交 → 議價中 → 簽約進件（成交）；任何一步都可能進「等待」或「結案」。
 - 改階段 set_stage、改下次聯絡日 set_next_contact，都先確認。進「等待」一定要先問下次聯絡日並帶 next_contact_date。「結案」「簽約進件」只能在 CRM 裡操作，請提供 crm_link。
 - 主管總結：get_activity_report（owner=all）、get_attention_report；先講結論與風險，再列細節。
+- 業務週會／每週檢討：get_weekly_review（週六～週五，預設上一週）。要看趨勢就再帶前一週的 week_start 比較。先看整體（線索來源、分配、成交、結案原因、進行中分布），再逐一給每位業務：數字與轉換率、跟上週比、卡在哪一關、哪些名單逾期或太久沒碰、標了「需協助」的案子，最後給 2～3 個具體可做的建議。數字只用工具回傳的。
 - 報價單／合約截圖：讀出公司、統編、報價編號。search_leads（可用統編）找公司，找不到先 create_lead；已簽回的用 record_deal（quote_no＋file），寫入前先把金額摘要給使用者確認。只是報價、還沒成交的，用 add_activity（note）記報價重點。
 - 看客戶合約、已收／未收、月費、導入階段：get_customer_deals；全部客戶總覽：list_customers。收款確認用 record_payment（限管理員）。
 - 導入階段（啟動會議→填資料→系統教學→內部建置→小量試用→上線推廣→維運狀態）用 set_onboarding 更新，先確認。
@@ -94,6 +95,7 @@ const TOOLS = [
     assign_to_me: { type: 'boolean', description: '直接放進使用者自己的名單池（預設 false＝公海）' },
     confirm: { type: 'boolean', description: '使用者確認後才設 true' }
   }, ['items'], false),
+  T('get_weekly_review', '業務週會資料（週六到週五）：整體新增線索與來源、分配、成交公司與方案、結案原因、進行中名單分布；各業務的陌開（目標／打了／轉成／結束與原因）、分配名單結果、各階段名單、近 12 週轉換率，以及當週活動紀錄內容', { week_start: S('該週任一天 YYYY-MM-DD（會自動對到週六）；省略＝上一個完整週') }),
   T('get_attention_report', '需要關注的案子：逾期未追、長期沒更新的進行中案子', { stale_days: { type: 'integer', description: '幾天沒動算停滯，預設 30' }, owner })
 ];
 const qs = (a, keys) => { const p = new URLSearchParams(); for (const k of keys) if (a[k] !== undefined && a[k] !== null && a[k] !== '') p.set(k, String(a[k])); const s = p.toString(); return s ? '?' + s : ''; };
@@ -120,6 +122,7 @@ const ROUTES = {
   get_followups: a => ['GET', '/api/followups' + qs(a, ['days', 'owner'])],
   get_activity_report: a => ['GET', '/api/report/activity' + qs(a, ['from', 'to', 'owner'])],
   get_attention_report: a => ['GET', '/api/report/attention' + qs(a, ['stale_days', 'owner'])],
+  get_weekly_review: a => ['GET', '/api/report/weekly' + qs({ ...a, detail: 1 }, ['week_start', 'detail'])],
   check_duplicates: a => ['POST', '/api/dedupe', pick(a, ['items', 'text'])],
   export_names: a => ['GET', '/api/names' + qs(a, ['source', 'offset', 'limit'])],
   import_cold_calls: a => ['POST', '/api/cold-calls', pick(a, ['items', 'batch', 'source', 'assign_to_me', 'confirm'])]

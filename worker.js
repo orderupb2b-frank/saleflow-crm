@@ -71,7 +71,8 @@ function sb(env, tokenStr) {
   return {
     get: path => call('GET', path),
     insert: (table, row) => call('POST', table, row, { Prefer: 'return=representation' }).then(d => d?.[0]),
-    update: (table, filter, row) => call('PATCH', `${table}?${filter}`, row, { Prefer: 'return=representation' })
+    update: (table, filter, row) => call('PATCH', `${table}?${filter}`, row, { Prefer: 'return=representation' }),
+    rpc: (fn, args) => call('POST', 'rpc/' + fn, args)
   };
 }
 async function supabaseAuth(env, grant, body) {
@@ -175,6 +176,7 @@ async function api(request, env, url, ectx) {
   if (m === 'GET' && path === '/api/followups') return json(await followups(ctx));
   if (m === 'GET' && path === '/api/report/activity') return json(await activityReport(ctx));
   if (m === 'GET' && path === '/api/report/attention') return json(await attentionReport(ctx));
+  if (m === 'GET' && path === '/api/report/weekly') return json(await weeklyReport(ctx));
   if (m === 'GET' && path === '/api/customers') return json(await listCustomers(ctx));
   if (m === 'POST' && path === '/api/dedupe') return json(await checkDuplicates(ctx, await readBody(request)));
   if (m === 'GET' && path === '/api/names') return json(await exportNames(ctx));
@@ -960,6 +962,219 @@ async function listCustomers({ db, url }) {
   rows.sort((x, y) => (x.status === y.status ? y.monthly_fee - x.monthly_fee : x.status === '合作中' ? -1 : 1));
   const act = rows.filter(r => r.status === '合作中');
   return { today: todayTW(), active_customers: act.length, monthly_recurring: act.reduce((s, r) => s + r.monthly_fee, 0), total_contracted: rows.reduce((s, r) => s + r.total, 0), total_paid: rows.reduce((s, r) => s + r.paid, 0), total_unpaid: rows.reduce((s, r) => s + r.unpaid, 0), customers: rows };
+}
+
+// ───────────────────────── 業務週會（週六～週五）─────────────────────────
+// 時間點都來自系統自動紀錄：lead_events（建立／換階段／換負責業務）、cold_calls.status_at、call_logs、activities
+const MAIN_FLOW = ['新名單', '約Demo', '有望成交', '議價中', '簽約進件'];
+const CC_SRC = '業務陌開';
+const SRC_ORDER = ['陌開', 'FB', 'Google', '官網'];
+function weekStartOf(s) {
+  const d = isDate(s) ? s : todayTW();
+  const dow = new Date(d + 'T00:00:00Z').getUTCDay(); // 0=日 … 6=六
+  return addDays(d, -((dow + 1) % 7));
+}
+const reasonCat = s => String(s || '').split(/[：:]/)[0].trim() || '未填';
+const shareOf = arr => {
+  const m = {}; arr.forEach(k => { m[k] = (m[k] || 0) + 1; });
+  return Object.entries(m).sort((a, b) => b[1] - a[1]).map(([reason, n]) => ({ reason, n, pct: Math.round(n * 100 / arr.length) }));
+};
+const pctOf = (a, b) => b ? Math.round(a * 100 / b) : null;
+
+async function weeklyReport({ db, me, url }) {
+  const L = await lookups(db);
+  const ws = url.searchParams.get('week_start');
+  const from = isDate(ws) ? weekStartOf(ws) : addDays(weekStartOf(todayTW()), -7);
+  const to = addDays(from, 6);
+  const detail = ['1', 'true'].includes(url.searchParams.get('detail') || '');
+  const F = Date.parse(from + 'T00:00:00+08:00'), T = Date.parse(addDays(to, 1) + 'T00:00:00+08:00');
+  const fromISO = new Date(F).toISOString(), toISO = new Date(T).toISOString();
+  const C0 = F - 77 * 864e5; // 近 12 週（含本週）
+  const ms = t => t ? Date.parse(t) : NaN;
+  const inWk = t => { const x = ms(t); return x >= F && x < T; };
+  const inCohort = t => { const x = ms(t); return x >= C0 && x < T; };
+  const month = to.slice(0, 7);
+  const dim = new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7), 0)).getUTCDate();
+  const touchISO = new Date(T - 180 * 864e5).toISOString();
+
+  const [sources, leads, events, ccs, logs, kpis, deals, acts, touches] = await Promise.all([
+    db.get('sources?select=id,name'),
+    getAll(db, 'leads?select=id,name,stage_id,source_id,user_id,created_at,lost_reason,lost_at,next_contact_date,expected_total,flag&order=id'),
+    getAll(db, `lead_events?select=lead_id,kind,to_stage,to_user,by_user,at&at=lt.${toISO}&order=id`),
+    getAll(db, 'cold_calls?select=id,owner_id,status,status_at,close_reason,lead_id&order=id'),
+    getAll(db, `call_logs?select=cold_call_id,outcome,user_id&called_at=gte.${fromISO}&called_at=lt.${toISO}&order=id`),
+    db.get(`cc_kpis?select=user_id,kind,target,min_calls&month=eq.${month}`),
+    db.rpc('weekly_deals', { p_from: from, p_to: to }),
+    db.get(`activities?select=user_id,lead_id,type,content,created_at&created_at=gte.${fromISO}&created_at=lt.${toISO}&order=created_at&limit=3000`),
+    getAll(db, `activities?select=lead_id,created_at&created_at=gte.${touchISO}&created_at=lt.${toISO}&lead_id=not.is.null&order=id`)
+  ]);
+
+  const S = Object.fromEntries(L.stages.map(s => [s.id, s.name]));
+  const sid = n => L.stageByName(n)?.id;
+  const CLOSED = sid('結案'), WON = sid('簽約進件');
+  const isOpen = l => l.stage_id !== CLOSED && l.stage_id !== WON;
+  const leadById = new Map(leads.map(l => [l.id, l]));
+  const ccByLead = new Map(ccs.filter(c => c.lead_id).map(c => [c.lead_id, c]));
+  const ccSrcId = sources.find(s => s.name === CC_SRC)?.id;
+  const srcName = id => sources.find(s => s.id === id)?.name || '未填';
+  const isCold = l => ccByLead.has(l.id) || (ccSrcId && l.source_id === ccSrcId);
+  const coldRep = l => ccByLead.get(l.id)?.owner_id || l.user_id;
+  const uname = id => id ? (L.userName(id) || '未知') : '未分配';
+  const evBy = new Map();
+  for (const e of events) { const a = evBy.get(e.lead_id); a ? a.push(e) : evBy.set(e.lead_id, [e]); }
+  const lastTouch = new Map();
+  for (const a of touches) { const t = ms(a.created_at); if (!(lastTouch.get(a.lead_id) >= t)) lastTouch.set(a.lead_id, t); }
+  const today = todayTW(), now = Date.now();
+  const flowIdx = id => MAIN_FLOW.indexOf(S[id]);
+  const reached = l => Math.max(flowIdx(l.stage_id), ...(evBy.get(l.id) || []).filter(e => e.kind === 'stage').map(e => flowIdx(e.to_stage)), 0);
+  const stageSince = l => { const e = (evBy.get(l.id) || []).filter(e => e.kind === 'stage' && e.to_stage === l.stage_id).pop(); return e ? ms(e.at) : null; };
+  const used = new Set();
+  const ref = ids => { ids.forEach(i => used.add(i)); return ids; };
+  const brief = l => {
+    const ss = stageSince(l), lt = lastTouch.get(l.id);
+    return {
+      name: l.name, stage: S[l.stage_id] || null, owner: uname(l.user_id), source: isCold(l) ? '陌開' : srcName(l.source_id),
+      next: l.next_contact_date || null, overdue: !!(l.next_contact_date && l.next_contact_date < today && isOpen(l)),
+      days_in_stage: ss ? Math.floor((now - ss) / 864e5) : null, days_since_touch: lt ? Math.floor((now - lt) / 864e5) : null,
+      flag: l.flag || null, expected: l.expected_total || null, lost_reason: l.lost_reason || null, link: url.origin + '/#lead=' + l.id
+    };
+  };
+
+  // 名單從哪裡進來、分給誰（陌開轉的不算分配）
+  const lastAssign = (pred) => {
+    const m = new Map();
+    for (const e of events) if ((e.kind === 'assign' || e.kind === 'create') && e.to_user && pred(e.at)) {
+      const l = leadById.get(e.lead_id); if (l && !isCold(l)) m.set(e.lead_id, e);
+    }
+    return m;
+  };
+  const asgWk = lastAssign(inWk), asgCohort = lastAssign(inCohort);
+
+  // 1) 新增線索
+  const nl = leads.filter(l => inWk(l.created_at));
+  const bySrc = {};
+  for (const l of nl) {
+    const cold = isCold(l), k = cold ? '陌開' : srcName(l.source_id);
+    const g = bySrc[k] ||= { source: k, n: 0, by_rep: {}, leads: [] };
+    g.n++; g.leads.push(l.id);
+    if (cold) { const r = uname(coldRep(l)); g.by_rep[r] = (g.by_rep[r] || 0) + 1; }
+  }
+  const srcRank = k => { const i = SRC_ORDER.indexOf(k); return i < 0 ? 99 : i; };
+  const newLeads = { total: nl.length, by_source: Object.values(bySrc).sort((a, b) => srcRank(a.source) - srcRank(b.source) || b.n - a.n).map(g => ({ ...g, leads: ref(g.leads) })) };
+  for (const k of SRC_ORDER) if (!bySrc[k]) newLeads.by_source.push({ source: k, n: 0, by_rep: {}, leads: [] });
+  newLeads.by_source.sort((a, b) => srcRank(a.source) - srcRank(b.source));
+
+  // 2) 分配
+  const asgByRep = {};
+  for (const [lid, e] of asgWk) (asgByRep[uname(e.to_user)] ||= []).push(lid);
+  const assigned = { total: asgWk.size, by_rep: Object.entries(asgByRep).map(([rep, ids]) => ({ rep, n: ids.length, leads: ref(ids) })).sort((a, b) => b.n - a.n) };
+
+  // 3) 成交
+  const dealRows = (deals || []).map(d => ({
+    company: d.company, owner: uname(d.sales_user_id), date: d.signed, category: d.deal_category || null,
+    plan: d.title || null, items: (d.items || []).filter(Boolean), lead_id: d.lead_id ? ref([d.lead_id])[0] : null,
+    ...(me.role === 'admin' ? { amount: d.amount, monthly_fee: d.monthly_fee } : {})
+  }));
+  const dealsOut = { companies: new Set(dealRows.map(d => d.company)).size, list: dealRows };
+
+  // 4) 結案
+  const lostWk = leads.filter(l => l.stage_id === CLOSED && inWk(l.lost_at));
+  const lost = { total: lostWk.length, reasons: shareOf(lostWk.map(l => reasonCat(l.lost_reason))), leads: ref(lostWk.map(l => l.id)) };
+
+  // 5) 進行中：業務 × 階段
+  const openLeads = leads.filter(isOpen);
+  const cols = ['新名單', '約Demo', '有望成交', '議價中', '等待'].filter(n => sid(n))
+    .concat(L.stages.map(s => s.name).filter(n => !['新名單', '約Demo', '有望成交', '議價中', '等待', '結案', '簽約進件'].includes(n)));
+  const rowsM = {};
+  for (const l of openLeads) {
+    const r = rowsM[l.user_id || ''] ||= { rep: uname(l.user_id), user_id: l.user_id || null, cells: Object.fromEntries(cols.map(c => [c, []])), total: 0 };
+    const c = S[l.stage_id] || '新名單'; (r.cells[c] ||= []).push(l.id); r.total++;
+  }
+  const matrixRows = Object.values(rowsM).sort((a, b) => (a.user_id ? 0 : 1) - (b.user_id ? 0 : 1) || b.total - a.total);
+  matrixRows.forEach(r => Object.values(r.cells).forEach(ref));
+  const open = { total: openLeads.length, cols, rows: matrixRows, col_totals: Object.fromEntries(cols.map(c => [c, openLeads.filter(l => (S[l.stage_id] || '新名單') === c).length])) };
+
+  // 轉換率（近 12 週進來的名單，到過下一關的比例）
+  const funnelOf = ls => {
+    const cnt = MAIN_FLOW.map((_, i) => ls.filter(l => reached(l) >= i).length);
+    return {
+      n: ls.length, reached: Object.fromEntries(MAIN_FLOW.map((s, i) => [s, cnt[i]])),
+      steps: MAIN_FLOW.slice(1).map((s, i) => ({ from: MAIN_FLOW[i], to: s, rate: pctOf(cnt[i + 1], cnt[i]) })),
+      lost: ls.filter(l => l.stage_id === CLOSED).length
+    };
+  };
+  const cohortLeads = leads.filter(l => inCohort(l.created_at) || asgCohort.has(l.id));
+  const teamFunnel = funnelOf(cohortLeads);
+
+  // ── 各業務 ──
+  const stageEvWk = events.filter(e => e.kind === 'stage' && inWk(e.at));
+  const kp = (uid, kind) => kpis.find(k => k.kind === kind && k.user_id === uid) || kpis.find(k => k.kind === kind && !k.user_id);
+  const perWeek = t => t ? Math.round(t * 7 / dim) : null;
+  const reps = [];
+  for (const u of L.users) {
+    const myLogs = logs.filter(x => x.user_id === u.id);
+    const calledIds = new Set(myLogs.map(x => x.cold_call_id));
+    const conv = nl.filter(l => isCold(l) && coldRep(l) === u.id);
+    const ended = ccs.filter(c => c.owner_id === u.id && (c.status === 'rejected' || c.status === 'invalid') && inWk(c.status_at));
+    const kC = kp(u.id, 'calls'), kV = kp(u.id, 'conv'), kR = kp(u.id, 'rate');
+    const mine = openLeads.filter(l => l.user_id === u.id);
+    const myAsg = [...asgWk.entries()].filter(([, e]) => e.to_user === u.id).map(([id]) => leadById.get(id)).filter(Boolean);
+    const myCohortAsg = [...asgCohort.entries()].filter(([, e]) => e.to_user === u.id).map(([id]) => leadById.get(id)).filter(Boolean);
+    const myActs = acts.filter(a => a.user_id === u.id);
+    const moved = stageEvWk.filter(e => e.to_user === u.id);
+    if (!myLogs.length && !conv.length && !ended.length && !mine.length && !myAsg.length && !myActs.length && !moved.length && !(kpis.some(k => k.user_id === u.id))) continue;
+    const myCohort = cohortLeads.filter(l => l.user_id === u.id || (isCold(l) && coldRep(l) === u.id));
+    const stages = cols.map(c => {
+      const ids = mine.filter(l => (S[l.stage_id] || '新名單') === c).map(l => l.id);
+      return { stage: c, n: ids.length, moved_in: moved.filter(e => S[e.to_stage] === c).length, leads: ref(ids) };
+    });
+    const touched = new Set(myActs.map(a => a.lead_id).filter(Boolean));
+    reps.push({
+      rep: u.full_name, user_id: u.id,
+      cold: {
+        target_week: perWeek(kC?.target), target_month: kC?.target ?? null,
+        conv_target_week: perWeek(kV?.target), conv_target_month: kV?.target ?? null, rate_target: kR?.target ?? null,
+        called: calledIds.size, dials: myLogs.length,
+        converted: conv.length, converted_leads: ref(conv.map(l => l.id)), conv_rate: pctOf(conv.length, calledIds.size),
+        ended: ended.length, end_reasons: shareOf(ended.map(c => c.close_reason || (c.status === 'invalid' ? '空號／無效' : '未填')))
+      },
+      assigned: {
+        n: myAsg.length, leads: ref(myAsg.map(l => l.id)),
+        reached_demo: myAsg.filter(l => reached(l) >= 1).length,
+        lost: myAsg.filter(l => l.stage_id === CLOSED).length,
+        lost_reasons: shareOf(myAsg.filter(l => l.stage_id === CLOSED).map(l => reasonCat(l.lost_reason))),
+        last_12w: { n: myCohortAsg.length, demo_rate: pctOf(myCohortAsg.filter(l => reached(l) >= 1).length, myCohortAsg.length), lost_rate: pctOf(myCohortAsg.filter(l => l.stage_id === CLOSED).length, myCohortAsg.length) }
+      },
+      pipeline: {
+        open: mine.length, stages,
+        moved_this_week: shareOf(moved.map(e => S[e.to_stage] || '?')).map(x => ({ stage: x.reason, n: x.n })),
+        key: mine.filter(l => l.flag === 'key').length, help: mine.filter(l => l.flag === 'help').length,
+        overdue: mine.filter(l => l.next_contact_date && l.next_contact_date < today).length,
+        no_next_date: mine.filter(l => !l.next_contact_date && S[l.stage_id] !== '新名單').length
+      },
+      funnel_12w: funnelOf(myCohort),
+      activity: {
+        n: myActs.length, companies: touched.size,
+        ...(detail ? { log: myActs.map(a => ({ when: toTW(a.created_at), company: leadById.get(a.lead_id)?.name || null, type: ACTIVITY_TYPES[a.type] || a.type, content: String(a.content || '').replace(AI_TAG, '').slice(0, 220) })) } : {})
+      }
+    });
+  }
+  reps.sort((a, b) => b.pipeline.open - a.pipeline.open);
+
+  const leadsOut = {};
+  for (const id of used) { const l = leadById.get(id); if (l) leadsOut[id] = brief(l); }
+  return {
+    week: { from, to, label: `${from.slice(5).replace('-', '/')}（六）～ ${to.slice(5).replace('-', '/')}（五）` },
+    viewer: { name: me.name, role: me.role },
+    overall: { new_leads: newLeads, assigned, deals: dealsOut, lost, open, funnel_12w: teamFunnel },
+    reps, leads: leadsOut,
+    notes: [
+      '轉換率＝近 12 週進來（新建或分配）的名單，到過下一關的比例。',
+      '階段歷程從 2026-11-08 起由系統自動記錄；之前的只補得到建立、結案、成交，舊名單的中間階段會低估。',
+      '分配＝非陌開來源的名單被指定負責業務；陌開轉的算在陌開。',
+      '陌開週目標＝月目標 × 7 ÷ 當月天數。'
+    ]
+  };
 }
 
 // ───────────────────────── OpenAPI（給 GPT Actions）─────────────────────────
