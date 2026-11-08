@@ -1066,6 +1066,8 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .wk-leads thead th { white-space:nowrap; font-size:11px; color:var(--text3); font-weight:500; text-align:right; padding:2px 6px; }
 .wk-leads td:not(:first-child) { white-space:nowrap; text-align:right; width:1%; }
 .wk-why { text-align:right; }
+.wk-last { font-size:12px; color:var(--text2); margin-top:3px; max-width:620px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.wk-last span { color:var(--text3); margin-right:6px; }
 .wk-why span { display:inline-block; font-size:11.5px; padding:1px 7px; border-radius:9px; background:var(--red-bg); color:var(--red); margin:1px 0 1px 4px; white-space:nowrap; }
 .wk-log { max-height:460px; overflow-y:auto; }
 .wk-logi { display:grid; grid-template-columns:110px 1fr; gap:10px; padding:8px 0; border-top:1px solid var(--border); font-size:13px; }
@@ -4769,7 +4771,8 @@ function wkLeadRows(ids, opt) {
     const nd = x.next ? x.next.slice(5).replace('-', '/') : '';
     const sub = [opt.pop != null ? x.stage : '', opt.pop != null ? x.owner : '', x.industry && x.industry !== '未分類' ? x.industry : ''].filter(Boolean).join('・');
     return '<tr data-id="' + x.id + '"><td><a class="wk-co" onclick="wkQuick(\'' + x.id + '\',' + back + ')">' + esc(x.name || '') + '</a>'
-      + (sub ? '<div class="wk-mut">' + esc(sub) + '</div>' : '') + (opt.lost && x.lost_reason ? '<div class="wk-mut">' + esc(x.lost_reason) + '</div>' : '') + '</td>'
+      + (sub ? '<div class="wk-mut">' + esc(sub) + '</div>' : '') + (opt.lost && x.lost_reason ? '<div class="wk-mut">' + esc(x.lost_reason) + '</div>' : '')
+      + (x.last ? '<div class="wk-last" title="' + esc(x.last.text) + '"><span>' + esc(x.last.when) + '</span>' + esc(x.last.text) + '</div>' : '') + '</td>'
       + '<td class="wk-mut">' + (nd ? '<span' + (x.overdue ? ' class="wk-bad"' : '') + '>' + nd + '</span>' : '') + '</td>'
       + '<td class="wk-mut">' + (x.days_since_touch != null ? '<span class="' + (x.days_since_touch >= 14 ? 'wk-bad' : x.days_since_touch >= 7 ? 'wk-warn' : '') + '">' + x.days_since_touch + '天</span>' : '<span class="wk-warn">沒有</span>') + '</td>'
       + (opt.stay ? '<td class="wk-mut">' + (x.days_in_stage != null ? x.days_in_stage + '天' : '') + '</td>' : '')
