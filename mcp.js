@@ -7,7 +7,8 @@ const SERVER = { name: 'saleflow-crm', version: '1.5.0' };
 const INSTRUCTIONS = `你在操作奧德上（OrderUp B2B）的 SaleFlow CRM。一律繁體中文、簡潔回覆。
 - 對話開始先呼叫 get_me 取得使用者、角色與今天日期（台北時間），相對日期都用它換算成 YYYY-MM-DD。
 - 記錄活動：search_leads 找公司 → 整理內容（重點、需求、下一步，不加料）→ 先向使用者複述公司、類型、聯絡人、內容、下次聯絡日並取得確認 → add_activity。
-- 改階段 set_stage、改下次聯絡日 set_next_contact，都先確認。「結案」「簽約進件」只能在 CRM 裡操作，請提供 crm_link。
+- 開發主線：新名單 → 約Demo → 有望成交 → 議價中 → 簽約進件（成交）；任何一步都可能進「等待」或「結案」。
+- 改階段 set_stage、改下次聯絡日 set_next_contact，都先確認。進「等待」一定要先問下次聯絡日並帶 next_contact_date。「結案」「簽約進件」只能在 CRM 裡操作，請提供 crm_link。
 - 主管總結：get_activity_report（owner=all）、get_attention_report；先講結論與風險，再列細節。
 - 報價單／合約截圖：讀出公司、統編、報價編號。search_leads（可用統編）找公司，找不到先 create_lead；已簽回的用 record_deal（quote_no＋file），寫入前先把金額摘要給使用者確認。只是報價、還沒成交的，用 add_activity（note）記報價重點。
 - 看客戶合約、已收／未收、月費、導入階段：get_customer_deals；全部客戶總覽：list_customers。收款確認用 record_payment（限管理員）。
@@ -52,7 +53,7 @@ const TOOLS = [
     next_contact_date: S('YYYY-MM-DD 設定下次聯絡日；none 清除；省略則照 CRM 預設規則')
   }, ['lead_id', 'type', 'content'], false),
   T('set_next_contact', '設定或清除下次聯絡日', { lead_id: S('名單 id'), date: S('YYYY-MM-DD，或 none 清除') }, ['lead_id', 'date'], false),
-  T('set_stage', '變更名單階段（不能改成 結案、簽約進件）', { lead_id: S('名單 id'), stage: S('階段名稱，需與 get_me 一致') }, ['lead_id', 'stage'], false),
+  T('set_stage', '變更名單階段（不能改成 結案、簽約進件）。改成「等待」一定要帶下次聯絡日', { lead_id: S('名單 id'), stage: S('階段名稱，需與 get_me 一致'), next_contact_date: S('進「等待」時必填，YYYY-MM-DD') }, ['lead_id', 'stage'], false),
   T('set_onboarding', '更新成交客戶的導入階段', {
     lead_id: S('名單 id'), stage: S('導入階段', { enum: ['啟動會議', '填資料', '系統教學', '內部建置', '小量試用', '上線推廣', '維運狀態'] }), go_live_date: S('上線日 YYYY-MM-DD（選填；進到上線推廣時預設今天）')
   }, ['lead_id', 'stage'], false),
@@ -109,7 +110,7 @@ const ROUTES = {
   list_deal_files: a => ['GET', `/api/leads/${id(a)}/files`],
   add_activity: a => ['POST', `/api/leads/${id(a)}/activities`, pick(a, ['type', 'content', 'contact_name', 'occurred_at', 'next_contact_date'])],
   set_next_contact: a => ['PATCH', `/api/leads/${id(a)}/next-contact`, pick(a, ['date'])],
-  set_stage: a => ['PATCH', `/api/leads/${id(a)}/stage`, pick(a, ['stage'])],
+  set_stage: a => ['PATCH', `/api/leads/${id(a)}/stage`, pick(a, ['stage', 'next_contact_date'])],
   list_customers: () => ['GET', '/api/customers'],
   set_onboarding: a => ['PATCH', `/api/leads/${id(a)}/onboarding`, pick(a, ['stage', 'go_live_date'])],
   get_customer_deals: a => ['GET', `/api/leads/${id(a)}/deals`],

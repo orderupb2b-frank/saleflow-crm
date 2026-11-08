@@ -7,7 +7,7 @@
 
 const TZ_OFFSET_MS = 8 * 3600 * 1000; // Asia/Taipei
 const BLOCKED_STAGES = ['結案', '簽約進件']; // 這兩個階段有後續流程（結案原因、轉客戶），只能在 CRM 裡操作
-const INACTIVE_STAGES = ['結案', '暫停'];
+const INACTIVE_STAGES = ['結案', '暫停', '等待'];
 const AI_TAG = '\n\n— 由 ChatGPT 助理記錄';
 const ACTIVITY_TYPES = { email: 'Email', call: '電話/LINE', visit: '實體拜訪', event: '展覽活動', note: '內部備註' };
 
@@ -500,8 +500,14 @@ async function setStage({ db, url }, leadId, b) {
   if (!st) throw new HttpError(400, `沒有「${b.stage}」這個階段。可用：${L.stages.map(s => s.name).join('、')}`);
   if (BLOCKED_STAGES.includes(st.name)) throw new HttpError(400, `「${st.name}」需要在 CRM 裡操作（要填結案原因或轉成客戶），請點連結處理：${url.origin}/#lead=${leadId}`);
   const prev = L.stageName(lead.stage_id);
-  await db.update('leads', `id=eq.${leadId}`, { stage_id: st.id, updated_at: new Date().toISOString() });
-  return { ok: true, lead: lead.name, from: prev, to: st.name, crm_link: url.origin + '/#lead=' + leadId };
+  const patch = { stage_id: st.id, updated_at: new Date().toISOString() };
+  if (st.name === '等待' || st.name === '暫停') {
+    const d = String(b.next_contact_date || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new HttpError(400, '進「等待」一定要給下次聯絡日 next_contact_date（YYYY-MM-DD），請先問使用者什麼時候再聯絡');
+    patch.next_contact_date = d;
+  }
+  await db.update('leads', `id=eq.${leadId}`, patch);
+  return { ok: true, lead: lead.name, from: prev, to: st.name, next_contact_date: patch.next_contact_date || undefined, crm_link: url.origin + '/#lead=' + leadId };
 }
 
 async function createLead(ctx, b) {
