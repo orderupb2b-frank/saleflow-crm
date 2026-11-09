@@ -1066,6 +1066,15 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .wk-leads thead th { white-space:nowrap; font-size:11px; color:var(--text3); font-weight:500; text-align:right; padding:2px 6px; }
 .wk-leads td:not(:first-child) { white-space:nowrap; text-align:right; width:1%; }
 .wk-why { text-align:right; }
+.wk-lg { background:none; border:0; padding:0; font:inherit; color:inherit; cursor:pointer; }
+.wk-lg:hover { color:var(--accent); }
+.wcc { max-height:60vh; overflow-y:auto; }
+.wcc-i { padding:9px 0; border-top:1px solid var(--border); font-size:13px; }
+.wcc-i:first-child { border-top:0; }
+.wcc-h { display:flex; gap:8px; align-items:baseline; }
+.wcc-h .wk-mut { margin-left:auto; white-space:nowrap; }
+.wcc-tag { font-size:11.5px; padding:1px 7px; border-radius:9px; background:var(--bg3); color:var(--text2); }
+.wcc-n { color:var(--text2); margin-top:3px; white-space:pre-wrap; }
 .wk-last { font-size:12px; color:var(--text2); margin-top:3px; max-width:620px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .wk-last span { color:var(--text3); margin-right:6px; }
 .wk-why span { display:inline-block; font-size:11.5px; padding:1px 7px; border-radius:9px; background:var(--red-bg); color:var(--red); margin:1px 0 1px 4px; white-space:nowrap; }
@@ -4609,10 +4618,33 @@ function wkPopBtn(ids, title, inner, cls) {
 }
 function wkSeg(key, opts) { return '<span class="wk-seg">' + opts.map(function (o) { return '<button class="' + (_wk[key] === o[0] ? 'on' : '') + '" onclick="wkSet(\'' + key + '\',\'' + o[0] + '\')">' + o[1] + '</button>'; }).join('') + '</span>'; }
 const WK_C = ['var(--accent)', 'var(--purple)', 'var(--yellow)', 'var(--cyan)', 'var(--red)', 'var(--green)', 'var(--text3)'];
-function wkBar(rows) {
+function wkBar(rows, pop) {
   if (!rows || !rows.length) return '<div class="wk-none">—</div>';
+  const tag = pop ? 'button' : 'span';
   return '<div class="wk-sbar">' + rows.map(function (r, i) { return '<span style="flex:' + r.n + ';background:' + WK_C[i % WK_C.length] + '"></span>'; }).join('') + '</div>'
-    + '<div class="wk-legend">' + rows.map(function (r, i) { return '<span><i style="background:' + WK_C[i % WK_C.length] + '"></i>' + esc(r.reason) + ' <b>' + r.n + '</b> <em>' + r.pct + '%</em></span>'; }).join('') + '</div>';
+    + '<div class="wk-legend">' + rows.map(function (r, i) { return '<' + tag + (pop ? ' class="wk-lg" onclick="wkCcPop(\'' + pop + '\',' + i + ')"' : '') + '><i style="background:' + WK_C[i % WK_C.length] + '"></i>' + esc(r.reason) + ' <b>' + r.n + '</b> <em>' + r.pct + '%</em></' + tag + '>'; }).join('') + '</div>';
+}
+// 陌開明細：結束原因／通話結果 → 每家公司與備註
+let _wcc = null;
+function wkCcPop(kind, idx) {
+  const r = _wk.data.reps.find(function (x) { return x.user_id === _wk.tab; }); if (!r) return;
+  const rows = kind === 'ended' ? r.cold.end_reasons : r.cold.outcomes;
+  _wcc = { kind: kind, list: kind === 'ended' ? r.cold.ended_list : r.cold.call_list, groups: rows.map(function (x) { return x.reason; }), sel: idx == null ? null : rows[idx].reason, rep: r.rep };
+  openModal(r.rep + '・' + (kind === 'ended' ? '陌開結束原因' : '通話結果'), '');
+  document.getElementById('modalFooter').style.display = 'none';
+  document.getElementById('modalBox').style.maxWidth = '680px';
+  wccDraw();
+}
+function wccPick(i) { _wcc.sel = i == null ? null : _wcc.groups[i]; wccDraw(); }
+function wccDraw() {
+  const g = _wcc, list = g.list.filter(function (x) { return !g.sel || x.group === g.sel; });
+  const chips = '<div class="wk-fchips"><button class="wk-fchip' + (!g.sel ? ' on' : '') + '" onclick="wccPick(null)"><b>' + g.list.length + '</b>全部</button>'
+    + g.groups.map(function (n, i) { const c = g.list.filter(function (x) { return x.group === n; }).length; return '<button class="wk-fchip' + (g.sel === n ? ' on' : '') + '" onclick="wccPick(' + i + ')"><b>' + c + '</b>' + esc(n) + '</button>'; }).join('') + '</div>';
+  const body = list.length ? '<div class="wcc">' + list.map(function (x) {
+    return '<div class="wcc-i"><div class="wcc-h"><b>' + esc(x.company) + '</b>' + (g.sel ? '' : '<span class="wcc-tag">' + esc(x.group) + '</span>') + '<span class="wk-mut">' + esc(x.when) + '</span></div>'
+      + (x.note ? '<div class="wcc-n">' + esc(x.note) + '</div>' : '<div class="wcc-n wk-mut">沒寫備註</div>') + '</div>';
+  }).join('') + '</div>' : '<div class="wk-none">—</div>';
+  document.getElementById('modalBody').innerHTML = chips + body;
 }
 function wkFunnelCard(f12, fw, small) {
   const head = '<div class="wk-h">轉換率 ' + wkSeg('fn', [['week', '這週'], ['12w', '近 12 週']]) + '</div>';
@@ -4708,9 +4740,9 @@ function wkRep(d, r) {
   const cold = '<div class="card"><div class="wk-h">陌開</div><div class="wk-tiles in">'
     + wkTile(c.called + (c.target_week ? '<small>/' + c.target_week + '</small>' : '') + wkDelta(k.called, kp.called), '打了', prog(c.called, c.target_week) + (c.dials > c.called ? c.dials + ' 通' : ''))
     + wkTile(wkPopBtn(c.converted_leads, r.rep + '・陌開轉線索', c.converted) + (c.conv_target_week ? '<small>/' + c.conv_target_week + '</small>' : ''), '轉線索', prog(c.converted, c.conv_target_week) + '轉換 ' + wkPct(c.conv_rate) + (c.rate_target ? '・目標 ' + c.rate_target + '%' : ''), 'good')
-    + wkTile(c.ended, '結束', '', 'bad') + '</div>'
-    + (c.outcomes.length ? '<div class="wk-mini">通話結果</div>' + wkBar(c.outcomes) : '')
-    + (c.end_reasons.length ? '<div class="wk-mini">結束原因</div>' + wkBar(c.end_reasons) : '') + '</div>';
+    + wkTile(c.ended ? '<button class="wk-link" onclick="wkCcPop(\'ended\')">' + c.ended + '</button>' : 0, '結束', '', 'bad') + '</div>'
+    + (c.outcomes.length ? '<div class="wk-mini">通話結果</div>' + wkBar(c.outcomes, 'calls') : '')
+    + (c.end_reasons.length ? '<div class="wk-mini">結束原因</div>' + wkBar(c.end_reasons, 'ended') : '') + '</div>';
   const asg = '<div class="card"><div class="wk-h">分配名單</div><div class="wk-tiles in">'
     + wkTile(wkPopBtn(a.leads, r.rep + '・本週分配', a.n), '分配', a.not_touched.length ? '<span class="wk-bad">' + wkPopBtn(a.not_touched, '分配後還沒聯絡', a.not_touched.length + ' 筆沒聯絡') + '</span>' : '')
     + wkTile(a.reached_demo, '約到 Demo', a.n ? wkPct(Math.round(a.reached_demo * 100 / a.n)) : '', 'good')
