@@ -4678,7 +4678,7 @@ function wkFunnelCard(f12, fw, small) {
   const head = '<div class="wk-h">轉換率 ' + wkSeg('fn', [['week', '這週'], ['12w', '近 12 週']]) + '</div>';
   if (_wk.fn !== '12w' && _wk.data && !_wk.data.overall.week_tracked) return head + '<div class="wk-none">11/8 起系統才開始記錄階段變化，這週之後才有。</div>';
   const steps = _wk.fn === '12w' ? f12.steps : fw;
-  const nm = function (k) { return k === '簽約進件' ? '成交' : k === '議價中' ? stageLabelOf(k) + '（報價）' : stageLabelOf(k); };
+  const nm = function (k) { return k === '簽約進件' ? '成交' : stageLabelOf(k); };
   return head + '<div class="wk-wf">' + steps.map(function (s) {
     return '<div class="wk-wfs"><div class="wk-wft">' + esc(nm(s.from)) + ' → ' + esc(nm(s.to)) + '</div>'
       + '<div class="wk-wfr">' + wkPct(s.rate) + '</div>'
