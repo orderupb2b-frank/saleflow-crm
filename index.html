@@ -1052,7 +1052,8 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .wk-team thead th { border-top:0; color:var(--text3); font-weight:500; font-size:12px; }
 .wk-team tbody th { text-align:left; font-weight:600; }
 .wk-team tbody tr { cursor:pointer; } .wk-team tbody tr:hover { background:var(--bg3); }
-.wk-wf { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.wk-wf { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.wk-wfl { font-size:12px; margin-top:4px; }
 .wk-wfs { background:var(--bg3); border-radius:8px; padding:10px 12px; }
 .wk-wft { font-size:12px; color:var(--text2); }
 .wk-wfr { font-size:22px; font-weight:700; margin:2px 0; color:var(--accent); font-variant-numeric:tabular-nums; }
@@ -1107,7 +1108,7 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .wq-c { white-space:pre-wrap; margin-top:3px; }
 @media (max-width:768px) {
   .wk-tiles.six { grid-template-columns:repeat(3,1fr); }
-  .wk-wf { grid-template-columns:1fr 1fr; }
+  .wk-wf { grid-template-columns:1fr; }
   .wq-grid { grid-template-columns:1fr; }
   .wk-logi { grid-template-columns:1fr; gap:2px; }
 }
@@ -4675,18 +4676,15 @@ function wccDraw() {
 }
 function wkFunnelCard(f12, fw, small) {
   const head = '<div class="wk-h">轉換率 ' + wkSeg('fn', [['week', '這週'], ['12w', '近 12 週']]) + '</div>';
-  if (_wk.fn === '12w') {
-    const st = ['新名單', '約Demo', '有望成交', '議價中', '簽約進件'];
-    return head + '<div class="wk-funnel' + (small ? ' sm' : '') + '">' + st.map(function (s, i) {
-      return (i ? '<div class="wk-rate">' + wkPct(f12.steps[i - 1].rate) + '</div>' : '') + '<div class="wk-fs"><b>' + (f12.reached[s] || 0) + '</b><span>' + esc(s === '簽約進件' ? '成交' : stageLabelOf(s)) + '</span></div>';
-    }).join('') + '</div>';
-  }
-  if (_wk.data && !_wk.data.overall.week_tracked) return head + '<div class="wk-none">11/8 起系統才開始記錄階段變化，這週之後才有。</div>';
-  return head + '<div class="wk-wf">' + fw.map(function (s) {
-    return '<div class="wk-wfs"><div class="wk-wft">' + esc(stageLabelOf(s.from)) + ' → ' + (s.to === '簽約進件' ? '成交' : esc(stageLabelOf(s.to))) + '</div>'
+  if (_wk.fn !== '12w' && _wk.data && !_wk.data.overall.week_tracked) return head + '<div class="wk-none">11/8 起系統才開始記錄階段變化，這週之後才有。</div>';
+  const steps = _wk.fn === '12w' ? f12.steps : fw;
+  const nm = function (k) { return k === '簽約進件' ? '成交' : k === '議價中' ? stageLabelOf(k) + '（報價）' : stageLabelOf(k); };
+  return head + '<div class="wk-wf">' + steps.map(function (s) {
+    return '<div class="wk-wfs"><div class="wk-wft">' + esc(nm(s.from)) + ' → ' + esc(nm(s.to)) + '</div>'
       + '<div class="wk-wfr">' + wkPct(s.rate) + '</div>'
-      + '<div class="wk-mut">' + wkPopBtn(s.leads, stageLabelOf(s.from) + ' 推進', s.advanced) + ' / ' + s.base
-      + (s.wait ? '・等待 ' + s.wait : '') + (s.lost ? '・結案 ' + s.lost : '') + '</div></div>';
+      + '<div class="wk-mut">' + wkPopBtn(s.leads, nm(s.from) + ' → ' + nm(s.to), s.advanced) + ' / ' + s.base + '</div>'
+      + '<div class="wk-wfl">' + (s.lost ? '<span class="wk-bad">掉件 ' + wkPopBtn(s.lost_leads, nm(s.from) + ' 掉件', wkPct(s.lost_rate) + '（' + s.lost + '）') + '</span>' : '<span class="wk-mut">掉件 0</span>')
+      + (s.wait ? '<span class="wk-mut">・等待 ' + s.wait + '</span>' : '') + '</div></div>';
   }).join('') + '</div>';
 }
 function wkMatrix(cols, rows, labelKey, colTotals, total) {
