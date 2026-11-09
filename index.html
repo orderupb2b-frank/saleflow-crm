@@ -1066,6 +1066,13 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .wk-leads thead th { white-space:nowrap; font-size:11px; color:var(--text3); font-weight:500; text-align:right; padding:2px 6px; }
 .wk-leads td:not(:first-child) { white-space:nowrap; text-align:right; width:1%; }
 .wk-why { text-align:right; }
+.st-color { width:28px; height:24px; padding:0; border:0; background:none; cursor:pointer; flex-shrink:0; }
+.st-label { flex:1; height:30px; font-size:13.5px; padding:0 8px; }
+.st-key { font-size:11px; color:var(--text3); white-space:nowrap; }
+.pr-bar { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.pr-box { background:#fff; border-radius:var(--radius); overflow:hidden; border:1px solid var(--border); }
+.pr-box iframe { border:0; width:1680px; display:block; transform-origin:0 0; }
+@media (max-width:900px) { .pr-box { overflow-x:auto; } }
 .wk-lg { background:none; border:0; padding:0; font:inherit; color:inherit; cursor:pointer; }
 .wk-lg:hover { color:var(--accent); }
 .wcc { max-height:60vh; overflow-y:auto; }
@@ -1462,7 +1469,7 @@ const SECTIONS = [
   { key: 'onb', label: '導入看板', pages: [['onboard', '']] },
   { key: 'lists', label: '列表清單', pages: [['accounts', '合作中客戶'], ['leadlist', '線索'], ['contacts', '聯絡人'], ['feed', '動態'], ['mclients', '客戶', 'hidden']] },
   { key: 'm', label: '', pages: [['mtoday', '今天', 'hidden'], ['mme', '我的', 'hidden']] },
-  { key: 'tools', label: '工具箱', pages: [['quotes', '報價單'], ['decks', '簡報'], ['bonus', '業績計算器'], ['settings', '設定']] }
+  { key: 'tools', label: '工具箱', pages: [['quotes', '報價單'], ['pricing', '價格表'], ['decks', '簡報'], ['bonus', '業績計算器'], ['settings', '設定']] }
 ];
 function sectionOf(page) {
   return SECTIONS.find(function (s) { return s.pages.some(function (p) { return p[0] === page; }); }) || null;
@@ -1492,7 +1499,7 @@ function openMoreMenu() {
     + b('ccboard', '📞', '陌開進度') + b('ccpool', '🌊', '公海')
     + b('ccstats', '📈', '陌開統計')
     + b('performance', '💰', '業績明細') + b('bonus', '🧮', '獎金試算')
-    + b('quotes', '🧾', '報價單') + b('decks', '📽', '簡報')
+    + b('quotes', '🧾', '報價單') + b('pricing', '💲', '價格表') + b('decks', '📽', '簡報')
     + b('feed', '📰', '動態') + b('settings', '⚙️', '設定')
     + '</div>'
     + '<button class="btn btn-ghost" style="width:100%;height:44px" onclick="toggleTheme();closeModal()">' + (dark ? '☀️　切成淺色' : '🌙　切成深色') + '</button>');
@@ -1518,6 +1525,7 @@ async function renderPage(page) {
     case 'ccpool': await renderCcPool(); break;
     case 'ccboard': await renderCcBoard(); break;
     case 'decks': await renderDecks(); break;
+    case 'pricing': renderPricing(); break;
     case 'performance': await renderPerformance(); break;
     case 'dashboard': await renderDashboard(); break;
     case 'weekly': await renderWeekly(); break;
@@ -1692,7 +1700,7 @@ function mcFilterSheet() {
   let h = grp('業務', usersData.map(function (u) { return chip(_mcF.owner === u.id, 'mcSet(\'owner\',\'' + u.id + '\')', esc(u.full_name || u.email || '')); }).join(''));
   h += grp('下次聯絡', [['overdue', '逾期'], ['today', '今天'], ['week', '7 天內'], ['none', '沒排']].map(function (d) { return chip(_mcF.due === d[0], 'mcSet(\'due\',\'' + d[0] + '\')', d[1]); }).join(''));
   h += grp('顏色', '<span class="ctag-filter" style="display:inline-flex;gap:8px;align-items:center">' + CTAGS.map(function (c) { return '<button type="button" class="ctag on ctag-' + c + (_mcF.ctag.indexOf(c) >= 0 ? ' act' : '') + '" style="width:26px;height:26px" onclick="mcTog(\'ctag\',\'' + c + '\')"></button>'; }).join('') + '</span>');
-  if (_mcKind !== 'cc' && _mcKind !== 'acc') h += grp('階段', stagesData.map(function (st) { return chip(_mcF.stage.indexOf(st.id) >= 0, 'mcTog(\'stage\',\'' + st.id + '\')', esc(st.name)); }).join(''));
+  if (_mcKind !== 'cc' && _mcKind !== 'acc') h += grp('階段', stagesData.map(function (st) { return chip(_mcF.stage.indexOf(st.id) >= 0, 'mcTog(\'stage\',\'' + st.id + '\')', esc(stLabel(st))); }).join(''));
   if (_mcKind === 'cc' || _mcKind === 'all') h += grp('陌開等級', ['A', 'B', 'C'].map(function (g) { return chip(_mcF.grade.indexOf(g) >= 0, 'mcTog(\'grade\',\'' + g + '\')', g); }).join(''));
 
   const body = document.getElementById('modalBody');
@@ -1795,7 +1803,7 @@ function renderMCompany() {
   const phone = c0 && c0.phone ? String(c0.phone).replace(/[^\d+#,]/g, '') : '';
   const nd = lead.next_contact_date ? String(lead.next_contact_date).slice(0, 10) : '', ndd = nd ? daysUntil(nd) : null;
   const stageHtml = !acc
-    ? '<select class="cp-stage" aria-label="階段" onchange="companyStage(\'' + id + '\',this.value)">' + stagesData.map(function (st) { return '<option value="' + st.id + '"' + (st.id === lead.stage_id ? ' selected' : '') + '>' + esc(st.name) + '</option>'; }).join('') + '</select>'
+    ? '<select class="cp-stage" aria-label="階段" onchange="companyStage(\'' + id + '\',this.value)">' + stagesData.map(function (st) { return '<option value="' + st.id + '"' + (st.id === lead.stage_id ? ' selected' : '') + '>' + esc(stLabel(st)) + '</option>'; }).join('') + '</select>'
     : '<span class="badge ' + (acc.status === 'terminated' ? 'badge-red' : 'badge-green') + '" style="height:32px;display:inline-flex;align-items:center;border-radius:999px">' + (acc.status === 'terminated' ? '終止合作' : '合作中') + '</span>';
   const nextBtn = '<button type="button" class="ml-chip" style="height:32px;padding:0 12px;color:' + (nd ? (ndd < 0 ? 'var(--red)' : ndd === 0 ? 'var(--yellow)' : 'var(--text)') : 'var(--text3)') + '" onclick="openSetNextContact(\'' + id + '\',\'' + (lead.next_contact_date || '') + '\')">'
     + (nd ? '下次 ' + nd.slice(5).replace('-', '/') + (ndd < 0 ? '・逾 ' + (-ndd) + ' 天' : ndd === 0 ? '・今天' : '') : '下次 —') + '</button>';
@@ -1998,7 +2006,7 @@ async function renderToday() {
   const last = {};
   acts.forEach(function (a) { if (!last[a.lead_id] || a.created_at > last[a.lead_id]) last[a.lead_id] = a.created_at; });
   const cold = leads.filter(function (l) {
-    return !convertedLeadIds.has(l.id) && mine(l.user_id) && !l.next_contact_date && ['結案', '簽約進件'].indexOf(getStageName(l.stage_id)) < 0;
+    return !convertedLeadIds.has(l.id) && mine(l.user_id) && !l.next_contact_date && ['結案', '簽約進件'].indexOf(getStageKey(l.stage_id)) < 0;
   }).map(function (l) { return { l: l, last: last[l.id] || l.created_at }; })
     .filter(function (x) { return daysSince(x.last) >= 30; })
     .sort(function (a, b) { return new Date(a.last) - new Date(b.last); });
@@ -2443,7 +2451,7 @@ async function openCcConvert(ccId) {
   if (!stagesData.length) await loadGlobalData();
   const dup = await ccFindExistingLead(c.company);
   let stageOpts = '';
-  stagesData.forEach(function (s, i) { stageOpts += '<option value="' + s.id + '"' + (i === 0 ? ' selected' : '') + '>' + esc(s.name) + '</option>'; });
+  stagesData.forEach(function (s, i) { stageOpts += '<option value="' + s.id + '"' + (i === 0 ? ' selected' : '') + '>' + esc(stLabel(s)) + '</option>'; });
   let srcOpts = '<option value="">— 不指定 —</option>';
   const guess = sourcesData.find(function (s) { return /陌開|陌生|電話|開發/.test(s.name); });
   sourcesData.forEach(function (s) { srcOpts += '<option value="' + s.id + '"' + (guess && s.id === guess.id ? ' selected' : '') + '>' + esc(s.name) + '</option>'; });
@@ -3864,7 +3872,7 @@ function leadMatches(l, q) {
 
 // ════════════════════════ 預計成交金額（議價中） ════════════════════════
 const EXP_STAGES = ['議價中', '有望成交', '有興趣討論中'];
-function isExpStage(l) { return EXP_STAGES.indexOf(getStageName(l.stage_id)) >= 0 && !convertedLeadIds.has(l.id); }
+function isExpStage(l) { return EXP_STAGES.indexOf(getStageKey(l.stage_id)) >= 0 && !convertedLeadIds.has(l.id); }
 function expTotal(l) {
   if (l.expected_total != null && l.expected_total !== '') return Number(l.expected_total) || 0;
   const m = Number(l.expected_monthly) || 0, n = Number(l.expected_months) || 0;
@@ -4176,13 +4184,13 @@ function renderLeadsMobile() {
         const isU = ['mine', 'all', 'none'].indexOf(mlScope) < 0;
         return '<select class="ml-chip m-owner' + (isU ? ' on' : '') + '" onchange="mlSet(\'scope\',this.value||\'all\')"><option value="">其他業務</option>' + keys.map(function (k) { return '<option value="' + k + '"' + (mlScope === k ? ' selected' : '') + '>' + esc(ids[k]) + '・' + leadsData.filter(function (l) { return l.user_id === k && isOpen(l); }).length + '</option>'; }).join('') + '</select>'; })();
   const stageChips = [['open', '進行中', scoped.filter(isOpen).length]]
-    .concat(stagesData.filter(function (s) { return s.name !== '結案' && s.name !== '簽約進件'; }).map(function (s) { return [s.id, s.name, scoped.filter(function (l) { return l.stage_id === s.id && !convertedLeadIds.has(l.id); }).length]; }))
+    .concat(stagesData.filter(function (s) { return s.name !== '結案' && s.name !== '簽約進件'; }).map(function (s) { return [s.id, stLabel(s), scoped.filter(function (l) { return l.stage_id === s.id && !convertedLeadIds.has(l.id); }).length]; }))
     .concat([['won', '已成交', scoped.filter(function (l) { return convertedLeadIds.has(l.id); }).length]])
-    .concat(closed ? [[closed.id, '結案', scoped.filter(function (l) { return l.stage_id === closed.id && !convertedLeadIds.has(l.id); }).length]] : [])
+    .concat(closed ? [[closed.id, stLabel(closed), scoped.filter(function (l) { return l.stage_id === closed.id && !convertedLeadIds.has(l.id); }).length]] : [])
     .map(function (x) { return '<button class="ml-chip' + (mlStage === x[0] ? ' on' : '') + '" onclick="mlSet(\'stage\',\'' + x[0] + '\')">' + esc(x[1]) + '<b>' + x[2] + '</b></button>'; }).join('');
   const cards = list.slice(0, mlLimit).map(function (x) {
     const l = x.l;
-    const st = convertedLeadIds.has(l.id) ? '已成交' : ((stagesData.find(function (s) { return s.id === l.stage_id; }) || {}).name || '');
+    const st = convertedLeadIds.has(l.id) ? '已成交' : ((stagesData.find(function (s) { return s.id === l.stage_id; }) || {}).label || (stagesData.find(function (s) { return s.id === l.stage_id; }) || {}).name || '');
     const c0 = (l.contacts || [])[0];
     const sub = [l.company || (c0 && c0.name) || '', l.tax_id || ''].filter(Boolean).join('・');
     const phone = c0 && c0.phone ? String(c0.phone).replace(/[^\d+#,]/g, '') : '';
@@ -4358,6 +4366,23 @@ async function copyDeckLink(id) {
     t.remove();
   }
 }
+// ════════════════════════ 價格表（內部）════════════════════════
+// 更新價格表：把新的 HTML 內容換掉 PRICING_HTML 即可
+const PRICING_HTML = "<!DOCTYPE html>\n<html lang=\"zh-Hant\">\n<head>\n<meta charset=\"UTF-8\">\n<title>OrderUp 方案與加購價格表（內部）<\/title>\n<style>\n  :root{--ink:#111118;--ink-2:#4a4a58;--ink-3:#8a8a98;--line:#e3e3ea;--purple:#70468C;--purple-light:#CB6CE6;--tint:#f4ecf8;--bg2:#f7f7fa}\n  *{box-sizing:border-box;margin:0;padding:0}\n  body{background:#fff;color:var(--ink);font-family:\"Noto Sans CJK TC\",\"Noto Sans TC\",\"PingFang TC\",\"Microsoft JhengHei\",sans-serif;font-size:14px;line-height:1.6}\n  .page{width:1680px;margin:0 auto;padding:48px 48px 56px}\n  .top{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px}\n  h1{font-size:28px;font-weight:900;letter-spacing:-.2px}\n  h1 small{display:block;font-size:13px;font-weight:500;color:var(--ink-3);margin-top:4px}\n  .top .r{font-size:13px;color:var(--ink-3);text-align:right}\n  .top .r b{color:var(--ink);font-weight:700}\n\n  h2{font-size:17px;font-weight:700;display:flex;align-items:center;gap:10px;margin:0 0 12px;white-space:nowrap}\n  h2 small{white-space:normal}\n  h2::before{content:\"\";width:5px;height:18px;border-radius:3px;background:linear-gradient(180deg,var(--purple-light),var(--purple))}\n  h2 small{font-size:12.5px;font-weight:400;color:var(--ink-3);margin-left:4px}\n\n  table{width:100%;border-collapse:collapse}\n  thead th{text-align:left;font-size:12px;font-weight:500;color:var(--ink-3);padding:0 12px 8px;border-bottom:2px solid var(--ink);white-space:nowrap}\n  tbody td{padding:11px 12px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:nowrap}\n  tbody tr:last-child td{border-bottom:2px solid var(--ink)}\n  td.n{font-weight:700;font-size:15px}\n  td.n em{font-style:normal;font-weight:400;font-size:12px;color:var(--ink-3);margin-left:6px}\n  td.p{font-weight:700;font-size:16px}\n  td.p small{font-size:12px;font-weight:400;color:var(--ink-3);margin-left:2px}\n  td.c{text-align:center}\n  .y{color:var(--purple);font-weight:700}\n  .no{color:#c9c9d2}\n  .add{display:inline-block;background:var(--tint);color:var(--purple);font-weight:700;font-size:12px;padding:0 8px;border-radius:999px}\n  td.d{color:var(--ink-2);font-size:13px;white-space:normal;line-height:1.7}\n  td.d b{color:var(--ink);font-weight:500}\n  .api td.n em{display:block;margin:2px 0 0}\n  tr.over td{color:var(--ink-2);background:var(--bg2)}\n  tr.over td.n,tr.over td.p{color:var(--ink)}\n\n  .grid{display:grid;grid-template-columns:1fr 1fr;gap:28px 40px;margin-top:30px}\n  .grid section{margin-top:0}\n  section{margin-top:30px}\n\n  .notes{margin-top:22px;font-size:12.5px;color:var(--ink-3);display:grid;grid-template-columns:1fr 1fr;gap:3px 32px}\n  .notes li{list-style:none;padding-left:12px;position:relative}\n  .notes li::before{content:\"\";position:absolute;left:0;top:9px;width:4px;height:4px;border-radius:50%;background:var(--purple-light)}\n<\/style>\n<\/head>\n<body>\n<div class=\"page\">\n\n  <div class=\"top\">\n    <h1>OrderUp 方案與加購價格表<small>內部業務用　2026.11　價格均為未稅、月費為月繳牌價<\/small><\/h1>\n    <div class=\"r\">超過方案張數：每 1,000 張 <b>+NT$1,000／月<\/b>（未滿 1,000 張以 1,000 張計）<br>新開站固定費：基礎建置 NT$20,000 ＋ 導入顧問 NT$30,000<\/div>\n  <\/div>\n\n  <section>\n    <h2>一般版 月費方案<small>報表自 Basic 起內含、點數自 Growth 起內含；首頁設計所有方案皆含<\/small><\/h2>\n    <table>\n      <thead><tr><th>方案<\/th><th>每月訂單<\/th><th>月費<\/th><th>平均每張<\/th><th style=\"text-align:center\">銷售報表<\/th><th style=\"text-align:center\">點數模組<\/th><th>適合誰<\/th><\/tr><\/thead>\n      <tbody>\n        <tr><td class=\"n\">Light<em>輕量版<\/em><\/td><td>200 張<\/td><td class=\"p\">NT$3,680<\/td><td>$18.4<\/td><td class=\"c\"><span class=\"add\">加購<\/span><\/td><td class=\"c\"><span class=\"add\">加購<\/span><\/td><td class=\"d\">幾十家熟客，先把 LINE、電話叫貨收進系統<\/td><\/tr>\n        <tr><td class=\"n\">Basic<em>基礎版<\/em><\/td><td>500 張<\/td><td class=\"p\">NT$5,880<\/td><td>$11.8<\/td><td class=\"c y\">✓<\/td><td class=\"c\"><span class=\"add\">加購<\/span><\/td><td class=\"d\">固定客戶每週叫貨，內勤開始打不完<\/td><\/tr>\n        <tr><td class=\"n\">Growth<em>成長版<\/em><\/td><td>1,000 張<\/td><td class=\"p\">NT$6,880<\/td><td>$6.9<\/td><td class=\"c y\">✓<\/td><td class=\"c y\">✓<\/td><td class=\"d\">上百家客戶、有業務跑線，要用點數推線上下單<\/td><\/tr>\n        <tr><td class=\"n\">Pro<em>專業版<\/em><\/td><td>2,000 張<\/td><td class=\"p\">NT$8,800<\/td><td>$4.4<\/td><td class=\"c y\">✓<\/td><td class=\"c y\">✓<\/td><td class=\"d\">多業務、多內勤，接單要穩、要對得上 ERP<\/td><\/tr>\n        <tr><td class=\"n\">Business<em>商務版<\/em><\/td><td>5,000 張<\/td><td class=\"p\">NT$12,800<\/td><td>$2.6<\/td><td class=\"c y\">✓<\/td><td class=\"c y\">✓<\/td><td class=\"d\">區域型經銷，整條接單流程都在系統裡<\/td><\/tr>\n        <tr><td class=\"n\">Scale<em>規模版<\/em><\/td><td>10,000 張<\/td><td class=\"p\">NT$18,800<\/td><td>$1.9<\/td><td class=\"c y\">✓<\/td><td class=\"c y\">✓<\/td><td class=\"d\">多品牌、多通路，通常搭配 API 串接<\/td><\/tr>\n        <tr><td class=\"n\">Enterprise<em>企業版<\/em><\/td><td>20,000 張<\/td><td class=\"p\">NT$24,800<\/td><td>$1.2<\/td><td class=\"c y\">✓<\/td><td class=\"c y\">✓<\/td><td class=\"d\">集團或大型批發，另談 SLA 與串接<\/td><\/tr>\n      <\/tbody>\n    <\/table>\n  <\/section>\n\n  <div class=\"grid\">\n    <section>\n      <h2>加購項目<small>按月計費<\/small><\/h2>\n      <table>\n        <thead><tr><th>項目<\/th><th>價格<\/th><th>說明<\/th><\/tr><\/thead>\n        <tbody>\n          <tr><td class=\"n\">點數模組<\/td><td class=\"p\">NT$1,000<small>／月<\/small><\/td><td class=\"d\">客戶回購獎勵、線上下單誘因；Light／Basic 需加購<\/td><\/tr>\n          <tr><td class=\"n\">銷售報表<\/td><td class=\"p\">NT$1,000<small>／月<\/small><\/td><td class=\"d\">銷售與客戶分析報表；Light 需加購<\/td><\/tr>\n          <tr><td class=\"n\">分館<\/td><td class=\"p\">NT$1,200<small>／館／月<\/small><\/td><td class=\"d\">附 100 張訂單量；同一站內切分 LOGO 與客戶可見性，商品與訂單共用<\/td><\/tr>\n          <tr><td class=\"n\">B2C 功能統包<\/td><td class=\"p\">NT$1,500<small>／月<\/small><\/td><td class=\"d\">開放一般消費者註冊與下單，B2C 相關功能全含<\/td><\/tr>\n          <tr><td class=\"n\">資料容量<\/td><td class=\"p\">NT$500<small>／月<\/small><\/td><td class=\"d\">每筆加購增加商品與客戶各 5 萬筆<\/td><\/tr>\n          <tr><td class=\"n\">長期資料保存<\/td><td class=\"p\">NT$500<small>／月<\/small><\/td><td class=\"d\">每筆加購多保留 1 年訂單資料（預設 3 年）<\/td><\/tr>\n          <tr><td class=\"n\">AI 點數<\/td><td class=\"p\">NT$0.6<small>／點<\/small><\/td><td class=\"d\">每一次 AI 查詢／辨識計 1 點<\/td><\/tr>\n        <\/tbody>\n      <\/table>\n    <\/section>\n\n    <section>\n      <h2>一次性費用<\/h2>\n      <table>\n        <thead><tr><th>項目<\/th><th>價格<\/th><th>說明<\/th><\/tr><\/thead>\n        <tbody>\n          <tr><td class=\"n\">基礎建置費<\/td><td class=\"p\">NT$20,000<\/td><td class=\"d\">新開站必收。站台建置與正式站交付、基本操作教學<\/td><\/tr>\n          <tr><td class=\"n\">導入顧問費<\/td><td class=\"p\">NT$30,000<\/td><td class=\"d\">新開站必收。資料清洗匯入、價格規則與流程規劃、分角色教學、上線計畫與檢討<\/td><\/tr>\n                    <tr><td class=\"n\">訂單回拋 ERP／客製功能<\/td><td class=\"p\">依專案<\/td><td class=\"d\">業務不自行報價，交由 Frank 評估<\/td><\/tr>\n        <\/tbody>\n      <\/table>\n      <ul class=\"notes\" style=\"grid-template-columns:1fr;margin-top:16px\">\n        <li>月繳照牌價；年約可送月份，再談才動月費，底價另見牌價底價表<\/li>\n        <li>新開站＝月費＋基礎建置費＋導入顧問費；客戶要開第二個站就是再開一站<\/li>\n        <li>API 串接費含 OrderUp 端開發與測試，客戶 ERP 端由客戶或其系統廠商負責；訂單回拋 ERP 另案報價<\/li>\n      <\/ul>\n    <\/section>\n  <\/div>\n\n  <section class=\"api\">\n    <h2>API 串接<small>一次性 NT$50,000／支，年維護 15%（NT$7,500／支／年），不計呼叫次數。一支＝一個資料物件的完整串接，該物件的查詢、建立、更新、批次端點全部包含；客戶要同步哪些資料就算幾支。文件 docs.orderupb2b.com<\/small><\/h2>\n    <table>\n      <thead><tr><th>可串接的 API<\/th><th>包含端點<\/th><th>可達成的場景<\/th><th style=\"text-align:right\">價格<\/th><\/tr><\/thead>\n      <tbody>\n        <tr><td class=\"n\">客戶主檔<em>Companies・16 端點<\/em><\/td>\n            <td class=\"d\"><b>客戶<\/b>　清單／建立／單筆／更新／批次寫入　<b>客戶總部<\/b>　清單／建立／單筆／更新／刪除<br><b>客戶帳號<\/b>　清單／建立／單筆／更新　<b>帳號角色<\/b>　清單　<b>付款方式<\/b>　清單<\/td>\n            <td class=\"d\">ERP 新增客戶，OrderUp 自動開通公司與下單帳號；連鎖客戶的總部／分店結構、負責業務一併帶入；客戶停用或換業務兩邊同步<\/td>\n            <td class=\"p\" style=\"text-align:right\">NT$50,000<br><small>年維護 NT$7,500<\/small><\/td><\/tr>\n        <tr><td class=\"n\">商品主檔<em>Products／SKUs／Bundles・15 端點<\/em><\/td>\n            <td class=\"d\"><b>商品分類<\/b>　分類樹　<b>商品<\/b>　清單／建立／單筆／更新／批次寫入　<b>規格 SKU<\/b>　清單／建立／單筆／更新／批次寫入<br><b>組合品<\/b>　清單／建立／單筆／更新／批次寫入　<b>規格牌價<\/b>　查詢／批次更新　<b>組合品牌價<\/b>　查詢／批次更新<\/td>\n            <td class=\"d\">新品在 ERP 建好就自動上到 OrderUp，不用重打；品名、規格、牌價、停售狀態以 ERP 為準；ERP 調價一次批次同步<\/td>\n            <td class=\"p\" style=\"text-align:right\">NT$50,000<br><small>年維護 NT$7,500<\/small><\/td><\/tr>\n        <tr><td class=\"n\">庫存<em>Stock・2 端點<\/em><\/td>\n            <td class=\"d\"><b>規格庫存<\/b>　查詢／批次更新<\/td>\n            <td class=\"d\">依排程把 ERP 庫存推到 OrderUp，客戶看到的就是可賣數；缺貨品項自動不給下單<\/td>\n            <td class=\"p\" style=\"text-align:right\">NT$50,000<br><small>年維護 NT$7,500<\/small><\/td><\/tr>\n        <tr><td class=\"n\">額度<em>Quotas・4 端點<\/em><\/td>\n            <td class=\"d\"><b>點數額度<\/b>　查詢／批次同步　<b>合約額度<\/b>　查詢／批次同步<\/td>\n            <td class=\"d\">月結客戶的信用額度從 ERP 同步，下單時超額不放行；點數餘額由點數系統同步，客戶可用點數下單<\/td>\n            <td class=\"p\" style=\"text-align:right\">NT$50,000<br><small>年維護 NT$7,500<\/small><\/td><\/tr>\n        <tr><td class=\"n\">後台帳號<em>Internal Users・6 端點<\/em><\/td>\n            <td class=\"d\"><b>後台使用者<\/b>　清單／建立／單筆／更新／批次更新　<b>後台角色<\/b>　清單<\/td>\n            <td class=\"d\">人事或 ERP 統一管理內部帳號，到職自動開、離職自動關<\/td>\n            <td class=\"p\" style=\"text-align:right\">NT$50,000<br><small>年維護 NT$7,500<\/small><\/td><\/tr>\n        <tr><td class=\"n\">合約價與折扣<em>規劃中<\/em><\/td>\n            <td class=\"d\">客戶專屬合約價／報價單、價格表分群、折扣活動條件；現行文件未含，需求確認後規劃端點<\/td>\n            <td class=\"d\">ERP 的客戶合約價、分群折數直接同步到 OrderUp；促銷檔期條件由 ERP 或行銷系統帶入<\/td>\n            <td class=\"p\" style=\"text-align:right\">專案評估<br><small>需求確認後報價<\/small><\/td><\/tr>\n      <\/tbody>\n    <\/table>\n  <\/section>\n\n<\/div>\n<\/body>\n<\/html>\n";
+function renderPricing() {
+  const el = document.getElementById('content');
+  el.innerHTML = '<div class="pr-bar"><span style="flex:1"></span><button class="btn btn-secondary btn-sm" onclick="pricingOpen()">開新視窗 ↗</button></div><div class="pr-box" id="prBox"><iframe id="prIf" title="價格表"></iframe></div>';
+  const f = document.getElementById('prIf');
+  f.onload = pricingFit; f.srcdoc = PRICING_HTML;
+}
+function pricingFit() {
+  const box = document.getElementById('prBox'), f = document.getElementById('prIf'); if (!box || !f || !f.contentDocument) return;
+  const h = f.contentDocument.documentElement.scrollHeight; f.style.height = h + 'px';
+  const w = box.clientWidth, sc = w >= 900 ? Math.min(1, w / 1680) : 1;
+  f.style.transform = 'scale(' + sc + ')'; box.style.height = Math.ceil(h * sc) + 'px';
+}
+window.addEventListener('resize', function () { if (currentPage === 'pricing') pricingFit(); });
+function pricingOpen() { const u = URL.createObjectURL(new Blob([PRICING_HTML], { type: 'text/html' })); window.open(u, '_blank'); }
 async function renderDecks() {
   document.getElementById('topbarActions').innerHTML = '';
   const cards = DECKS.map(function (d) {
@@ -4651,24 +4676,24 @@ function wkFunnelCard(f12, fw, small) {
   if (_wk.fn === '12w') {
     const st = ['新名單', '約Demo', '有望成交', '議價中', '簽約進件'];
     return head + '<div class="wk-funnel' + (small ? ' sm' : '') + '">' + st.map(function (s, i) {
-      return (i ? '<div class="wk-rate">' + wkPct(f12.steps[i - 1].rate) + '</div>' : '') + '<div class="wk-fs"><b>' + (f12.reached[s] || 0) + '</b><span>' + (s === '簽約進件' ? '成交' : s) + '</span></div>';
+      return (i ? '<div class="wk-rate">' + wkPct(f12.steps[i - 1].rate) + '</div>' : '') + '<div class="wk-fs"><b>' + (f12.reached[s] || 0) + '</b><span>' + esc(s === '簽約進件' ? '成交' : stageLabelOf(s)) + '</span></div>';
     }).join('') + '</div>';
   }
   if (_wk.data && !_wk.data.overall.week_tracked) return head + '<div class="wk-none">11/8 起系統才開始記錄階段變化，這週之後才有。</div>';
   return head + '<div class="wk-wf">' + fw.map(function (s) {
-    return '<div class="wk-wfs"><div class="wk-wft">' + esc(s.from) + ' → ' + (s.to === '簽約進件' ? '成交' : esc(s.to)) + '</div>'
+    return '<div class="wk-wfs"><div class="wk-wft">' + esc(stageLabelOf(s.from)) + ' → ' + (s.to === '簽約進件' ? '成交' : esc(stageLabelOf(s.to))) + '</div>'
       + '<div class="wk-wfr">' + wkPct(s.rate) + '</div>'
-      + '<div class="wk-mut">' + wkPopBtn(s.leads, s.from + ' 推進', s.advanced) + ' / ' + s.base
+      + '<div class="wk-mut">' + wkPopBtn(s.leads, stageLabelOf(s.from) + ' 推進', s.advanced) + ' / ' + s.base
       + (s.wait ? '・等待 ' + s.wait : '') + (s.lost ? '・結案 ' + s.lost : '') + '</div></div>';
   }).join('') + '</div>';
 }
 function wkMatrix(cols, rows, labelKey, colTotals, total) {
   const mx = Math.max.apply(null, rows.map(function (r) { return Math.max.apply(null, cols.map(function (c) { return r.cells[c].length; })); }).concat([1]));
-  return '<div class="wk-scroll"><table class="wk-mx"><thead><tr><th></th>' + cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '<th>合計</th></tr></thead><tbody>'
+  return '<div class="wk-scroll"><table class="wk-mx"><thead><tr><th></th>' + cols.map(function (c) { return '<th>' + esc(stageLabelOf(c)) + '</th>'; }).join('') + '<th>合計</th></tr></thead><tbody>'
     + rows.map(function (r) {
       return '<tr><th>' + esc(r[labelKey]) + '</th>' + cols.map(function (c) {
         const ids = r.cells[c], a = ids.length / mx;
-        return '<td style="background:rgba(108,140,255,' + (ids.length ? (0.08 + a * 0.42).toFixed(2) : 0) + ')">' + wkPopBtn(ids, r[labelKey] + '・' + c, ids.length || '') + '</td>';
+        return '<td style="background:rgba(108,140,255,' + (ids.length ? (0.08 + a * 0.42).toFixed(2) : 0) + ')">' + wkPopBtn(ids, r[labelKey] + '・' + stageLabelOf(c), ids.length || '') + '</td>';
       }).join('') + '<td class="wk-tot">' + r.total + '</td></tr>';
     }).join('')
     + (colTotals ? '<tr class="wk-tot"><th>合計</th>' + cols.map(function (c) { return '<td>' + colTotals[c] + '</td>'; }).join('') + '<td>' + total + '</td></tr>' : '')
@@ -4761,7 +4786,7 @@ function wkRep(d, r) {
     + '<div class="wk-arrows">' + arrows + '</div>' + panel + '</div>';
   const att = r.attention.length ? '<table class="wk-tbl wk-leads"><tbody>' + r.attention.map(function (x) {
     const L = d.leads[x.lead] || {};
-    return '<tr><td>' + wkCo(x.lead, L.name) + '<div class="wk-mut">' + esc(L.stage || '') + (L.expected ? '・' + wkMoney(L.expected) : '') + '</div></td><td class="wk-why">' + x.why.map(function (w) { return '<span>' + esc(w) + '</span>'; }).join('') + '</td></tr>';
+    return '<tr><td>' + wkCo(x.lead, L.name) + '<div class="wk-mut">' + esc(stageLabelOf(L.stage || '')) + (L.expected ? '・' + wkMoney(L.expected) : '') + '</div></td><td class="wk-why">' + x.why.map(function (w) { return '<span>' + esc(w) + '</span>'; }).join('') + '</td></tr>';
   }).join('') + '</tbody></table>' : '<div class="wk-none">沒有</div>';
   const ind = p.by_industry.length ? wkMatrix(p.stages.map(function (s) { return s.stage; }), p.by_industry, 'key') : '<div class="wk-none">—</div>';
   const log = r.activity.n ? '<div class="card wk-wide"><div class="wk-h" style="cursor:pointer" onclick="wkSet(\'logOpen\',' + (!_wk.logOpen) + ')">本週紀錄 <span class="wk-mut">' + r.activity.n + '</span>'
@@ -4776,7 +4801,7 @@ function wkRep(d, r) {
 }
 function wkHours(h) { return h < 48 ? h + ' 小時' : Math.round(h / 24) + ' 天'; }
 function wkArrow(st, n, moved, cls) {
-  return '<button class="wk-arrow ' + (cls || '') + (_wk.st === st ? ' on' : '') + '" onclick="wkPickStage(\'' + st + '\')"><b>' + n + '</b><span>' + esc(st) + '</span>' + (moved ? '<em>+' + moved + '</em>' : '') + '</button>';
+  return '<button class="wk-arrow ' + (cls || '') + (_wk.st === st ? ' on' : '') + '" onclick="wkPickStage(\'' + st + '\')"><b>' + n + '</b><span>' + esc(st === '成交' ? st : stageLabelOf(st)) + '</span>' + (moved ? '<em>+' + moved + '</em>' : '') + '</button>';
 }
 function wkPickStage(st) { _wk.st = _wk.st === st ? null : st; _wk.chip = null; wkRedraw(); }
 function wkStagePanel(r, adm) {
@@ -4801,7 +4826,7 @@ function wkLeadRows(ids, opt) {
   const back = opt.pop != null ? opt.pop : -1;
   return '<table class="wk-tbl wk-leads"><thead><tr><th></th><th>下次</th><th>沒聯絡</th>' + (opt.stay ? '<th>停留</th>' : '') + (opt.exp ? '<th>預估</th>' : '') + (opt.quote ? '<th>報價</th>' : '') + '<th></th></tr></thead><tbody>' + rows.map(function (x) {
     const nd = x.next ? x.next.slice(5).replace('-', '/') : '';
-    const sub = [opt.pop != null ? x.stage : '', opt.pop != null ? x.owner : '', x.industry && x.industry !== '未分類' ? x.industry : ''].filter(Boolean).join('・');
+    const sub = [opt.pop != null ? stageLabelOf(x.stage) : '', opt.pop != null ? x.owner : '', x.industry && x.industry !== '未分類' ? x.industry : ''].filter(Boolean).join('・');
     return '<tr data-id="' + x.id + '"><td><a class="wk-co" onclick="wkQuick(\'' + x.id + '\',' + back + ')">' + esc(x.name || '') + '</a>'
       + (sub ? '<div class="wk-mut">' + esc(sub) + '</div>' : '') + (opt.lost && x.lost_reason ? '<div class="wk-mut">' + esc(x.lost_reason) + '</div>' : '')
       + (x.last ? '<div class="wk-last" title="' + esc(x.last.text) + '"><span>' + esc(x.last.when) + '</span>' + esc(x.last.text) + '</div>' : '') + '</td>'
@@ -4958,8 +4983,8 @@ async function renderDashboard() {
   const thisYearContracts = contracts.filter(c => dealDate(c) >= today.getFullYear() + '-01-01');
   const thisYearRevenue = thisYearContracts.reduce((s,c) => s+(c.amount||0), 0);
 
-  const activeLeads = filtLeads.filter(l => !['暫停','等待','結案'].includes(getStageName(l.stage_id)));
-  const wonLeads = filtLeads.filter(l => getStageName(l.stage_id) === '簽約進件');
+  const activeLeads = filtLeads.filter(l => !['暫停','等待','結案'].includes(getStageKey(l.stage_id)));
+  const wonLeads = filtLeads.filter(l => getStageKey(l.stage_id) === '簽約進件');
   const expiring = contracts.filter(c => {
     if (!c.end_date) return false;
     const d = daysUntil(c.end_date);
@@ -5204,7 +5229,7 @@ function renderKanban(searchStr = '') {
 
   // Build filter bar
   const srcOptions = [{val:'all', label:'全部來源'}, ...sourcesData.map(s=>({val:s.id, label:s.name}))];
-  const stageOptions = [{val:'all', label:'全部階段'}, ...stagesData.map(s=>({val:s.id, label:s.name}))];
+  const stageOptions = [{val:'all', label:'全部階段'}, ...stagesData.map(s=>({val:s.id, label:stLabel(s)}))];
 
   // Build user options from leads data
   const userMap = {};
@@ -5248,7 +5273,7 @@ function renderKanban(searchStr = '') {
       <div class="kanban-col-header">
         <div style="display:flex;align-items:center;gap:7px">
           <div class="col-accent" style="background:${stage.color||STAGE_COLORS[stageIdx]||'var(--accent)'}"></div>
-          <div class="kanban-col-title">${stage.name}</div>
+          <div class="kanban-col-title">${esc(stLabel(stage))}</div>
         </div>
         ${EXP_STAGES.indexOf(stage.name) >= 0 && stageleads.some(expTotal) ? `<span class="kanban-col-sum">預計 $${fmtNum(stageleads.reduce((a, l) => a + expTotal(l), 0))}</span>` : ''}
         <div class="kanban-col-count">${stageleads.length}</div>
@@ -5369,7 +5394,7 @@ function renderLeadsList(searchStr) {
 
   // Build filter options
   const srcOpts = [{val:'all',label:'全部來源'}].concat(sourcesData.map(s => ({val:s.id, label:s.name})));
-  const stageOpts = [{val:'all',label:'全部階段'}].concat(stagesData.map(s => ({val:s.id, label:s.name})));
+  const stageOpts = [{val:'all',label:'全部階段'}].concat(stagesData.map(s => ({val:s.id, label:stLabel(s)})));
   const userMap2 = {};
   leadsData.forEach(function(l) { if (l.user_id && l.user_name) userMap2[l.user_id] = l.user_name; });
   const userOpts = [{val:'all',label:'全部業務'}].concat(Object.entries(userMap2).map(function(e) { return {val:e[0], label:e[1]}; }));
@@ -5412,7 +5437,7 @@ function renderLeadsList(searchStr) {
       <td style="cursor:pointer;font-weight:500" onclick="openLeadDrawer('${l.id}')"><span onclick="event.stopPropagation()" style="margin-right:7px">${ctagHtml(l)}</span>${esc(l.name)}${convertedLeadIds.has(l.id) ? ' <span class="badge badge-green" style="font-size:10px;padding:1px 6px">已成交</span>' : ''}</td>
       <td onclick="event.stopPropagation()">
         <select class="form-select" style="padding:2px 4px;height:26px;font-size:11.5px;width:auto;max-width:120px" onchange="inlineUpdateLead('${l.id}','stage_id',this.value)">
-          ${stagesData.map(s=>`<option value="${s.id}"${s.id===l.stage_id?' selected':''}>${esc(s.name)}</option>`).join('')}
+          ${stagesData.map(s=>`<option value="${s.id}"${s.id===l.stage_id?' selected':''}>${esc(stLabel(s))}</option>`).join('')}
         </select>
       </td>
       <td style="font-size:12px;cursor:pointer" onclick="openSetNextContact('${l.id}','${l.next_contact_date||''}')">${(function(){const d=mlDue(l);return d.txt?'<span class="kc-due '+d.cls+'">'+d.txt.replace('📅 ','')+'</span>':'<span style=\'color:var(--text3);font-size:11px\'>設定</span>'})()}</td>
@@ -5427,7 +5452,7 @@ function renderLeadsList(searchStr) {
       <span style="font-size:13px;font-weight:500">已選 ${listSelectedIds.size} 筆</span>
       <select class="form-select" id="batchStageSelect" style="width:auto;height:28px;font-size:12px">
         <option value="">批次改階段...</option>
-        ${stagesData.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}
+        ${stagesData.map(s=>`<option value="${s.id}">${esc(stLabel(s))}</option>`).join('')}
       </select>
       <button class="btn btn-primary btn-sm" onclick="batchUpdateField('stage_id','batchStageSelect')">套用</button>
       <select class="form-select" id="batchSrcSelect" style="width:auto;height:28px;font-size:12px">
@@ -5540,7 +5565,7 @@ async function colDrop(e, stageId) {
 async function updateLeadStage(lead, stageId) {
   await db.from('leads').update({ stage_id: stageId, updated_at: new Date().toISOString() }).eq('id', lead.id);
   lead.stage_id = stageId;
-  toast(`已移至「${stagesData.find(s=>s.id===stageId)?.name}」`, 'success');
+  toast(`已移至「${getStageName(stageId)}」`, 'success');
 }
 
 async function convertToAccount(lead) {
@@ -6391,7 +6416,7 @@ function companyHeaderHtml(lead, acc) {
   let stageHtml;
   if (!acc) {
     stageHtml = '<select class="cp-stage" aria-label="階段" onchange="companyStage(\'' + id + '\',this.value)">' + stagesData.map(function (st) {
-      return '<option value="' + st.id + '"' + (st.id === lead.stage_id ? ' selected' : '') + '>' + esc(st.name) + '</option>';
+      return '<option value="' + st.id + '"' + (st.id === lead.stage_id ? ' selected' : '') + '>' + esc(stLabel(st)) + '</option>';
     }).join('') + '</select>';
   } else {
     stageHtml = acc.status === 'terminated' ? '<span class="badge badge-red">終止合作</span>' : '<span class="badge badge-green">成交客戶</span>';
@@ -6426,7 +6451,7 @@ function companyHeaderHtml(lead, acc) {
     else { primary = 'log'; secondary = ['quote']; }
   } else {
     if (openQ.length) { primary = 'deal'; secondary = ['log', 'quote']; }
-    else if (/議價/.test(getStageName(lead.stage_id) || '')) { primary = 'quote'; secondary = ['log']; }
+    else if (/議價/.test(getStageKey(lead.stage_id) || '')) { primary = 'quote'; secondary = ['log']; }
     else { primary = 'log'; secondary = ['quote']; }
   }
   const actions = btn('btn-primary', B[primary][0], B[primary][1]) + secondary.map(function (k) { return btn('btn-secondary', B[k][0], B[k][1]); }).join('')
@@ -6578,7 +6603,7 @@ async function companyStage(leadId, stageId) {
   const prev = (leadsData.find(x => x.id === leadId) || (window._cp && window._cp.lead) || {}).stage_id;
   await db.from('leads').update({ stage_id: stageId, updated_at: new Date().toISOString() }).eq('id', leadId);
   const l = leadsData.find(x => x.id === leadId); if (l) l.stage_id = stageId;
-  const nm = getStageName(stageId);
+  const nm = getStageKey(stageId);
   toast('階段：' + nm, 'success');
   await refreshCompany();
   afterStageChanged(leadId, stageId, prev);
@@ -6587,7 +6612,7 @@ async function companyStage(leadId, stageId) {
 let _gate = null;
 function isWaitStage(nm) { return nm === '等待' || nm === '暫停'; }
 function afterStageChanged(leadId, stageId, prevId) {
-  const nm = getStageName(stageId);
+  const nm = getStageKey(stageId);
   const needs = nm === '結案' || isWaitStage(nm) || (nm === '簽約進件' && !convertedLeadIds.has(leadId));
   if (!needs) return;
   _gate = prevId && prevId !== stageId ? { leadId: leadId, prevId: prevId, toId: stageId, done: false, hold: false } : null;
@@ -6658,7 +6683,7 @@ function setLeadHash(leadId) { /* 網址由 histPush 管理 */ }
 
 // ── 瀏覽器「上一頁／下一頁」──
 // 每換一頁就推一筆紀錄：#/today、#/leads…；公司頁是 #lead=<id>
-const PAGE_KEYS = ['mtoday', 'mclients', 'mme', 'today', 'weekly', 'dashboard', 'leads', 'leadlist', 'bonus', 'quotes', 'accounts', 'onboard', 'performance', 'coldcall', 'ccboard', 'ccpool', 'cclist', 'ccstats', 'decks', 'contacts', 'settings', 'feed'];
+const PAGE_KEYS = ['pricing', 'mtoday', 'mclients', 'mme', 'today', 'weekly', 'dashboard', 'leads', 'leadlist', 'bonus', 'quotes', 'accounts', 'onboard', 'performance', 'coldcall', 'ccboard', 'ccpool', 'cclist', 'ccstats', 'decks', 'contacts', 'settings', 'feed'];
 let _histRouting = false;
 function histPush(hash, opt) {
   if (_histRouting) return;
@@ -6952,7 +6977,7 @@ const QL_NEXT = [[1, '明天'], [3, '3 天'], [7, '下週'], [14, '2 週'], ['pi
 let _ql = null;
 function qlStageAfter(lead, result) {
   const order = stagesData.map(function (s) { return s.name; });
-  const cur = getStageName(lead.stage_id) || '';
+  const cur = getStageKey(lead.stage_id) || '';
   const idx = function (n) { return order.indexOf(n); };
   const re = (result === 'call' || result === 'msg') ? /聯繫/ : result === 'visit' ? /拜訪/ : null;
   if (!re) return null;
@@ -7329,7 +7354,7 @@ async function openEditLeadModal(leadId) {
     <div class="form-row">
       <div class="form-group"><label class="form-label">階段</label>
         <select class="form-select" id="elStage">
-          ${stagesData.map(s=>`<option value="${s.id}"${s.id===lead.stage_id?' selected':''}>${esc(s.name)}</option>`).join('')}
+          ${stagesData.map(s=>`<option value="${s.id}"${s.id===lead.stage_id?' selected':''}>${esc(stLabel(s))}</option>`).join('')}
         </select>
       </div>
       <div class="form-group"><label class="form-label">產業</label>
@@ -8110,7 +8135,7 @@ async function openQuoteForLead(leadId, noteId=null) {
 async function renderQuotes() {
   quoteFrameReady = false;
   const { data: allLeads } = await db.from('leads').select('*').order('updated_at', {ascending:false});
-  const activeLeads = (allLeads || []).filter(l => !['暫停','等待','結案'].includes(getStageName(l.stage_id)));
+  const activeLeads = (allLeads || []).filter(l => !['暫停','等待','結案'].includes(getStageKey(l.stage_id)));
   window._quoteActiveLeads = activeLeads;
   leadsData = allLeads || leadsData;
 
@@ -9564,7 +9589,7 @@ async function renderSettings() {
             <button class="btn btn-primary btn-sm" onclick="addStage()">新增</button>
           </div>
         </div>
-        <div style="font-size:12px;color:var(--text3)">可拖曳排序（即將支援）</div>
+        <div style="font-size:12px;color:var(--text3)">改名只改顯示文字，系統判斷不受影響。</div>
       </div>
 
       <div class="settings-section">
@@ -9753,9 +9778,11 @@ function renderStagesList() {
           ondrop="stageDrop(event,this)"
           ondragend="stageDragEnd()">
           <span style="color:var(--text3);font-size:14px;cursor:grab">⠿</span>
-          <div style="width:10px;height:10px;border-radius:50%;background:${s.color||'#888'};flex-shrink:0"></div>
-          <span style="flex:1">${esc(s.name)}</span>
-          <span class="tag-del" onclick="event.stopPropagation();deleteStage('${s.id}')">×</span>
+          ${window.isAdmin ? `<input type="color" class="st-color" value="${s.color||'#888888'}" onchange="stageSetColor('${s.id}',this.value)" title="顏色">
+          <input class="form-input st-label" value="${esc(stLabel(s))}" onchange="stageSetLabel('${s.id}',this.value)" onkeydown="if(event.key==='Enter')this.blur()" draggable="false" ondragstart="event.preventDefault();event.stopPropagation()">
+          ${s.label && s.label !== s.name ? `<span class="st-key" title="系統代號">${esc(s.name)}</span>` : ''}`
+          : `<div style="width:10px;height:10px;border-radius:50%;background:${s.color||'#888'};flex-shrink:0"></div><span style="flex:1">${esc(stLabel(s))}</span>`}
+          ${window.isAdmin && !CORE_STAGES.includes(s.name) ? `<span class="tag-del" onclick="event.stopPropagation();deleteStage('${s.id}')">×</span>` : ''}
         </div>
       `).join('')}
     </div>
@@ -9819,6 +9846,22 @@ function renderSourcesList() {
   `).join('') + '<div style="color:var(--text3);font-size:12px;padding:4px 6px">' + (sourcesData.length===0?'尚無來源':'') + '</div>';
 }
 
+const CORE_STAGES = ['新名單', '等待', '約Demo', '有望成交', '議價中', '簽約進件', '結案'];
+async function stageSetColor(id, v) {
+  const r = await db.from('stages').update({ color: v }).eq('id', id);
+  if (r.error) { toast('沒存到：' + r.error.message, 'error'); return; }
+  const s = stagesData.find(x => x.id === id); if (s) s.color = v;
+  toast('顏色已更新');
+}
+async function stageSetLabel(id, v) {
+  const s = stagesData.find(x => x.id === id); if (!s) return;
+  v = String(v || '').trim();
+  const label = !v || v === s.name ? null : v;
+  if (label && stagesData.some(x => x.id !== id && (x.name === label || x.label === label))) { toast('跟其他階段同名了', 'error'); renderStagesList(); return; }
+  const r = await db.from('stages').update({ label }).eq('id', id);
+  if (r.error) { toast('沒存到：' + r.error.message, 'error'); return; }
+  s.label = label; toast('已改名'); renderStagesList();
+}
 async function addStage() {
   const name = document.getElementById('newStageName').value.trim();
   const color = document.getElementById('newStageColor').value;
@@ -10421,9 +10464,11 @@ function fmtNum(n) {
   return Number(n).toLocaleString();
 }
 
-function getStageName(stageId) {
-  return stagesData.find(s => s.id === stageId)?.name || '';
-}
+// 階段：name 是系統用的固定代號（邏輯判斷用），label 是畫面顯示的名稱（設定裡可改）
+function stLabel(s) { return (s && (s.label || s.name)) || ''; }
+function getStageName(stageId) { return stLabel(stagesData.find(s => s.id === stageId)); }
+function getStageKey(stageId) { return stagesData.find(s => s.id === stageId)?.name || ''; }
+function stageLabelOf(key) { const s = stagesData.find(x => x.name === key); return s ? stLabel(s) : key; }
 
 function openModal(title, bodyHTML, buttons) {
   document.getElementById('modalBox').style.maxWidth = '';
