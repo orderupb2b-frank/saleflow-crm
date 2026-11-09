@@ -1054,6 +1054,15 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .wk-team tbody tr { cursor:pointer; } .wk-team tbody tr:hover { background:var(--bg3); }
 .wk-wf { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
 .wk-wfl { font-size:12px; margin-top:4px; }
+.wk-fun { max-width:720px; margin:4px auto 0; }
+.wk-fl { display:flex; justify-content:center; }
+.wk-fb { height:44px; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:10px; color:#fff; font-size:13px; white-space:nowrap; overflow:hidden; transition:width .3s; }
+.wk-fb b { font-size:19px; font-variant-numeric:tabular-nums; }
+.wk-fb .wk-link { color:#fff; text-decoration-color:rgba(255,255,255,.6); }
+.wk-fb span { opacity:.92; }
+.wk-fstep { display:flex; justify-content:center; align-items:baseline; gap:12px; font-size:12.5px; padding:6px 0; }
+.wk-frate { font-size:15px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; }
+.wk-fun.sm .wk-fb { height:38px; }
 .wk-wfs { background:var(--bg3); border-radius:8px; padding:10px 12px; }
 .wk-wft { font-size:12px; color:var(--text2); }
 .wk-wfr { font-size:22px; font-weight:700; margin:2px 0; color:var(--accent); font-variant-numeric:tabular-nums; }
@@ -4677,15 +4686,22 @@ function wccDraw() {
 function wkFunnelCard(f12, fw, small) {
   const head = '<div class="wk-h">轉換率 ' + wkSeg('fn', [['week', '這週'], ['12w', '近 12 週']]) + '</div>';
   if (_wk.fn !== '12w' && _wk.data && !_wk.data.overall.week_tracked) return head + '<div class="wk-none">11/8 起系統才開始記錄階段變化，這週之後才有。</div>';
-  const steps = _wk.fn === '12w' ? f12.steps : fw;
+  const st = _wk.fn === '12w' ? f12.steps : fw;
   const nm = function (k) { return k === '簽約進件' ? '成交' : stageLabelOf(k); };
-  return head + '<div class="wk-wf">' + steps.map(function (s) {
-    return '<div class="wk-wfs"><div class="wk-wft">' + esc(nm(s.from)) + ' → ' + esc(nm(s.to)) + '</div>'
-      + '<div class="wk-wfr">' + wkPct(s.rate) + '</div>'
-      + '<div class="wk-mut">' + wkPopBtn(s.leads, nm(s.from) + ' → ' + nm(s.to), s.advanced) + ' / ' + s.base + '</div>'
-      + '<div class="wk-wfl">' + (s.lost ? '<span class="wk-bad">掉件 ' + wkPopBtn(s.lost_leads, nm(s.from) + ' 掉件', wkPct(s.lost_rate) + '（' + s.lost + '）') + '</span>' : '<span class="wk-mut">掉件 0</span>')
-      + (s.wait ? '<span class="wk-mut">・等待 ' + s.wait + '</span>' : '') + '</div></div>';
-  }).join('') + '</div>';
+  // 漏斗：每層 = 該關的名單數，層與層之間 = 轉換率與掉件
+  const lv = st.map(function (s) { return { name: nm(s.from), n: s.base }; }).concat([{ name: nm(st[st.length - 1].to), n: st[st.length - 1].advanced, ids: st[st.length - 1].leads }]);
+  const mx = Math.max.apply(null, lv.map(function (x) { return x.n; }).concat([1]));
+  const C = ['#6c8cff', '#8b7cf6', '#b06cf0', '#10b981'];
+  let h = '<div class="wk-fun' + (small ? ' sm' : '') + '">';
+  lv.forEach(function (x, i) {
+    const w = 34 + (x.n / mx) * 66;
+    h += '<div class="wk-fl"><div class="wk-fb" style="width:' + w + '%;background:' + C[i] + '">' + (x.ids ? wkPopBtn(x.ids, x.name, '<b>' + x.n + '</b>') : '<b>' + x.n + '</b>') + '<span>' + esc(x.name) + '</span></div></div>';
+    const s = st[i];
+    if (s) h += '<div class="wk-fstep"><span class="wk-frate">↓ ' + wkPct(s.rate) + '</span><span class="wk-mut">' + wkPopBtn(s.leads, nm(s.from) + ' → ' + nm(s.to), s.advanced) + ' / ' + s.base + '</span>'
+      + (s.lost ? '<span class="wk-bad">掉件 ' + wkPopBtn(s.lost_leads, nm(s.from) + ' 掉件', wkPct(s.lost_rate) + '（' + s.lost + '）') + '</span>' : '<span class="wk-mut">掉件 0</span>')
+      + (s.wait ? '<span class="wk-mut">等待 ' + s.wait + '</span>' : '') + '</div>';
+  });
+  return head + h + '</div>';
 }
 function wkMatrix(cols, rows, labelKey, colTotals, total) {
   const mx = Math.max.apply(null, rows.map(function (r) { return Math.max.apply(null, cols.map(function (c) { return r.cells[c].length; })); }).concat([1]));
