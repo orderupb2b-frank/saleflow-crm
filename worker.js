@@ -1051,7 +1051,6 @@ async function weeklyReport({ db, me, url }) {
   const quoted = new Set(quotes.map(q => q.lead_id));
   const flowIdx = id => MAIN_FLOW.indexOf(S[id]);
   const stageEvs = l => (evBy.get(l.id) || []).filter(e => e.kind === 'stage');
-  const reached = l => Math.max(flowIdx(l.stage_id), ...stageEvs(l).map(e => flowIdx(e.to_stage)), 0);
   const stageSince = l => { const e = stageEvs(l).filter(e => e.to_stage === l.stage_id).pop(); return e ? ms(e.at) : null; };
   // 某時間點名單在哪個階段（不知道就 undefined）
   const stageAt = (l, t) => {
@@ -1141,23 +1140,68 @@ async function weeklyReport({ db, me, url }) {
   };
 
   // 轉換率：近 12 週（到過下一關）＋ 這週（期初在該關或這週進來的，這週往前推進的比例）
-  const funnel12 = ls => {
-    const cnt = MAIN_FLOW.map((_, i) => ls.filter(l => reached(l) >= i).length);
-    return { n: ls.length, reached: Object.fromEntries(MAIN_FLOW.map((s, i) => [s, cnt[i]])), steps: MAIN_FLOW.slice(1).map((s, i) => ({ from: MAIN_FLOW[i], to: s, rate: pctOf(cnt[i + 1], cnt[i]) })), lost: ls.filter(l => l.stage_id === CLOSED).length };
+  // 轉換率只看三關：新名單→約Demo、約Demo→報價（議價中）、報價→成交；另算每關掉件（結案）與等待
+  const KEY_STEPS = [['新名單', '約Demo'], ['約Demo', '議價中'], ['議價中', '簽約進件']];
+  // 名單走過的主線階段（站得住的才算：往前移後又退回去不算；系統追蹤前的資料視為一路走上來）
+  const pathOf = l => {
+    const ev = stageEvs(l), seq = [];
+    const tracked = ev.filter(e => !e.backfill);
+    if (!tracked.length) {
+      seq.push({ v: Math.max(flowIdx(l.stage_id), 0), exp: true });
+      ev.forEach(e => { const v = flowIdx(e.to_stage); if (v >= 0) seq.push({ v, exp: true }); });
+      return seq;
+    }
+    const cr = (evBy.get(l.id) || []).find(e => e.kind === 'create' && !e.backfill);
+    const start = cr ? flowIdx(cr.to_stage) : flowIdx(tracked[0].from_stage);
+    seq.push({ v: Math.max(start, 0), exp: true });
+    ev.forEach(e => { const v = flowIdx(e.to_stage); if (v >= 0) seq.push({ v, exp: !!e.backfill }); });
+    return seq;
   };
-  const funnelWeek = ls => MAIN_FLOW.slice(0, 4).map((st, i) => {
-    const X = sid(st);
+  const reachedStuck = (l, i) => {
+    const seq = pathOf(l);
+    for (let p = 0; p < seq.length; p++) {
+      if (!(seq[p].exp ? seq[p].v >= i : seq[p].v >= i)) continue;
+      if (seq.slice(p).every(x => x.v >= i)) return true;
+    }
+    return false;
+  };
+  const reached = l => { let m = 0; for (let i = 1; i < MAIN_FLOW.length; i++) if (reachedStuck(l, i)) m = i; return m; };
+  const passedStage = (l, i) => { // 真的走進過這一關（跳關的不算）
+    const seq = pathOf(l);
+    for (let p = 0; p < seq.length; p++) {
+      const hit = seq[p].exp ? seq[p].v >= i : seq[p].v === i;
+      if (hit && seq.slice(p).every(x => x.v >= i)) return true;
+    }
+    return false;
+  };
+  const stepOut = (A, B, base, adv) => {
+    const rest = base.filter(l => !adv.includes(l));
+    const lst = rest.filter(l => l.stage_id === CLOSED), wt = rest.filter(l => l.stage_id === WAIT);
+    return { from: A, to: B, base: base.length, advanced: adv.length, rate: pctOf(adv.length, base.length), lost: lst.length, lost_rate: pctOf(lst.length, base.length), wait: wt.length, leads: ref(adv.map(l => l.id)), lost_leads: ref(lst.map(l => l.id)) };
+  };
+  const funnel12 = ls => ({
+    n: ls.length,
+    steps: KEY_STEPS.map(([A, B]) => {
+      const ia = MAIN_FLOW.indexOf(A), ib = MAIN_FLOW.indexOf(B);
+      const base = ls.filter(l => ia === 0 || passedStage(l, ia));
+      const adv = base.filter(l => reachedStuck(l, ib));
+      return stepOut(A, B, base, adv);
+    })
+  });
+  // 這週：期初在這一關、或這週進來這一關的；週五結束時停在下一關（含）以後才算推進（來回移會互相抵消）
+  const funnelWeek = ls => KEY_STEPS.map(([A, B]) => {
+    const X = sid(A), ib = MAIN_FLOW.indexOf(B);
     const base = ls.filter(l => {
       if (stageAt(l, F) === X) return true;
       if (stageEvs(l).some(e => e.to_stage === X && inWk(e.at))) return true;
       return inWk(l.created_at) && stageAt(l, ms(l.created_at) + 1) === X;
     });
-    const evIn = l => stageEvs(l).filter(e => inWk(e.at));
-    const adv = base.filter(l => evIn(l).some(e => flowIdx(e.to_stage) > i));
+    const endIdx = l => flowIdx(stageAt(l, T));
+    const adv = base.filter(l => endIdx(l) >= ib);
     const rest = base.filter(l => !adv.includes(l));
-    const wait = rest.filter(l => evIn(l).some(e => e.to_stage === WAIT));
-    const lst = rest.filter(l => evIn(l).some(e => e.to_stage === CLOSED));
-    return { from: st, to: MAIN_FLOW[i + 1], base: base.length, advanced: adv.length, wait: wait.length, lost: lst.length, rate: pctOf(adv.length, base.length), leads: ref(adv.map(l => l.id)) };
+    const end = l => stageAt(l, T);
+    const lst = rest.filter(l => end(l) === CLOSED), wt = rest.filter(l => end(l) === WAIT);
+    return { from: A, to: B, base: base.length, advanced: adv.length, rate: pctOf(adv.length, base.length), lost: lst.length, lost_rate: pctOf(lst.length, base.length), wait: wt.length, leads: ref(adv.map(l => l.id)), lost_leads: ref(lst.map(l => l.id)) };
   });
   const cohortLeads = leads.filter(l => inCohort(l.created_at) || asgCohort.has(l.id));
 
@@ -1335,7 +1379,7 @@ async function weeklyReport({ db, me, url }) {
     },
     reps, leads: leadsOut,
     notes: [
-      '這週轉換率＝期初在該階段或這週進來的名單，這週往下一關推進的比例；近 12 週＝這段期間進來的名單到過下一關的比例。',
+      '轉換率只看三關：新名單→約Demo、約Demo→報價（議價中）、報價→成交，並列每關的掉件（結案）與等待。這週＝期初在這關或這週進來的名單，週五結束時停在下一關（含）以後的比例，來回移會互相抵消；近 12 週＝這段期間進來、真的走進這一關的名單，之後站穩到下一關的比例，往前移又退回的不算、跳過的關不算。',
       '階段歷程從 2026-11-08 起由系統自動記錄；之前只補得到建立、結案、成交，所以更早的週數字偏少。',
       '分配＝非陌開來源的名單被指定負責業務；陌開轉的算在陌開。kpi.prev 是前一週同樣的數字。',
       '陌開週目標＝月目標 × 7 ÷ 當月天數。首次聯絡＝分配後到第一筆活動紀錄的小時數（中位數）。'
