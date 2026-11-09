@@ -1006,9 +1006,10 @@ async function weeklyReport({ db, me, url }) {
   const F = Date.parse(from + 'T00:00:00+08:00'), T = Date.parse(addDays(to, 1) + 'T00:00:00+08:00'), P = F - 7 * 864e5;
   const iso = x => new Date(x).toISOString();
   const C0 = F - 77 * 864e5; // 近 12 週（含本週）
+  const C4 = F - 21 * 864e5; // 近 4 週
   const ms = t => t ? Date.parse(t) : NaN;
   const inR = (a, b) => t => { const x = ms(t); return x >= a && x < b; };
-  const inWk = inR(F, T), inPrev = inR(P, F), inCohort = inR(C0, T);
+  const inWk = inR(F, T), inPrev = inR(P, F), inCohort = inR(C0, T), in4 = inR(C4, T);
   const month = to.slice(0, 7);
   const dim = new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7), 0)).getUTCDate();
   const today = todayTW(), now = Date.now();
@@ -1085,7 +1086,7 @@ async function weeklyReport({ db, me, url }) {
     }
     return m;
   };
-  const asgWk = lastAssign(inWk), asgPrev = lastAssign(inPrev), asgCohort = lastAssign(inCohort);
+  const asgWk = lastAssign(inWk), asgPrev = lastAssign(inPrev), asgCohort = lastAssign(inCohort), asg4 = lastAssign(in4);
   const dealsAll = (deals || []).map(d => ({
     company: d.company, owner: uname(d.sales_user_id), user_id: d.sales_user_id, date: d.signed, category: d.deal_category || null,
     plan: d.title || null, items: (d.items || []).filter(Boolean), lead_id: d.lead_id,
@@ -1140,70 +1141,44 @@ async function weeklyReport({ db, me, url }) {
   };
 
   // 轉換率：近 12 週（到過下一關）＋ 這週（期初在該關或這週進來的，這週往前推進的比例）
-  // 轉換率只看三關：新名單→約Demo、約Demo→報價（議價中）、報價→成交；另算每關掉件（結案）與等待
-  const KEY_STEPS = [['新名單', '約Demo'], ['約Demo', '議價中'], ['議價中', '簽約進件']];
-  // 名單走過的主線階段（站得住的才算：往前移後又退回去不算；系統追蹤前的資料視為一路走上來）
-  const pathOf = l => {
-    const ev = stageEvs(l), seq = [];
-    const tracked = ev.filter(e => !e.backfill);
-    if (!tracked.length) {
-      seq.push({ v: Math.max(flowIdx(l.stage_id), 0), exp: true });
-      ev.forEach(e => { const v = flowIdx(e.to_stage); if (v >= 0) seq.push({ v, exp: true }); });
-      return seq;
-    }
-    const cr = (evBy.get(l.id) || []).find(e => e.kind === 'create' && !e.backfill);
-    const start = cr ? flowIdx(cr.to_stage) : flowIdx(tracked[0].from_stage);
-    seq.push({ v: Math.max(start, 0), exp: true });
-    ev.forEach(e => { const v = flowIdx(e.to_stage); if (v >= 0) seq.push({ v, exp: !!e.backfill }); });
-    return seq;
-  };
-  const reachedStuck = (l, i) => {
-    const seq = pathOf(l);
-    for (let p = 0; p < seq.length; p++) {
-      if (!(seq[p].exp ? seq[p].v >= i : seq[p].v >= i)) continue;
-      if (seq.slice(p).every(x => x.v >= i)) return true;
-    }
-    return false;
-  };
-  const reached = l => { let m = 0; for (let i = 1; i < MAIN_FLOW.length; i++) if (reachedStuck(l, i)) m = i; return m; };
-  const passedStage = (l, i) => { // 真的走進過這一關（跳關的不算）
-    const seq = pathOf(l);
-    for (let p = 0; p < seq.length; p++) {
-      const hit = seq[p].exp ? seq[p].v >= i : seq[p].v === i;
-      if (hit && seq.slice(p).every(x => x.v >= i)) return true;
-    }
-    return false;
-  };
-  const stepOut = (A, B, base, adv) => {
-    const rest = base.filter(l => !adv.includes(l));
-    const lst = rest.filter(l => l.stage_id === CLOSED), wt = rest.filter(l => l.stage_id === WAIT);
-    return { from: A, to: B, base: base.length, advanced: adv.length, rate: pctOf(adv.length, base.length), lost: lst.length, lost_rate: pctOf(lst.length, base.length), wait: wt.length, leads: ref(adv.map(l => l.id)), lost_leads: ref(lst.map(l => l.id)) };
-  };
-  const funnel12 = ls => ({
-    n: ls.length,
-    steps: KEY_STEPS.map(([A, B]) => {
-      const ia = MAIN_FLOW.indexOf(A), ib = MAIN_FLOW.indexOf(B);
-      const base = ls.filter(l => ia === 0 || passedStage(l, ia));
-      const adv = base.filter(l => reachedStuck(l, ib));
-      return stepOut(A, B, base, adv);
-    })
-  });
-  // 這週：期初在這一關、或這週進來這一關的；週五結束時停在下一關（含）以後才算推進（來回移會互相抵消）
-  const funnelWeek = ls => KEY_STEPS.map(([A, B]) => {
-    const X = sid(A), ib = MAIN_FLOW.indexOf(B);
-    const base = ls.filter(l => {
-      if (stageAt(l, F) === X) return true;
-      if (stageEvs(l).some(e => e.to_stage === X && inWk(e.at))) return true;
-      return inWk(l.created_at) && stageAt(l, ms(l.created_at) + 1) === X;
+  // 漏斗：每家名單以「歷史上最接近成交的階段」記錄，結案就算在那一關掉件。
+  // 洗 Demo 只會讓後面的成交率變低；拖錯又馬上拖回、填寫框取消退回（10 分鐘內退回）不算。
+  const KEY = ['新名單', '約Demo', '議價中', '簽約進件'];
+  const NOISE_MS = 10 * 60 * 1000;
+  const realEvs = l => {
+    const ev = stageEvs(l);
+    return ev.filter((e, k) => {
+      if (e.backfill) return true;
+      const nx = ev[k + 1];
+      return !(nx && !nx.backfill && ms(nx.at) - ms(e.at) < NOISE_MS && flowIdx(nx.to_stage) < flowIdx(e.to_stage));
     });
-    const endIdx = l => flowIdx(stageAt(l, T));
-    const adv = base.filter(l => endIdx(l) >= ib);
-    const rest = base.filter(l => !adv.includes(l));
-    const end = l => stageAt(l, T);
-    const lst = rest.filter(l => end(l) === CLOSED), wt = rest.filter(l => end(l) === WAIT);
-    return { from: A, to: B, base: base.length, advanced: adv.length, rate: pctOf(adv.length, base.length), lost: lst.length, lost_rate: pctOf(lst.length, base.length), wait: wt.length, leads: ref(adv.map(l => l.id)), lost_leads: ref(lst.map(l => l.id)) };
-  });
+  };
+  const maxStage = l => Math.max(flowIdx(l.stage_id), 0, ...realEvs(l).map(e => flowIdx(e.to_stage)));
+  const reached = maxStage;
+  const firstReach = (l, i) => { const e = realEvs(l).find(e => !e.backfill && flowIdx(e.to_stage) >= i); return e ? ms(e.at) : null; };
+  const funnelOf = ls => {
+    const mx = new Map(ls.map(l => [l.id, maxStage(l)]));
+    const lv = KEY.map(k => MAIN_FLOW.indexOf(k));
+    return {
+      n: ls.length,
+      steps: KEY.slice(0, -1).map((A, j) => {
+        const ia = lv[j], ib = lv[j + 1];
+        const base = ls.filter(l => mx.get(l.id) >= ia), adv = base.filter(l => mx.get(l.id) >= ib);
+        const stuck = base.filter(l => mx.get(l.id) < ib); // 最遠停在這一段
+        const lst = stuck.filter(l => l.stage_id === CLOSED), wt = stuck.filter(l => l.stage_id === WAIT);
+        return { from: A, to: KEY[j + 1], base: base.length, advanced: adv.length, rate: pctOf(adv.length, base.length), lost: lst.length, lost_rate: pctOf(lst.length, base.length), wait: wt.length, open: stuck.length - lst.length - wt.length, leads: ref(adv.map(l => l.id)), lost_leads: ref(lst.map(l => l.id)), stuck_leads: ref(stuck.filter(l => l.stage_id !== CLOSED).map(l => l.id)) };
+      })
+    };
+  };
+  // 這週動態：這週第一次走到各關的家數、這週結案（依最遠走到哪關）
+  const weekMoves = ls => {
+    const out = KEY.slice(1).map(k => { const i = MAIN_FLOW.indexOf(k); const hit = ls.filter(l => inWk(firstReach(l, i))); return { stage: k, n: hit.length, leads: ref(hit.map(l => l.id)) }; });
+    const lostWk2 = ls.filter(l => l.stage_id === CLOSED && inWk(l.lost_at));
+    const by = {}; lostWk2.forEach(l => { const k = MAIN_FLOW[maxStage(l)] || '新名單'; (by[k] ||= []).push(l.id); });
+    return { reached: out, lost: Object.entries(by).map(([stage, ids]) => ({ stage, n: ids.length, leads: ref(ids) })) };
+  };
   const cohortLeads = leads.filter(l => inCohort(l.created_at) || asgCohort.has(l.id));
+  const cohort4 = leads.filter(l => in4(l.created_at) || asg4.has(l.id));
 
   // 續約、收款（原「數據」頁）
   const renewals = [], dues = [];
@@ -1343,8 +1318,8 @@ async function weeklyReport({ db, me, url }) {
         by_industry: matrixBy(mine, indOf)
       },
       attention,
-      funnel_week: funnelWeek(mine.concat(leads.filter(l => !isOpen(l) && l.user_id === u.id && (inWk(l.lost_at) || stageEvs(l).some(e => e.to_stage === WON && inWk(e.at)))))),
-      funnel_12w: funnel12(myCohort), cycle_days_median: cycle != null ? Math.round(cycle) : null,
+      funnel_4w: funnelOf(cohort4.filter(l => l.user_id === u.id || (isCold(l) && coldRep(l) === u.id))), week_moves: weekMoves(leads.filter(l => l.user_id === u.id)),
+      funnel_12w: funnelOf(myCohort), cycle_days_median: cycle != null ? Math.round(cycle) : null,
       activity: {
         n: myActs.length, by_type: shareOf(myActs.map(a => ACTIVITY_TYPES[a.type] || a.type)).map(x => ({ type: x.reason, n: x.n })),
         log: myActs.slice(-80).reverse().map(a => ({ when: toTW(a.created_at), lead: a.lead_id && leadById.has(a.lead_id) ? ref([a.lead_id])[0] : null, company: leadById.get(a.lead_id)?.name || null, type: ACTIVITY_TYPES[a.type] || a.type, content: String(a.content || '').replace(AI_TAG, '').slice(0, detail ? 400 : 160) }))
@@ -1353,7 +1328,6 @@ async function weeklyReport({ db, me, url }) {
   }
   reps.sort((a, b) => b.pipeline.open - a.pipeline.open);
 
-  const teamWeek = funnelWeek(openLeads.concat(leads.filter(l => !isOpen(l) && (inWk(l.lost_at) || stageEvs(l).some(e => e.to_stage === WON && inWk(e.at))))));
   const leadsOut = {};
   for (const id of used) { const l = leadById.get(id); if (l) leadsOut[id] = brief(l); }
   // 每家最新一筆紀錄（列表上快速看）
@@ -1373,13 +1347,13 @@ async function weeklyReport({ db, me, url }) {
     sources: sources.map(s => ({ id: s.id, name: s.name })), industries: CC_INDUSTRIES,
     overall: {
       new_leads: newLeads, assigned, deals: { companies: new Set(dealsWk.map(d => d.company)).size, list: dealsWk }, lost, open,
-      funnel_week: teamWeek, funnel_12w: funnel12(cohortLeads), week_tracked: T > Date.parse('2026-11-08T00:00:00+08:00'),
+      funnel_4w: funnelOf(cohort4), funnel_12w: funnelOf(cohortLeads), week_moves: weekMoves(leads), week_tracked: T > Date.parse('2026-11-08T00:00:00+08:00'),
       team: reps.map(r => ({ rep: r.rep, user_id: r.user_id, ...r.kpi.cur, open: r.pipeline.open, overdue: r.pipeline.overdue, help: r.pipeline.help, first_touch_hours: r.assigned.first_touch_hours_median })),
       renewals, dues
     },
     reps, leads: leadsOut,
     notes: [
-      '轉換率只看三關：新名單→約Demo、約Demo→報價（議價中）、報價→成交，並列每關的掉件（結案）與等待。這週＝期初在這關或這週進來的名單，週五結束時停在下一關（含）以後的比例，來回移會互相抵消；近 12 週＝這段期間進來、真的走進這一關的名單，之後站穩到下一關的比例，往前移又退回的不算、跳過的關不算。',
+      '漏斗：每家名單以歷史上最接近成交的階段記錄（往前走過就算，跳關視同走過），結案就算在那一段掉件；10 分鐘內拖回的視為拖錯不算。近 4 週／近 12 週＝這段期間新進或分配的名單。week_moves＝這週第一次走到各關的家數與這週結案（依最遠走到哪關）。',
       '階段歷程從 2026-11-08 起由系統自動記錄；之前只補得到建立、結案、成交，所以更早的週數字偏少。',
       '分配＝非陌開來源的名單被指定負責業務；陌開轉的算在陌開。kpi.prev 是前一週同樣的數字。',
       '陌開週目標＝月目標 × 7 ÷ 當月天數。首次聯絡＝分配後到第一筆活動紀錄的小時數（中位數）。'
