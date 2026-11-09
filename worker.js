@@ -1018,8 +1018,8 @@ async function weeklyReport({ db, me, url }) {
     db.get('sources?select=id,name'),
     getAll(db, 'leads?select=id,name,stage_id,source_id,user_id,created_at,lost_reason,lost_at,next_contact_date,expected_total,flag,industry,product_type&order=id'),
     getAll(db, `lead_events?select=lead_id,kind,from_stage,to_stage,to_user,at,backfill&at=lt.${iso(T)}&order=at`),
-    getAll(db, 'cold_calls?select=id,owner_id,status,status_at,close_reason,lead_id,industry&order=id'),
-    getAll(db, `call_logs?select=cold_call_id,outcome,user_id,called_at&called_at=gte.${iso(P)}&called_at=lt.${iso(T)}&order=id`),
+    getAll(db, 'cold_calls?select=id,company,owner_id,status,status_at,close_reason,close_note,sales_note,lead_id,industry&order=id'),
+    getAll(db, `call_logs?select=cold_call_id,outcome,note,user_id,called_at&called_at=gte.${iso(P)}&called_at=lt.${iso(T)}&order=id`),
     db.get(`cc_kpis?select=user_id,kind,target,min_calls&month=eq.${month}`),
     db.rpc('weekly_deals', { p_from: addDays(from, -7), p_to: to }),
     db.get(`activities?select=user_id,lead_id,type,content,created_at&created_at=gte.${iso(P)}&created_at=lt.${iso(T)}&order=created_at&limit=5000`),
@@ -1209,7 +1209,13 @@ async function weeklyReport({ db, me, url }) {
     const conv = nl.filter(l => isCold(l) && coldRep(l) === u.id);
     const ended = ccs.filter(c => c.owner_id === u.id && (c.status === 'rejected' || c.status === 'invalid') && inWk(c.status_at));
     const kC = kp(u.id, 'calls'), kV = kp(u.id, 'conv'), kR = kp(u.id, 'rate');
-    const outcomes = shareOf(myLogs.map(x => ({ interested: '有興趣', callback: '再聯絡', reject: '婉拒', no_answer: '沒人接', gatekeeper: '沒找到窗口', invalid: '空號' }[x.outcome] || x.outcome)));
+    const OUT = { interested: '有興趣', callback: '再聯絡', reject: '婉拒', no_answer: '沒人接', gatekeeper: '沒找到窗口', invalid: '空號' };
+    const outcomes = shareOf(myLogs.map(x => OUT[x.outcome] || x.outcome));
+    const ccById = new Map(ccs.map(c => [c.id, c]));
+    const lastLog = new Map();
+    for (const x of logs) if (x.note && x.user_id === u.id) lastLog.set(x.cold_call_id, x);
+    const clip = t => { const c = String(t || '').replace(/\s+/g, ' ').trim(); return c.length > 160 ? c.slice(0, 160) + '…' : c; };
+    const callList = myLogs.map(x => ({ company: ccById.get(x.cold_call_id)?.company || '', group: OUT[x.outcome] || x.outcome, when: toTW(x.called_at).slice(5, 16), note: clip(x.note) })).reverse();
 
     // 分配
     const myAsg = [...asgWk.entries()].filter(([, e]) => e.to_user === u.id);
@@ -1270,7 +1276,9 @@ async function weeklyReport({ db, me, url }) {
         conv_target_week: perWeek(kV?.target), conv_target_month: kV?.target ?? null, rate_target: kR?.target ?? null,
         called: new Set(myLogs.map(x => x.cold_call_id)).size, dials: myLogs.length, outcomes,
         converted: conv.length, converted_leads: ref(conv.map(l => l.id)), conv_rate: pctOf(conv.length, new Set(myLogs.map(x => x.cold_call_id)).size),
-        ended: ended.length, end_reasons: shareOf(ended.map(c => c.close_reason || (c.status === 'invalid' ? '空號／無效' : '未填')))
+        ended: ended.length, end_reasons: shareOf(ended.map(c => c.close_reason || (c.status === 'invalid' ? '空號／無效' : '未填'))),
+        ended_list: ended.sort((a, b) => ms(b.status_at) - ms(a.status_at)).map(c => ({ company: c.company || '', group: c.close_reason || (c.status === 'invalid' ? '空號／無效' : '未填'), when: toTW(c.status_at).slice(5, 16), note: clip([c.close_note, lastLog.get(c.id)?.note, c.sales_note].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join('｜')) })),
+        call_list: callList
       },
       assigned: {
         n: asgLeads.length, leads: ref(asgLeads.map(l => l.id)),
