@@ -341,13 +341,13 @@ async function importColdCalls({ db, me, url }, b) {
 
 async function lookups(db) {
   const [stages, users] = await Promise.all([
-    db.get('stages?select=id,name,order_index&order=order_index'),
+    db.get('stages?select=id,name,label,order_index&order=order_index'),
     db.get('user_profiles?select=id,full_name,role,email')
   ]);
   return {
     stages,
     stageName: id => stages.find(s => s.id === id)?.name || null,
-    stageByName: n => stages.find(s => s.name === String(n || '').trim()),
+    stageByName: n => { const k = String(n || '').trim(); return stages.find(s => s.name === k) || stages.find(s => s.label && s.label === k); },
     userName: id => users.find(u => u.id === id)?.full_name || null,
     userByName: n => findUser(users, n).user,
     findUser: n => findUser(users, n),
