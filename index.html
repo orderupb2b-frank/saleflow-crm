@@ -1063,6 +1063,8 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .wk-fstep { display:flex; justify-content:center; align-items:baseline; gap:12px; font-size:12.5px; padding:6px 0; }
 .wk-frate { font-size:15px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums; }
 .wk-fun.sm .wk-fb { height:38px; }
+.wk-wm { display:flex; flex-wrap:wrap; justify-content:center; gap:6px 14px; font-size:12.5px; margin-top:12px; padding-top:10px; border-top:1px solid var(--border); }
+.wk-wm .wk-link { margin-right:8px; }
 .wk-wfs { background:var(--bg3); border-radius:8px; padding:10px 12px; }
 .wk-wft { font-size:12px; color:var(--text2); }
 .wk-wfr { font-size:22px; font-weight:700; margin:2px 0; color:var(--accent); font-variant-numeric:tabular-nums; }
@@ -4598,7 +4600,7 @@ async function runLostReport() {
 }
 
 // ════════════════════════ 業務週會（週六～週五）════════════════════════
-let _wk = { start: null, tab: 'all', data: null, cache: {}, st: null, chip: null, mx: 'rep', fn: 'week', logOpen: false, reg: [] };
+let _wk = { start: null, tab: 'all', data: null, cache: {}, st: null, chip: null, mx: 'rep', fn: '12w', logOpen: false, reg: [] };
 function wkSat(d) { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 1) % 7)); return t.toISOString().slice(0, 10); }
 function wkAdd(d, n) { const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); }
 async function wkFetch(start, force) {
@@ -4683,12 +4685,10 @@ function wccDraw() {
   }).join('') + '</div>' : '<div class="wk-none">—</div>';
   document.getElementById('modalBody').innerHTML = chips + body;
 }
-function wkFunnelCard(f12, fw, small) {
-  const head = '<div class="wk-h">轉換率 ' + wkSeg('fn', [['week', '這週'], ['12w', '近 12 週']]) + '</div>';
-  if (_wk.fn !== '12w' && _wk.data && !_wk.data.overall.week_tracked) return head + '<div class="wk-none">11/8 起系統才開始記錄階段變化，這週之後才有。</div>';
-  const st = _wk.fn === '12w' ? f12.steps : fw;
+function wkFunnelCard(f12, f4, small, wm) {
+  const head = '<div class="wk-h">漏斗 ' + wkSeg('fn', [['4w', '近 4 週'], ['12w', '近 12 週']]) + '</div>';
+  const F = _wk.fn === '4w' ? f4 : f12, st = F.steps;
   const nm = function (k) { return k === '簽約進件' ? '成交' : stageLabelOf(k); };
-  // 漏斗：每層 = 該關的名單數，層與層之間 = 轉換率與掉件
   const lv = st.map(function (s) { return { name: nm(s.from), n: s.base }; }).concat([{ name: nm(st[st.length - 1].to), n: st[st.length - 1].advanced, ids: st[st.length - 1].leads }]);
   const mx = Math.max.apply(null, lv.map(function (x) { return x.n; }).concat([1]));
   const C = ['#6c8cff', '#8b7cf6', '#b06cf0', '#10b981'];
@@ -4697,11 +4697,19 @@ function wkFunnelCard(f12, fw, small) {
     const w = 34 + (x.n / mx) * 66;
     h += '<div class="wk-fl"><div class="wk-fb" style="width:' + w + '%;background:' + C[i] + '">' + (x.ids ? wkPopBtn(x.ids, x.name, '<b>' + x.n + '</b>') : '<b>' + x.n + '</b>') + '<span>' + esc(x.name) + '</span></div></div>';
     const s = st[i];
-    if (s) h += '<div class="wk-fstep"><span class="wk-frate">↓ ' + wkPct(s.rate) + '</span><span class="wk-mut">' + wkPopBtn(s.leads, nm(s.from) + ' → ' + nm(s.to), s.advanced) + ' / ' + s.base + '</span>'
-      + (s.lost ? '<span class="wk-bad">掉件 ' + wkPopBtn(s.lost_leads, nm(s.from) + ' 掉件', wkPct(s.lost_rate) + '（' + s.lost + '）') + '</span>' : '<span class="wk-mut">掉件 0</span>')
-      + (s.wait ? '<span class="wk-mut">等待 ' + s.wait + '</span>' : '') + '</div>';
+    if (s) h += '<div class="wk-fstep"><span class="wk-frate">↓ ' + wkPct(s.rate) + '</span>'
+      + (s.lost ? '<span class="wk-bad">掉件 ' + wkPopBtn(s.lost_leads, nm(s.from) + ' 這段掉件', wkPct(s.lost_rate) + '（' + s.lost + '）') + '</span>' : '<span class="wk-mut">掉件 0</span>')
+      + ((s.open + s.wait) ? '<span class="wk-mut">' + wkPopBtn(s.stuck_leads, '停在 ' + nm(s.from) + ' 這段', '還在這段 ' + (s.open + s.wait)) + (s.wait ? '（等待 ' + s.wait + '）' : '') + '</span>' : '') + '</div>';
   });
-  return head + h + '</div>';
+  h += '</div>';
+  if (wm) {
+    const tracked = !_wk.data || _wk.data.overall.week_tracked;
+    const mv = wm.reached.map(function (x) { return x.n ? wkPopBtn(x.leads, '這週新進 ' + nm(x.stage), nm(x.stage) + ' +' + x.n) : ''; }).filter(Boolean);
+    const ls = wm.lost.map(function (x) { return wkPopBtn(x.leads, '這週結案・最遠到 ' + nm(x.stage), nm(x.stage) + ' ' + x.n); });
+    h += '<div class="wk-wm"><b>這週</b>' + (tracked ? (mv.length ? mv.join('') : '<span class="wk-mut">沒有新推進</span>') : '<span class="wk-mut">11/8 起才有推進紀錄</span>')
+      + (ls.length ? '<span class="wk-bad">結案：' + ls.join('、') + '</span>' : '') + '</div>';
+  }
+  return head + h;
 }
 function wkMatrix(cols, rows, labelKey, colTotals, total) {
   const mx = Math.max.apply(null, rows.map(function (r) { return Math.max.apply(null, cols.map(function (c) { return r.cells[c].length; })); }).concat([1]));
@@ -4749,7 +4757,7 @@ function wkOverall(d) {
     + '</div>'
     + (team ? '<div class="card wk-wide"><div class="wk-h">業務對照</div>' + team + '</div>' : '')
     + '<div class="card wk-wide"><div class="wk-h">進行中 <span class="wk-mut">' + m.total + '</span><span style="flex:1"></span>' + wkSeg('mx', [['rep', '業務'], ['ind', '產業']]) + '</div>' + mxHtml + '</div>'
-    + '<div class="card wk-wide">' + wkFunnelCard(o.funnel_12w, o.funnel_week) + '</div>'
+    + '<div class="card wk-wide">' + wkFunnelCard(o.funnel_12w, o.funnel_4w, false, o.week_moves) + '</div>'
     + ((ren || due) ? '<div class="wk-grid">'
       + '<div class="card"><div class="wk-h">續約提醒</div>' + (ren ? '<table class="wk-tbl"><tbody>' + ren + '</tbody></table>' : '<div class="wk-none">—</div>') + '</div>'
       + '<div class="card"><div class="wk-h">待收款 <span class="wk-mut">逾期＋14 天內</span></div>' + (due ? '<table class="wk-tbl"><tbody>' + due + '</tbody></table>' : '<div class="wk-none">—</div>') + '</div>'
@@ -4813,7 +4821,7 @@ function wkRep(d, r) {
   return tiles + '<div class="wk-grid">' + cold + asg + '</div>' + dev
     + '<div class="wk-grid"><div class="card"><div class="wk-h">需要關注</div>' + att + '</div>'
     + '<div class="card"><div class="wk-h">產業 × 階段</div>' + ind + '</div></div>'
-    + '<div class="card wk-wide">' + wkFunnelCard(r.funnel_12w, r.funnel_week, true) + '</div>' + log;
+    + '<div class="card wk-wide">' + wkFunnelCard(r.funnel_12w, r.funnel_4w, true, r.week_moves) + '</div>' + log;
 }
 function wkHours(h) { return h < 48 ? h + ' 小時' : Math.round(h / 24) + ' 天'; }
 function wkArrow(st, n, moved, cls) {
