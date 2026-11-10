@@ -945,6 +945,17 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .kanban-card{position:relative}
 .kanban-card:hover .kc-log{opacity:1}
 .kc-log:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.kc-stg{right:6px;top:6px;bottom:auto;width:24px;height:24px;font-size:12px}
+.kanban-card .kc-name{padding-right:24px}
+.stg-pop{position:fixed;z-index:3000;background:var(--bg2);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:4px;min-width:150px}
+.stg-pop button{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;color:var(--text);font:inherit;font-size:13px;padding:7px 10px;border-radius:7px;cursor:pointer;text-align:left}
+.stg-pop button:hover{background:var(--bg3)}
+.stg-pop button.on{color:var(--accent);font-weight:600}
+.stg-pop i,.stg-sheet i{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.stg-sheet{display:flex;flex-direction:column;gap:6px}
+.stg-sheet button{display:flex;align-items:center;gap:10px;height:46px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font:inherit;font-size:15px;border-radius:10px;padding:0 14px;text-align:left}
+.stg-sheet button.on{border-color:var(--accent);color:var(--accent);font-weight:600}
+.m-stg{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--border);background:var(--bg3);color:var(--text2);font:inherit;font-size:11.5px;border-radius:999px;padding:0 8px;height:22px;margin-right:4px;vertical-align:middle}
 .ml-log{width:38px;height:38px;border-radius:50%;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center}
 .tb-log{display:inline-flex}
 @media (max-width:768px){.tb-log{display:none}}
@@ -1619,7 +1630,8 @@ function mDue(nd) {
 function mLeadRow(l, m, opt) {
   opt = opt || {};
   const acc = m.accByLead[l.id];
-  const sub = opt.sub != null ? opt.sub : (acc ? '合作中' + (acc.onboarding_stage ? '・' + esc(acc.onboarding_stage) : '') : esc(getStageName(l.stage_id) || '')) + (opt.owner && l.user_name ? '・' + esc(l.user_name) : '');
+  const sub = opt.sub != null ? opt.sub : (acc ? '合作中' + (acc.onboarding_stage ? '・' + esc(acc.onboarding_stage) : '') + (opt.owner && l.user_name ? '・' + esc(l.user_name) : '')
+    : '<button type="button" class="m-stg" onclick="event.stopPropagation();stagePick(this,\'' + mQ(l.id) + '\')">' + esc(getStageName(l.stage_id) || '階段') + ' ▾</button>' + (opt.owner && l.user_name ? esc(l.user_name) : ''));
   const due = opt.why != null ? { t: opt.why, cls: opt.whyCls || '' } : mDue(l.next_contact_date);
   const ph = m.phoneOf[l.id];
   return '<div class="m-row' + ctagCls(l) + '" onclick="openCompany(\'' + mQ(l.id) + '\')">' + mDot(l)
@@ -1763,7 +1775,7 @@ function mcDraw() {
   if (_mcKind !== 'cc') m.leads.forEach(function (l) {
     const acc = m.accByLead[l.id], st = getStageName(l.stage_id) || '';
     if (_mcKind === 'mine' && l.user_id !== currentUser.id && !(acc && acc.user_id === currentUser.id)) return;
-    if (_mcKind === 'lead' && (acc || ['暫停', '等待', '結案'].indexOf(st) >= 0)) return;
+    if (_mcKind === 'lead' && (acc || ['暫停', '等待', '結案'].indexOf(getStageKey(l.stage_id)) >= 0)) return;
     if (_mcKind === 'acc' && !acc) return;
     if (_mcF.stage.length && _mcF.stage.indexOf(l.stage_id) < 0) return;
     if (_mcF.owner && l.user_id !== _mcF.owner && !(acc && acc.user_id === _mcF.owner)) return;
@@ -5349,6 +5361,14 @@ function createKanbanCard(lead) {
   logB.addEventListener('mousedown', function (e) { e.stopPropagation(); });
   logB.addEventListener('click', function (e) { e.stopPropagation(); openQuickLog(lead.id); });
   card.appendChild(logB);
+  if (!convertedLeadIds.has(lead.id)) {
+    const stB = document.createElement('button');
+    stB.className = 'kc-log kc-stg'; stB.type = 'button'; stB.textContent = '⇄'; stB.title = '換階段'; stB.setAttribute('aria-label', '換階段');
+    stB.draggable = false;
+    stB.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+    stB.addEventListener('click', function (e) { e.stopPropagation(); stagePick(stB, lead.id); });
+    card.appendChild(stB);
+  }
   const ownSel = card.querySelector('.owner-sel');
   if (ownSel) { ownSel.draggable = false; ownSel.addEventListener('dragstart', e => { e.preventDefault(); e.stopPropagation(); }); }
   card.addEventListener('dragstart', e => {
@@ -6623,12 +6643,49 @@ async function renderCompanyTimeline(leadId) {
   }).join('') + (shown.length > 20 ? '<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px" onclick="this.parentElement.querySelectorAll(\'[data-more]\').forEach(function(e){e.style.display=\'\'});this.remove()">顯示全部 ' + shown.length + ' 筆</button>' : '');
 }
 
+// 不用拖拉、直接換階段（看板卡片、手機列表共用）
+function stagePick(anchor, leadId) {
+  document.querySelectorAll('.stg-pop').forEach(function (x) { x.remove(); });
+  const lead = leadsData.find(function (x) { return x.id === leadId; }) || (_mCache && _mCache.leadById[leadId]) || {};
+  const opts = stagesData.map(function (st) { return '<button type="button" class="' + (st.id === lead.stage_id ? 'on' : '') + '" onclick="stagePicked(\'' + leadId + '\',\'' + st.id + '\')"><i style="background:' + (st.color || '#888') + '"></i>' + esc(stLabel(st)) + '</button>'; }).join('');
+  if (isMobile()) {
+    openModal(lead.name || '換階段', '<div class="stg-sheet">' + opts + '</div>');
+    document.getElementById('modalFooter').style.display = 'none';
+    return;
+  }
+  const pop = document.createElement('div'); pop.className = 'stg-pop'; pop.innerHTML = opts;
+  document.body.appendChild(pop);
+  const r = anchor.getBoundingClientRect(), h = pop.offsetHeight, w = pop.offsetWidth;
+  pop.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + 'px';
+  pop.style.top = (r.bottom + 4 + h > window.innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+  setTimeout(function () {
+    const off = function (e) { if (!pop.contains(e.target)) { pop.remove(); document.removeEventListener('mousedown', off, true); document.removeEventListener('keydown', esc1, true); } };
+    const esc1 = function (e) { if (e.key === 'Escape') { pop.remove(); document.removeEventListener('mousedown', off, true); document.removeEventListener('keydown', esc1, true); } };
+    document.addEventListener('mousedown', off, true); document.addEventListener('keydown', esc1, true);
+  }, 0);
+}
+async function stagePicked(leadId, stageId) {
+  document.querySelectorAll('.stg-pop').forEach(function (x) { x.remove(); });
+  const l = leadsData.find(function (x) { return x.id === leadId; });
+  const ml = _mCache && _mCache.leadById ? _mCache.leadById[leadId] : null;
+  const prev = (l || ml || {}).stage_id;
+  if (prev === stageId) { if (isMobile()) closeModal(); return; }
+  if (isMobile()) closeModal();
+  const r = await db.from('leads').update({ stage_id: stageId, updated_at: new Date().toISOString() }).eq('id', leadId);
+  if (r.error) { toast('沒存到：' + r.error.message, 'error'); return; }
+  if (l) l.stage_id = stageId;
+  if (ml) ml.stage_id = stageId;
+  toast('階段：' + getStageName(stageId), 'success');
+  if (currentPage === 'leads') renderKanban(document.getElementById('leadSearch')?.value || '');
+  else if (currentPage === 'mclients') mcDraw();
+  else if (typeof mRedraw === 'function') mRedraw();
+  afterStageChanged(leadId, stageId, prev);
+}
 async function companyStage(leadId, stageId) {
   const prev = (leadsData.find(x => x.id === leadId) || (window._cp && window._cp.lead) || {}).stage_id;
   await db.from('leads').update({ stage_id: stageId, updated_at: new Date().toISOString() }).eq('id', leadId);
   const l = leadsData.find(x => x.id === leadId); if (l) l.stage_id = stageId;
-  const nm = getStageKey(stageId);
-  toast('階段：' + nm, 'success');
+  toast('階段：' + getStageName(stageId), 'success');
   await refreshCompany();
   afterStageChanged(leadId, stageId, prev);
 }
@@ -10564,8 +10621,7 @@ async function quickStageChange(leadId, stageId) {
   // Update local data
   const lead = leadsData.find(l => l.id === leadId);
   if (lead) lead.stage_id = stageId;
-  const stageName = stagesData.find(s=>s.id===stageId)?.name||'';
-  toast('階段已更新：' + stageName, 'success');
+  toast('階段已更新：' + getStageName(stageId), 'success');
   // Re-render kanban in background so it reflects the change
   renderKanban(document.getElementById('leadSearch')?.value || '');
   // Re-render drawer info with fresh data
