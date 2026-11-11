@@ -1136,6 +1136,23 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 }
 </style>
 <script>
+// 中文輸入（注音、拼音）選字中不觸發 oninput，選完字再觸發一次：避免畫面重畫把注音打斷
+(function () {
+  document.addEventListener('compositionstart', function (e) { if (e.target) e.target._ime = true; }, true);
+  document.addEventListener('compositionend', function (e) {
+    const t = e.target; if (!t) return; t._ime = false;
+    setTimeout(function () { if (t.isConnected) t.dispatchEvent(new Event('input', { bubbles: true })); }, 0);
+  }, true);
+  document.addEventListener('input', function (e) {
+    const t = e.target;
+    if (t && (e.isComposing || t._ime) && t.matches && t.matches('input,textarea')) e.stopImmediatePropagation();
+  }, true);
+  // 選字時按 Enter 是確認選字，不要被當成送出／搜尋
+  document.addEventListener('keydown', function (e) {
+    const t = e.target;
+    if ((e.isComposing || e.keyCode === 229 || (t && t._ime)) && t && t.matches && t.matches('input,textarea')) e.stopImmediatePropagation();
+  }, true);
+})();
 (function(){var t;try{t=localStorage.getItem('sf_theme')}catch(e){}if(!t)t='light';document.documentElement.setAttribute('data-theme',t);})();
 function toggleTheme(){var h=document.documentElement;var t=h.getAttribute('data-theme')==='light'?'dark':'light';h.setAttribute('data-theme',t);try{localStorage.setItem('sf_theme',t)}catch(e){}var b=document.getElementById('themeBtn');if(b)b.textContent=t==='light'?'🌙':'☀️';}
 document.addEventListener('DOMContentLoaded',function(){var b=document.getElementById('themeBtn');if(b)b.textContent=document.documentElement.getAttribute('data-theme')==='light'?'🌙':'☀️';});
@@ -4230,16 +4247,23 @@ function renderLeadsMobile() {
       + (window.isAdmin ? ownerSelectHtml(l) : '<span style="font-size:12px;color:var(--text3)">' + esc(l.user_name || '未指派') + '</span>') + '</div></div>';
   }).join('');
   const more = list.length > mlLimit ? '<button class="btn btn-secondary" style="width:100%;margin-top:4px" onclick="mlLimit+=60;renderLeadsMobile()">再顯示 ' + Math.min(60, list.length - mlLimit) + ' 筆（共 ' + list.length + '）</button>' : '';
-  const hadFocus = document.activeElement && document.activeElement.id === 'mlSearch';
+  // 搜尋框只建立一次，之後只換下面的內容（每打一個字重畫輸入框會卡住注音、手機鍵盤會收起來）
+  const headRest = mlQuery ? '<div style="font-size:12px;color:var(--text3);margin-top:8px">搜尋全部名單：' + list.length + ' 筆</div>'
+    : '<div class="ml-chips ml-seg">' + seg + '</div><div class="ml-chips">' + stageChips + '</div><div class="ml-chips">' + ctagFilterHtml() + '</div>';
+  const body = (cards || '<div class="ml-empty">' + (mlQuery ? '找不到「' + esc(mlQuery) + '」<br><button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="openNewLeadModal(null,{name:mlQuery})">＋ 新增這家</button>' : '這裡沒有名單') + '</div>')
+    + more + '<div style="height:70px"></div>';
+  const inp = document.getElementById('mlSearch');
+  if (inp && content.contains(inp)) {
+    if (document.activeElement !== inp && inp.value !== mlQuery) inp.value = mlQuery;
+    const clr = document.getElementById('mlClear'); if (clr) clr.style.display = mlQuery ? '' : 'none';
+    document.getElementById('mlHeadRest').innerHTML = headRest;
+    document.getElementById('mlBody').innerHTML = body;
+    return;
+  }
   content.innerHTML = '<div class="ml-wrap"><div class="ml-head">'
-    + '<div class="ml-sbox"><span>🔍</span><input id="mlSearch" class="ml-search" type="search" enterkeyhint="search" placeholder="公司、聯絡人、電話、統編" value="' + esc(mlQuery) + '" oninput="mlSearchInput(this.value)">'
-    + (mlQuery ? '<button class="ml-clear" onclick="mlSearchInput(\'\')" aria-label="清除">✕</button>' : '') + '</div>'
-    + (mlQuery ? '<div style="font-size:12px;color:var(--text3);margin-top:8px">搜尋全部名單：' + list.length + ' 筆</div>'
-      : '<div class="ml-chips ml-seg">' + seg + '</div><div class="ml-chips">' + stageChips + '</div><div class="ml-chips">' + ctagFilterHtml() + '</div>')
-    + '</div>'
-    + (cards || '<div class="ml-empty">' + (mlQuery ? '找不到「' + esc(mlQuery) + '」<br><button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="openNewLeadModal(null,{name:mlQuery})">＋ 新增這家</button>' : '這裡沒有名單') + '</div>')
-    + more + '<div style="height:70px"></div></div>';
-  if (hadFocus) { const i = document.getElementById('mlSearch'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
+    + '<div class="ml-sbox"><span>🔍</span><input id="mlSearch" class="ml-search" type="search" enterkeyhint="search" autocomplete="off" placeholder="公司、聯絡人、電話、統編" value="' + esc(mlQuery) + '" oninput="mlSearchInput(this.value)">'
+    + '<button id="mlClear" class="ml-clear" onclick="var i=document.getElementById(\'mlSearch\');i.value=\'\';mlSearchInput(\'\')" aria-label="清除"' + (mlQuery ? '' : ' style="display:none"') + '>✕</button></div>'
+    + '<div id="mlHeadRest">' + headRest + '</div></div><div id="mlBody">' + body + '</div></div>';
 }
 let _mlT = null;
 function mlSearchInput(v) {
