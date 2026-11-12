@@ -1491,6 +1491,7 @@ async function loadGlobalData() {
 function isMobile() { return window.innerWidth <= 768; }
 const M_MAP = { today: 'mtoday', leadlist: 'mclients', accounts: 'mclients', contacts: 'mclients', performance: 'mme' };
 function navigate(page, opt) {
+  window._ccbKeep = false;
   if (isMobile() && M_MAP[page]) page = M_MAP[page];
   if (!isMobile() && (page === 'mtoday' || page === 'today' || page === 'dashboard')) page = 'weekly';
   if (!isMobile() && page === 'mclients') page = 'leadlist';
@@ -2947,6 +2948,17 @@ function ccbColOf(c) {
   if (c.status === 'callback') return 'callback';
   return 'pool';
 }
+// 重畫看板時記住每個捲動位置（不然移動一張卡就彈回最上面）
+function scrollSnap(root) {
+  const sel = '.kanban-cards,.ccb-board,#kanban-board,.kanban-col,.kanban-column';
+  const els = Array.prototype.map.call(root.querySelectorAll(sel), function (e) { return [e.scrollTop, e.scrollLeft]; });
+  const top = root.scrollTop, left = root.scrollLeft, wy = window.scrollY;
+  return function () {
+    root.scrollTop = top; root.scrollLeft = left;
+    Array.prototype.forEach.call(root.querySelectorAll(sel), function (e, i) { if (els[i]) { e.scrollTop = els[i][0]; e.scrollLeft = els[i][1]; } });
+    if (wy) window.scrollTo(0, wy);
+  };
+}
 async function renderCcBoard() {
   if (!usersData.length) await loadGlobalData();
   const content = document.getElementById('content');
@@ -3015,6 +3027,7 @@ async function renderCcBoard() {
       + '</div></div>';
   }).join('');
   content.style.padding = '16px'; content.style.overflowX = 'auto';
+  const restoreScroll = window._ccbKeep ? scrollSnap(content) : null; window._ccbKeep = true;
   content.innerHTML = hud
     + '<div class="kanban-filters" style="gap:10px">' + scopeSel + '<div class="ml-chips" style="margin:0">' + gradeChips + '</div><span style="flex:1"></span><a href="#" onclick="event.preventDefault();navigate(\'ccpool\')" style="font-size:12.5px">公海拿名單 →</a></div>'
     + (window.innerWidth <= 768 ? '<div class="ccb-mobtabs" id="ccbMobTabs"></div>' : '')
@@ -3028,6 +3041,7 @@ async function renderCcBoard() {
     el.addEventListener('dragstart', function (e) { window._ccbDrag = el.dataset.id; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
     el.addEventListener('dragend', function () { el.classList.remove('dragging'); document.querySelectorAll('.ccb-board .drag-over').forEach(function (x) { x.classList.remove('drag-over'); }); });
   });
+  if (restoreScroll) restoreScroll();
 }
 function ccbDragOver(e, el) { e.preventDefault(); el.classList.add('drag-over'); }
 function ccbDrop(e, el) {
@@ -5304,6 +5318,7 @@ function renderKanban(searchStr = '') {
     + '<button class="ml-chip' + (kanbanFilterUser === 'all' ? ' on' : '') + '" onclick="setKanbanFilter(\'user\',\'all\')">全部<b>' + allN + '</b></button>'
     + '<select class="form-select" style="width:auto;padding:0 24px 0 8px;font-size:12px;height:28px" onchange="setKanbanFilter(\'user\',this.value)">' + userOptions.map(function (o) { return '<option value="' + o.val + '"' + (kanbanFilterUser === o.val ? ' selected' : '') + '>' + esc(o.label) + '</option>'; }).join('') + '</select>'
     + '</div>';
+  const restoreKb = content.querySelector('#kanban-board') ? scrollSnap(content) : null;
   content.innerHTML = '<div class="kanban-filters">' + seg + ctagFilterHtml() + '</div><div id="kanban-board"></div>';
 
   const board = document.getElementById('kanban-board');
@@ -5357,6 +5372,7 @@ function renderKanban(searchStr = '') {
       });
     }
   });
+  if (restoreKb) restoreKb();
 }
 
 function setKanbanFilter(type, val) {
