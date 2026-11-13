@@ -10689,7 +10689,7 @@ function starToggle(leadId) {
   const l = leadsData.find(function (x) { return x.id === leadId; }) || (_mCache && _mCache.leadById[leadId]) || {};
   if (l.watch) { starSave(leadId, false, ''); return; }
   openModal('★ 主管關注', '<div style="font-size:13px;color:var(--text2);margin-bottom:8px">' + esc(l.name || '') + (l.user_name ? '・' + esc(l.user_name) : '') + '</div><textarea class="form-textarea" id="starNote" rows="2" placeholder="給業務的一句話（選填）"></textarea>',
-    '<button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="starSave(\'' + leadId + '\',true,document.getElementById(\'starNote\').value)">標記</button>');
+    [{ label: '取消', action: closeModal }, { label: '標記', cls: 'btn-primary', action: function () { starSave(leadId, true, document.getElementById('starNote').value); } }]);
   setTimeout(function () { const t = document.getElementById('starNote'); if (t) t.focus(); }, 50);
 }
 async function starSave(leadId, on, note) {
