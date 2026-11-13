@@ -1090,6 +1090,23 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .wk-leads td:not(:first-child) { white-space:nowrap; text-align:right; width:1%; }
 .wk-why { text-align:right; }
 .star-mk { color:#f5b301; font-size:12px; margin-right:4px; }
+.kanban-card.kc-starred, .ml-card.ml-starred { border-color:rgba(245,179,1,.75); box-shadow:inset 0 0 0 1px rgba(245,179,1,.55); }
+.kanban-card.kc-starred:not([class*="ct-"]), .ml-card.ml-starred:not([class*="ct-"]) { background:color-mix(in srgb,#f5b301 7%,var(--bg2)); }
+.kc-starred .star-mk, .ml-starred .star-mk { font-size:15px; }
+.star-note { font-size:11.5px; color:#b88600; margin:2px 0 4px; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+[data-theme="dark"] .star-note, :root:not([data-theme="light"]) .star-note { color:#e0b23a; }
+.ml-chip.star-chip.on { background:#f5b301; border-color:#f5b301; color:#3a2a00; }
+.mb-sec { display:flex; align-items:center; gap:8px; margin:14px 2px 6px; font-size:13px; font-weight:600; color:var(--text2); }
+.mb-sec i { width:4px; height:14px; border-radius:2px; flex-shrink:0; }
+.mb-sec b { font-family:var(--mono); font-size:11.5px; font-weight:500; color:var(--text3); }
+.mb-sec .mb-more { margin-left:auto; border:0; background:none; color:var(--accent); font:inherit; font-size:12px; font-weight:500; cursor:pointer; padding:4px 0; }
+.ml-card.mb { padding:10px 12px; margin-bottom:6px; }
+.ml-card.mb .ml-bot { margin-top:6px; gap:6px; }
+.ml-card.mb .ml-due { flex:0 0 auto; }
+.ml-card.mb .ml-who { flex:1; min-width:0; font-size:12px; color:var(--text3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ml-card.mb .m-stg { margin:0; height:24px; flex-shrink:0; }
+.ml-card.mb .ml-log { width:32px; height:28px; }
+.ml-xlink { display:block; width:100%; margin-top:6px; border:1px dashed var(--border); background:none; border-radius:10px; height:42px; color:var(--text2); font:inherit; font-size:13px; cursor:pointer; }
 .star-badge { display:inline-flex; align-items:center; height:24px; padding:0 9px; border-radius:12px; background:rgba(245,179,1,.14); color:#f5b301; font-size:12px; font-weight:600; white-space:nowrap; }
 .star-btn { display:inline-flex; align-items:center; height:26px; padding:0 10px; border-radius:13px; border:1px dashed var(--border); background:none; color:var(--text3); font:inherit; font-size:12px; cursor:pointer; white-space:nowrap; }
 .star-btn.on { border:1px solid rgba(245,179,1,.5); background:rgba(245,179,1,.14); color:#f5b301; font-weight:600; }
@@ -1529,7 +1546,7 @@ function markSection(page) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelectorAll('.bnav-item').forEach(n => n.classList.remove('active'));
   const nav = document.getElementById('nav-' + sec.key); if (nav) nav.classList.add('active');
-  const bkey = (page === 'mme' || page === 'performance' || page === 'bonus') ? 'me' : (page === 'mtoday' || page === 'today') ? 'home' : (page === 'mclients' || page === 'company' || sec.key === 'lists' || sec.key === 'pipe') ? 'lists' : 'more';
+  const bkey = (page === 'mme' || page === 'performance' || page === 'bonus') ? 'me' : (page === 'mtoday' || page === 'today') ? 'home' : (page === 'company' || page === 'leads') ? 'lists' : 'more';
   const bnav = document.getElementById('bnav-' + bkey); if (bnav) bnav.classList.add('active');
   document.getElementById('topbarTitle').textContent = page === 'company' ? '公司' : page === 'mclients' ? '客戶' : page === 'mtoday' ? '今天' : page === 'mme' ? '我的' : sec.label;
   const tabs = document.getElementById('sectionTabs');
@@ -1543,7 +1560,7 @@ function openMoreMenu() {
   openModal('更多', ''
     + '<div style="font-size:12px;color:var(--text3);margin:-4px 0 8px">這些在電腦上比較好用</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 8px">'
-    + b('weekly', '📋', '週會') + b('leads', '🗂', '開發看板')
+    + b('mclients', '🔍', '找客戶') + b('weekly', '📋', '週會')
     + b('onboard', '🚀', '導入看板')
     + b('ccboard', '📞', '陌開進度') + b('ccpool', '🌊', '公海')
     + b('ccstats', '📈', '陌開統計')
@@ -4211,13 +4228,37 @@ async function saveInlineLog() {
 }
 
 // ════════════════════════ 手機版名單 ════════════════════════
-let mlScope = null, mlStage = 'open', mlQuery = '', mlLimit = 40;
+let mlScope = null, mlStage = 'open', mlQuery = '', mlLimit = 40, mlStar = false;
 function mlDue(l) {
   if (!l.next_contact_date) return { cls: '', txt: '', rank: 2 };
   const d = daysUntil(String(l.next_contact_date).slice(0, 10));
   if (d < 0) return { cls: 'late', txt: '逾期 ' + (-d) + ' 天', rank: 0, d: d };
   if (d === 0) return { cls: 'today', txt: '今天聯絡', rank: 0, d: d };
   return { cls: '', txt: '📅 ' + String(l.next_contact_date).slice(5, 10).replace('-', '/'), rank: 1, d: d };
+}
+function mlSortFn(a, b) {
+  if (!!a.l.watch !== !!b.l.watch) return a.l.watch ? -1 : 1;
+  if (a.due.rank !== b.due.rank) return a.due.rank - b.due.rank;
+  if (a.due.rank < 2 && a.due.d !== b.due.d) return a.due.d - b.due.d;
+  return new Date(b.l.updated_at || b.l.created_at) - new Date(a.l.updated_at || a.l.created_at);
+}
+function mlCard(l, due, showOwner) {
+  const won = convertedLeadIds.has(l.id);
+  const c0 = (l.contacts || [])[0];
+  const phone = c0 && c0.phone ? String(c0.phone).replace(/[^\d+#,]/g, '') : '';
+  const idle = Math.max(0, -daysUntil(String(l.updated_at || l.created_at).slice(0, 10)));
+  const dueTxt = due.txt || (idle >= 14 && !won ? idle + ' 天沒動' : '未排');
+  const dueCls = due.txt ? due.cls : (idle >= 14 && !won ? 'late' : '');
+  const who = [c0 && c0.name, showOwner ? (l.user_name || '未指派') : ''].filter(Boolean).join('・');
+  const stg = won ? '<span class="m-stg">已成交</span>'
+    : '<button type="button" class="m-stg" onclick="event.stopPropagation();stagePick(this,\'' + mQ(l.id) + '\')">' + esc(getStageName(l.stage_id) || '階段') + ' ▾</button>';
+  return '<div class="ml-card mb' + ctagCls(l) + (l.watch ? ' ml-starred' : '') + '" onclick="openCompany(\'' + mQ(l.id) + '\')">'
+    + '<div class="ml-top"><div class="ml-name">' + ctagHtml(l) + starMark(l) + esc(l.name) + '</div>' + stg + '</div>'
+    + (l.watch && l.watch_note ? '<div class="star-note">主管：' + esc(l.watch_note) + '</div>' : '')
+    + (isExpStage(l) ? '<div style="margin-top:6px">' + expChipHtml(l) + '</div>' : '')
+    + '<div class="ml-bot"><span class="ml-due ' + dueCls + '">' + dueTxt + '</span><span class="ml-who">' + esc(who) + '</span>'
+    + (phone ? '<a class="ml-tel" href="tel:' + esc(phone) + '" onclick="event.stopPropagation()" aria-label="撥打">📞</a>' : '')
+    + '<button type="button" class="ml-log" onclick="event.stopPropagation();openQuickLog(\'' + mQ(l.id) + '\')" aria-label="記錄聯絡">＋</button></div></div>';
 }
 function renderLeadsMobile() {
   if (!isLeadsPage()) return;
@@ -4227,59 +4268,66 @@ function renderLeadsMobile() {
   const closed = stagesData.find(function (s) { return s.name === '結案'; });
   const isOpen = function (l) { return !convertedLeadIds.has(l.id) && (!closed || l.stage_id !== closed.id); };
   const inScope = function (l) { return mlScope === 'all' ? true : mlScope === 'mine' ? l.user_id === currentUser.id : mlScope === 'none' ? !l.user_id : l.user_id === mlScope; };
-  const scoped = leadsData.filter(inScope);
-  let list;
-  if (mlQuery) list = leadsData.filter(function (l) { return leadMatches(l, mlQuery); });
-  else if (mlStage === 'open') list = scoped.filter(isOpen);
-  else if (mlStage === 'won') list = scoped.filter(function (l) { return convertedLeadIds.has(l.id); });
-  else list = scoped.filter(function (l) { return l.stage_id === mlStage && !convertedLeadIds.has(l.id); });
-  list = list.filter(ctagPass);
-  list = list.map(function (l) { return { l: l, due: mlDue(l) }; }).sort(function (a, b) {
-    if (a.due.rank !== b.due.rank) return a.due.rank - b.due.rank;
-    if (a.due.rank < 2 && a.due.d !== b.due.d) return a.due.d - b.due.d;
-    return new Date(b.l.updated_at || b.l.created_at) - new Date(a.l.updated_at || a.l.created_at);
-  });
+  const scoped = leadsData.filter(function (l) { return inScope(l) && (!mlStar || l.watch) && ctagPass(l); });
+  const showOwner = mlScope !== 'mine';
   const cnt = function (f) { return leadsData.filter(function (l) { return f(l) && isOpen(l); }).length; };
+  const starN = leadsData.filter(function (l) { return l.watch && isOpen(l) && inScope(l); }).length;
   const seg = [['mine', '我的', cnt(function (l) { return l.user_id === currentUser.id; })], ['all', '全部', cnt(function () { return true; })], ['none', '未指派', cnt(function (l) { return !l.user_id; })]]
     .map(function (x) { return '<button class="ml-chip' + (mlScope === x[0] ? ' on' : '') + '" onclick="mlSet(\'scope\',\'' + x[0] + '\')">' + x[1] + '<b>' + x[2] + '</b></button>'; }).join('')
+    + (starN || mlStar ? '<button class="ml-chip star-chip' + (mlStar ? ' on' : '') + '" onclick="mlSet(\'star\')">★<b>' + starN + '</b></button>' : '')
     + (function () { const ids = {}; leadsData.forEach(function (l) { if (l.user_id && l.user_id !== currentUser.id && isOpen(l)) ids[l.user_id] = l.user_name || userNameById(l.user_id, ''); });
         const keys = Object.keys(ids); if (!keys.length) return '';
         const isU = ['mine', 'all', 'none'].indexOf(mlScope) < 0;
         return '<select class="ml-chip m-owner' + (isU ? ' on' : '') + '" onchange="mlSet(\'scope\',this.value||\'all\')"><option value="">其他業務</option>' + keys.map(function (k) { return '<option value="' + k + '"' + (mlScope === k ? ' selected' : '') + '>' + esc(ids[k]) + '・' + leadsData.filter(function (l) { return l.user_id === k && isOpen(l); }).length + '</option>'; }).join('') + '</select>'; })();
-  const stageChips = [['open', '進行中', scoped.filter(isOpen).length]]
-    .concat(stagesData.filter(function (s) { return s.name !== '結案' && s.name !== '簽約進件'; }).map(function (s) { return [s.id, stLabel(s), scoped.filter(function (l) { return l.stage_id === s.id && !convertedLeadIds.has(l.id); }).length]; }))
+  const boardStages = stagesData.filter(function (s) { return s.name !== '結案' && s.name !== '簽約進件'; });
+  const stageChips = [['open', '全部階段', scoped.filter(isOpen).length]]
+    .concat(boardStages.map(function (s) { return [s.id, stLabel(s), scoped.filter(function (l) { return l.stage_id === s.id && !convertedLeadIds.has(l.id); }).length]; }))
     .concat([['won', '已成交', scoped.filter(function (l) { return convertedLeadIds.has(l.id); }).length]])
     .concat(closed ? [[closed.id, stLabel(closed), scoped.filter(function (l) { return l.stage_id === closed.id && !convertedLeadIds.has(l.id); }).length]] : [])
     .map(function (x) { return '<button class="ml-chip' + (mlStage === x[0] ? ' on' : '') + '" onclick="mlSet(\'stage\',\'' + x[0] + '\')">' + esc(x[1]) + '<b>' + x[2] + '</b></button>'; }).join('');
-  const cards = list.slice(0, mlLimit).map(function (x) {
-    const l = x.l;
-    const st = convertedLeadIds.has(l.id) ? '已成交' : ((stagesData.find(function (s) { return s.id === l.stage_id; }) || {}).label || (stagesData.find(function (s) { return s.id === l.stage_id; }) || {}).name || '');
-    const c0 = (l.contacts || [])[0];
-    const sub = [l.company || (c0 && c0.name) || '', l.tax_id || ''].filter(Boolean).join('・');
-    const phone = c0 && c0.phone ? String(c0.phone).replace(/[^\d+#,]/g, '') : '';
-    return '<div class="ml-card' + ctagCls(l) + '" onclick="openCompany(\'' + l.id + '\')">'
-      + '<div class="ml-top"><div class="ml-name">' + ctagHtml(l) + esc(l.name) + '</div><span class="ml-stage">' + esc(st) + '</span></div>'
-      + (sub ? '<div class="ml-sub">' + esc(sub) + '</div>' : '')
-      + (isExpStage(l) ? '<div style="margin-top:6px">' + expChipHtml(l) + '</div>' : '')
-      + '<div class="ml-bot"><span class="ml-due ' + x.due.cls + '">' + x.due.txt + '</span>'
-      + (phone ? '<a class="ml-tel" href="tel:' + esc(phone) + '" onclick="event.stopPropagation()" aria-label="撥打">📞</a>' : '')
-      + '<button type="button" class="ml-log" onclick="event.stopPropagation();openQuickLog(\'' + l.id + '\')" aria-label="記錄聯絡">＋</button>'
-      + (window.isAdmin ? ownerSelectHtml(l) : '<span style="font-size:12px;color:var(--text3)">' + esc(l.user_name || '未指派') + '</span>') + '</div></div>';
-  }).join('');
-  const more = list.length > mlLimit ? '<button class="btn btn-secondary" style="width:100%;margin-top:4px" onclick="mlLimit+=60;renderLeadsMobile()">再顯示 ' + Math.min(60, list.length - mlLimit) + ' 筆（共 ' + list.length + '）</button>' : '';
+  const wrap = function (l) { return { l: l, due: mlDue(l) }; };
+  let body = '', total = 0;
+  if (mlQuery) {
+    const list = leadsData.filter(function (l) { return leadMatches(l, mlQuery); }).map(wrap).sort(mlSortFn);
+    total = list.length;
+    body = list.slice(0, mlLimit).map(function (x) { return mlCard(x.l, x.due, true); }).join('')
+      + (list.length > mlLimit ? '<button class="btn btn-secondary" style="width:100%;margin-top:4px" onclick="mlLimit+=60;renderLeadsMobile()">再顯示（共 ' + list.length + '）</button>' : '')
+      + (list.length ? '' : '<div class="ml-empty">開發中找不到「' + esc(mlQuery) + '」<br><button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="openNewLeadModal(null,{name:mlQuery})">＋ 新增這家</button></div>')
+      + '<button class="ml-xlink" onclick="_mcQ=mlQuery;_mcKind=\'all\';navigate(\'mclients\')">也搜陌開、合作中 →</button>';
+  } else if (mlStage === 'open') {
+    // 直的看板：照階段分段，每段先放主管關注、再放該聯絡的
+    boardStages.forEach(function (st) {
+      const list = scoped.filter(function (l) { return l.stage_id === st.id && !convertedLeadIds.has(l.id); }).map(wrap).sort(mlSortFn);
+      if (!list.length) return;
+      total += list.length;
+      const cap = 6;
+      body += '<div class="mb-sec"><i style="background:' + (st.color || '#888') + '"></i>' + esc(stLabel(st)) + '<b>' + list.length + '</b>'
+        + (list.length > cap ? '<button class="mb-more" onclick="mlSet(\'stage\',\'' + st.id + '\')">全部 ' + list.length + ' →</button>' : '') + '</div>'
+        + list.slice(0, cap).map(function (x) { return mlCard(x.l, x.due, showOwner); }).join('');
+    });
+    if (!total) body = '<div class="ml-empty">' + (mlStar ? '沒有主管關注的名單' : '這裡沒有名單') + '</div>';
+  } else {
+    let list = mlStage === 'won' ? scoped.filter(function (l) { return convertedLeadIds.has(l.id); })
+      : scoped.filter(function (l) { return l.stage_id === mlStage && !convertedLeadIds.has(l.id); });
+    list = list.map(wrap).sort(mlSortFn); total = list.length;
+    body = (list.length ? list.slice(0, mlLimit).map(function (x) { return mlCard(x.l, x.due, showOwner); }).join('') : '<div class="ml-empty">這裡沒有名單</div>')
+      + (list.length > mlLimit ? '<button class="btn btn-secondary" style="width:100%;margin-top:4px" onclick="mlLimit+=60;renderLeadsMobile()">再顯示（共 ' + list.length + '）</button>' : '');
+  }
+  body += '<div style="height:70px"></div>';
   // 搜尋框只建立一次，之後只換下面的內容（每打一個字重畫輸入框會卡住注音、手機鍵盤會收起來）
-  const headRest = mlQuery ? '<div style="font-size:12px;color:var(--text3);margin-top:8px">搜尋全部名單：' + list.length + ' 筆</div>'
+  const headRest = mlQuery ? '<div style="font-size:12px;color:var(--text3);margin-top:8px">搜尋全部名單：' + total + ' 筆</div>'
     : '<div class="ml-chips ml-seg">' + seg + '</div><div class="ml-chips">' + stageChips + '</div><div class="ml-chips">' + ctagFilterHtml() + '</div>';
-  const body = (cards || '<div class="ml-empty">' + (mlQuery ? '找不到「' + esc(mlQuery) + '」<br><button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="openNewLeadModal(null,{name:mlQuery})">＋ 新增這家</button>' : '這裡沒有名單') + '</div>')
-    + more + '<div style="height:70px"></div>';
   const inp = document.getElementById('mlSearch');
   if (inp && content.contains(inp)) {
     if (document.activeElement !== inp && inp.value !== mlQuery) inp.value = mlQuery;
     const clr = document.getElementById('mlClear'); if (clr) clr.style.display = mlQuery ? '' : 'none';
+    const snap = scrollSnap(content);
     document.getElementById('mlHeadRest').innerHTML = headRest;
     document.getElementById('mlBody').innerHTML = body;
+    if (window._mlKeep) snap(); window._mlKeep = true;
     return;
   }
+  window._mlKeep = true;
   content.innerHTML = '<div class="ml-wrap"><div class="ml-head">'
     + '<div class="ml-sbox"><span>🔍</span><input id="mlSearch" class="ml-search" type="search" enterkeyhint="search" autocomplete="off" placeholder="公司、聯絡人、電話、統編" value="' + esc(mlQuery) + '" oninput="mlSearchInput(this.value)">'
     + '<button id="mlClear" class="ml-clear" onclick="var i=document.getElementById(\'mlSearch\');i.value=\'\';mlSearchInput(\'\')" aria-label="清除"' + (mlQuery ? '' : ' style="display:none"') + '>✕</button></div>'
@@ -4291,8 +4339,8 @@ function mlSearchInput(v) {
   clearTimeout(_mlT); _mlT = setTimeout(renderLeadsMobile, v ? 160 : 0);
 }
 function mlSet(k, v) {
-  if (k === 'scope') mlScope = v; else mlStage = v;
-  mlLimit = 40; renderLeadsMobile();
+  if (k === 'scope') mlScope = v; else if (k === 'star') mlStar = !mlStar; else mlStage = v;
+  mlLimit = 40; window._mlKeep = false; renderLeadsMobile();
   const c = document.getElementById('content'); if (c) c.scrollTop = 0;
 }
 
@@ -5322,10 +5370,12 @@ function renderKanban(searchStr = '') {
   if (kanbanFilterUser === 'init') kanbanFilterUser = (!window.isAdmin && leadsData.some(function (l) { return l.user_id === currentUser.id; })) ? currentUser.id : 'all';
   const mineN = leadsData.filter(function (l) { return l.user_id === currentUser.id && !convertedLeadIds.has(l.id); }).length;
   const allN = leadsData.filter(function (l) { return !convertedLeadIds.has(l.id); }).length;
+  const starN = leadsData.filter(function (l) { return l.watch && !convertedLeadIds.has(l.id) && (kanbanFilterUser === 'all' || l.user_id === kanbanFilterUser); }).length;
   const seg = '<div class="ml-chips ml-seg" style="margin:0">'
     + '<button class="ml-chip' + (kanbanFilterUser === currentUser.id ? ' on' : '') + '" onclick="setKanbanFilter(\'user\',currentUser.id)">我的<b>' + mineN + '</b></button>'
     + '<button class="ml-chip' + (kanbanFilterUser === 'all' ? ' on' : '') + '" onclick="setKanbanFilter(\'user\',\'all\')">全部<b>' + allN + '</b></button>'
     + '<select class="form-select" style="width:auto;padding:0 24px 0 8px;font-size:12px;height:28px" onchange="setKanbanFilter(\'user\',this.value)">' + userOptions.map(function (o) { return '<option value="' + o.val + '"' + (kanbanFilterUser === o.val ? ' selected' : '') + '>' + esc(o.label) + '</option>'; }).join('') + '</select>'
+    + (starN || kanbanStarOnly ? '<button class="ml-chip star-chip' + (kanbanStarOnly ? ' on' : '') + '" onclick="kanbanStarOnly=!kanbanStarOnly;renderKanban(document.getElementById(\'leadSearch\')?.value || \'\')">★ 主管關注<b>' + starN + '</b></button>' : '')
     + '</div>';
   const restoreKb = content.querySelector('#kanban-board') ? scrollSnap(content) : null;
   content.innerHTML = '<div class="kanban-filters">' + seg + ctagFilterHtml() + '</div><div id="kanban-board"></div>';
@@ -5345,6 +5395,7 @@ function renderKanban(searchStr = '') {
       if (searchStr && !leadMatches(l, searchStr)) return false;
       if (kanbanFilterSrc !== 'all' && (l.source_id||'') !== kanbanFilterSrc) return false;
       if (kanbanFilterUser !== 'all' && (l.user_id||'') !== kanbanFilterUser) return false;
+      if (kanbanStarOnly && !l.watch) return false;
       if (!ctagPass(l)) return false;
       return true;
     }).sort((a,b) => (a.sort_order||0) - (b.sort_order||0));
@@ -5384,6 +5435,7 @@ function renderKanban(searchStr = '') {
   if (restoreKb) restoreKb();
 }
 
+let kanbanStarOnly = false;
 function setKanbanFilter(type, val) {
   if (type === 'prio') kanbanFilterPrio = val;
   else if (type === 'src') kanbanFilterSrc = val;
@@ -5394,7 +5446,7 @@ function setKanbanFilter(type, val) {
 
 function createKanbanCard(lead) {
   const card = document.createElement('div');
-  card.className = 'kanban-card' + ctagCls(lead);
+  card.className = 'kanban-card' + ctagCls(lead) + (lead.watch ? ' kc-starred' : '');
   card.dataset.id = lead.id;
   card.draggable = true;
   const due = mlDue(lead);
@@ -5403,6 +5455,7 @@ function createKanbanCard(lead) {
     : (idle >= 14 && !convertedLeadIds.has(lead.id) ? '<span class="kc-due late">' + idle + ' 天沒動</span>' : '<span class="kc-due">未排</span>');
   const owner = lead.user_name ? '<span class="kc-owner" title="' + esc(lead.user_name) + '">' + esc(String(lead.user_name).split(/\s+/)[0].slice(0, 6)) + '</span>' : '<span class="kc-owner none">未指派</span>';
   card.innerHTML = '<div class="kc-name">' + ctagHtml(lead) + starMark(lead) + esc(lead.name) + (convertedLeadIds.has(lead.id) ? ' <span class="badge badge-green" style="font-size:10px;padding:1px 6px">已成交</span>' : '') + '</div>'
+    + (lead.watch && lead.watch_note ? '<div class="star-note">主管：' + esc(lead.watch_note) + '</div>' : '')
     + '<div class="kc-foot">' + dueHtml + '<span style="flex:1"></span>' + (isExpStage(lead) ? expChipHtml(lead) : '') + owner + '</div>';
   const logB = document.createElement('button');
   logB.className = 'kc-log'; logB.type = 'button'; logB.textContent = '＋'; logB.title = '記錄聯絡'; logB.setAttribute('aria-label', '記錄聯絡');
@@ -6725,7 +6778,7 @@ async function stagePicked(leadId, stageId) {
   if (l) l.stage_id = stageId;
   if (ml) ml.stage_id = stageId;
   toast('階段：' + getStageName(stageId), 'success');
-  if (currentPage === 'leads') renderKanban(document.getElementById('leadSearch')?.value || '');
+  if (currentPage === 'leads' || currentPage === 'leadlist') leadsRedraw();
   else if (currentPage === 'mclients') mcDraw();
   else if (typeof mRedraw === 'function') mRedraw();
   afterStageChanged(leadId, stageId, prev);
@@ -10618,12 +10671,13 @@ async function starSave(leadId, on, note) {
     if (typeof _wk !== 'undefined') Object.keys(_wk.cache).forEach(function (k) { const x = _wk.cache[k].leads[leadId]; if (x) { x.star = on; x.star_note = on ? (note || null) : null; } });
     if (modalIsOpen()) closeModal();
     toast(on ? '★ 已標記主管關注' : '已取消主管關注', 'success');
-    if (currentPage === 'leads') renderKanban(document.getElementById('leadSearch')?.value || '');
+    if (currentPage === 'leads' || currentPage === 'leadlist') leadsRedraw();
     else if (currentPage === 'mclients') mcDraw();
     else if (currentPage === 'weekly') renderWeekly();
     else refreshCurrentView(leadId);
   } catch (e) { toast('沒存到：' + e.message, 'error'); }
 }
+function leadsRedraw() { if (currentPage !== 'leads' && currentPage !== 'leadlist') return; if (isMobile()) renderLeadsMobile(); else filterLeads(); }
 function stLabel(s) { return (s && (s.label || s.name)) || ''; }
 function getStageName(stageId) { return stLabel(stagesData.find(s => s.id === stageId)); }
 function getStageKey(stageId) { return stagesData.find(s => s.id === stageId)?.name || ''; }
@@ -10745,8 +10799,8 @@ db.auth.onAuthStateChange(async (event, session) => {
   <div class="bnav-item" id="bnav-home" onclick="navigate('mtoday')">
     <div class="bnav-icon">☀️</div><div class="bnav-label">今天</div>
   </div>
-  <div class="bnav-item" id="bnav-lists" onclick="navigate('mclients')">
-    <div class="bnav-icon">🔍</div><div class="bnav-label">客戶</div>
+  <div class="bnav-item" id="bnav-lists" onclick="navigate('leads')">
+    <div class="bnav-icon">🗂</div><div class="bnav-label">看板</div>
   </div>
   <div class="bnav-item bnav-rec" onclick="onFabClick()" aria-label="記錄聯絡">
     <div class="bnav-big">🎤</div>
