@@ -946,6 +946,10 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .kanban-card:hover .kc-log{opacity:1}
 .kc-log:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
 .kc-stg{right:6px;top:6px;bottom:auto;width:24px;height:24px;font-size:12px}
+.kc-star{right:34px;top:6px;bottom:auto;width:24px;height:24px;font-size:13px;opacity:0;color:#f5b301}
+.kanban-card:hover .kc-star{opacity:1}
+.kanban-card .kc-name{padding-right:26px}
+.kc-starred .kc-star{background:rgba(245,179,1,.15);border-color:rgba(245,179,1,.5)}
 .kanban-card .kc-name{padding-right:24px}
 .stg-pop{position:fixed;z-index:3000;background:var(--bg2);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:4px;min-width:150px}
 .stg-pop button{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;color:var(--text);font:inherit;font-size:13px;padding:7px 10px;border-radius:7px;cursor:pointer;text-align:left}
@@ -5446,7 +5450,7 @@ function setKanbanFilter(type, val) {
 
 function createKanbanCard(lead) {
   const card = document.createElement('div');
-  card.className = 'kanban-card' + ctagCls(lead) + (lead.watch ? ' kc-starred' : '');
+  card.className = 'kanban-card' + ctagCls(lead) + (lead.watch ? ' kc-starred' : '') + (window.isAdmin ? ' kc-adm' : '');
   card.dataset.id = lead.id;
   card.draggable = true;
   const due = mlDue(lead);
@@ -5470,6 +5474,14 @@ function createKanbanCard(lead) {
     stB.addEventListener('mousedown', function (e) { e.stopPropagation(); });
     stB.addEventListener('click', function (e) { e.stopPropagation(); stagePick(stB, lead.id); });
     card.appendChild(stB);
+  }
+  if (window.isAdmin) {
+    const sB = document.createElement('button');
+    sB.className = 'kc-log kc-star'; sB.type = 'button'; sB.textContent = lead.watch ? '★' : '☆'; sB.title = lead.watch ? '取消主管關注' : '標記主管關注'; sB.setAttribute('aria-label', sB.title);
+    sB.draggable = false;
+    sB.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+    sB.addEventListener('click', function (e) { e.stopPropagation(); starToggle(lead.id); });
+    card.appendChild(sB);
   }
   const ownSel = card.querySelector('.owner-sel');
   if (ownSel) { ownSel.draggable = false; ownSel.addEventListener('dragstart', e => { e.preventDefault(); e.stopPropagation(); }); }
