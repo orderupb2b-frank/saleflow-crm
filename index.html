@@ -10617,7 +10617,7 @@ async function starSave(leadId, on, note) {
     [leadsData.find(function (x) { return x.id === leadId; }), _mCache && _mCache.leadById[leadId]].forEach(function (x) { if (x) { x.watch = on; x.watch_note = on ? (note || x.watch_note || null) : null; } });
     if (typeof _wk !== 'undefined') Object.keys(_wk.cache).forEach(function (k) { const x = _wk.cache[k].leads[leadId]; if (x) { x.star = on; x.star_note = on ? (note || null) : null; } });
     if (modalIsOpen()) closeModal();
-    toast(on ? '★ 已標記，業務會收到通知' : '已取消主管關注', 'success');
+    toast(on ? '★ 已標記主管關注' : '已取消主管關注', 'success');
     if (currentPage === 'leads') renderKanban(document.getElementById('leadSearch')?.value || '');
     else if (currentPage === 'mclients') mcDraw();
     else if (currentPage === 'weekly') renderWeekly();
