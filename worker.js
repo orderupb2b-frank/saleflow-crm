@@ -169,6 +169,7 @@ async function api(request, env, url, ectx) {
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/next-contact$/)) && m === 'PATCH') return json(await setNextContact(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/stage$/)) && m === 'PATCH') return json(await setStage(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/owner$/)) && m === 'PATCH') return json(await setOwner(ctx, mm[1], await readBody(request)));
+  if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/star$/)) && m === 'PATCH') return json(await setStar(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/files$/)) && m === 'POST') return json(await attachFile(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/onboarding$/)) && m === 'PATCH') return json(await setOnboarding(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/announce$/)) && m === 'POST') return json(await announceLead(ctx, mm[1]));
@@ -394,6 +395,7 @@ function leadSummary(l, L) {
     id: l.id, name: l.name, tax_id: l.tax_id || null,
     stage: L.stageName(l.stage_id), owner: l.user_name || L.userName(l.user_id),
     next_contact_date: l.next_contact_date || null, last_updated: toTW(l.updated_at || l.created_at),
+    ...(l.watch ? { starred: true, star_note: l.watch_note || null } : {}),
     crm_link: null
   };
 }
@@ -422,13 +424,13 @@ async function searchLeads({ db, url }) {
   const pat = encodeURIComponent('*' + q.replace(/[*,()]/g, ' ').trim() + '*');
   const [L, byLead, byContact] = await Promise.all([
     lookups(db),
-    db.get(`leads?select=id,name,tax_id,stage_id,user_id,user_name,next_contact_date,created_at,updated_at&or=(name.ilike.${pat},company.ilike.${pat},tax_id.ilike.${pat})&limit=10`),
+    db.get(`leads?select=id,name,tax_id,stage_id,user_id,user_name,next_contact_date,created_at,updated_at,watch,watch_note&or=(name.ilike.${pat},company.ilike.${pat},tax_id.ilike.${pat})&limit=10`),
     db.get(`contacts?select=name,role,lead_id&or=(name.ilike.${pat},phone.ilike.${pat},email.ilike.${pat})&limit=10`)
   ]);
   const ids = new Set(byLead.map(l => l.id));
   const extra = byContact.map(c => c.lead_id).filter(id => id && !ids.has(id));
   let more = [];
-  if (extra.length) more = await db.get(`leads?select=id,name,tax_id,stage_id,user_id,user_name,next_contact_date,created_at,updated_at&id=in.(${[...new Set(extra)].join(',')})`);
+  if (extra.length) more = await db.get(`leads?select=id,name,tax_id,stage_id,user_id,user_name,next_contact_date,created_at,updated_at,watch,watch_note&id=in.(${[...new Set(extra)].join(',')})`);
   const results = [...byLead, ...more].map(l => {
     const o = withLink(leadSummary(l, L), url.origin);
     const cs = byContact.filter(c => c.lead_id === l.id);
@@ -445,7 +447,7 @@ async function getLead({ db, url }, id) {
     db.get(`activities?lead_id=eq.${id}&select=type,content,created_at,user_id,contact_id&order=created_at.desc&limit=15`)
   ]);
   const extra = {};
-  for (const k of ['product_type', 'amount', 'need_types', 'lost_reason']) if (l[k] != null && l[k] !== '') extra[k] = l[k];
+  for (const k of ['product_type', 'amount', 'need_types', 'lost_reason', 'watch_note']) if (l[k] != null && l[k] !== '') extra[k] = l[k];
   return {
     ...withLink(leadSummary(l, L), url.origin), ...extra,
     contacts: contacts.map(c => ({ name: c.name, title: c.role || null, phone: c.phone || null, email: c.email || null, line: c.line_id || null })),
@@ -543,8 +545,10 @@ async function createLead(ctx, b) {
     source_id = hit.id;
   }
   const industry = (b.industry && indNorm(b.industry).industry) || industryGuess(name) || null;
+  const star = starOk(ctx, b.star);
   const lead = await db.insert('leads', {
     name, tax_id: tax, stage_id: stage.id, product_type: b.product_type || null, source_id, industry,
+    ...(star ? { watch: true, watch_at: new Date().toISOString(), watch_by: me.id, watch_note: String(b.star_note || '').trim() || null } : {}),
     user_id: owner.id, user_name: owner.full_name, created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   });
   if (b.contact_name) await db.insert('contacts', {
@@ -553,11 +557,12 @@ async function createLead(ctx, b) {
   });
   const link = url.origin + '/#lead=' + lead.id;
   const discord = await notifyDiscord(ctx, {
-    title: `📌 新名單 → ${owner.full_name}`, url: link,
-    description: [`**${name}**`, contactLine({ name: b.contact_name, role: b.contact_title, phone: b.contact_phone, email: b.contact_email }), b.note ? String(b.note).slice(0, 300) : '', `建立：${me.name}${ctx.via === 'ai' ? '（AI 助理）' : ''}`].filter(Boolean).join('\n')
+    title: `${star ? '★ ' : ''}📌 新名單 → ${owner.full_name}`, url: link,
+    description: [`**${name}**`, star ? `★ 主管關注${b.star_note ? '：' + String(b.star_note).slice(0, 200) : ''}` : '', contactLine({ name: b.contact_name, role: b.contact_title, phone: b.contact_phone, email: b.contact_email }), b.note ? String(b.note).slice(0, 300) : '', `建立：${me.name}${ctx.via === 'ai' ? '（AI 助理）' : ''}`].filter(Boolean).join('\n')
   });
   if (b.note) await db.insert('activities', { type: 'note', content: String(b.note) + (ctx.via === 'ai' ? AI_TAG : ''), lead_id: lead.id, user_id: me.id, created_at: new Date().toISOString() });
-  return { ok: true, created: withLink({ id: lead.id, name, stage: stage.name, owner: owner.full_name, industry, source: b.source || null }, url.origin), discord, ...(source_id ? {} : { warning: '沒有填來源，週會的來源統計會算在「未填來源」' }) };
+  if (star) await db.insert('activities', { type: 'note', content: '★ 主管關注' + (b.star_note ? '：' + String(b.star_note).trim() : '') + (ctx.via === 'ai' ? AI_TAG : ''), lead_id: lead.id, user_id: me.id, created_at: new Date().toISOString() });
+  return { ok: true, created: withLink({ id: lead.id, name, stage: stage.name, owner: owner.full_name, industry, source: b.source || null, starred: star || undefined }, url.origin), discord, ...(source_id ? {} : { warning: '沒有填來源，週會的來源統計會算在「未填來源」' }) };
 }
 
 // 改負責業務：管理員可改任何名單；業務只能處理「沒人負責」或「自己的」名單
@@ -569,20 +574,49 @@ async function setOwner(ctx, leadId, b) {
   if (me.role !== 'admin' && lead.user_id && lead.user_id !== me.id)
     throw new HttpError(403, `這家目前是 ${lead.user_name || '其他同事'} 負責，只有管理員或負責業務本人能改`);
   const fromName = lead.user_name || L.userName(lead.user_id) || '未指派';
-  if ((to?.id || null) === (lead.user_id || null)) return { ok: true, unchanged: true, lead: lead.name, owner: fromName };
+  const star = starOk(ctx, b.star);
+  if ((to?.id || null) === (lead.user_id || null)) {
+    if (star && !lead.watch) return { ok: true, unchanged: true, lead: lead.name, owner: fromName, star: await setStar(ctx, leadId, { on: true, note: b.star_note }) };
+    return { ok: true, unchanged: true, lead: lead.name, owner: fromName };
+  }
   const upd = { user_id: to?.id || null, user_name: to?.full_name || null, updated_at: new Date().toISOString() };
+  if (star) Object.assign(upd, { watch: true, watch_at: new Date().toISOString(), watch_by: me.id, watch_note: String(b.star_note || '').trim() || lead.watch_note || null });
   const cur = L.stageName(lead.stage_id);
   if (to && cur === '新名單' && L.stageByName('已分配')) upd.stage_id = L.stageByName('已分配').id;
   await db.update('leads', `id=eq.${leadId}`, upd);
   const toName = to?.full_name || '未指派';
   const why = String(b.note || '').trim();
-  await db.insert('activities', { type: 'note', content: `負責業務：${fromName} → ${toName}` + (why ? `\n${why}` : '') + (ctx.via === 'ai' ? AI_TAG : ''), lead_id: leadId, user_id: me.id, created_at: new Date().toISOString() });
+  const starLine = star ? '★ 主管關注' + (b.star_note ? '：' + String(b.star_note).trim() : '') : '';
+  await db.insert('activities', { type: 'note', content: `負責業務：${fromName} → ${toName}` + (why ? `\n${why}` : '') + (starLine ? `\n${starLine}` : '') + (ctx.via === 'ai' ? AI_TAG : ''), lead_id: leadId, user_id: me.id, created_at: new Date().toISOString() });
   const link = url.origin + '/#lead=' + leadId;
   const discord = to ? await notifyDiscord(ctx, {
-    title: `🔁 名單轉給 ${toName}`, url: link,
-    description: [`**${lead.name}**`, `${fromName} → ${toName}`, why.slice(0, 300), `操作：${me.name}${ctx.via === 'ai' ? '（AI 助理）' : ''}`].filter(Boolean).join('\n')
+    title: `${(star || lead.watch) ? '★ ' : ''}🔁 名單轉給 ${toName}`, url: link,
+    description: [`**${lead.name}**`, `${fromName} → ${toName}`, why.slice(0, 300), (star || lead.watch) ? '★ 主管關注' + ((b.star_note || lead.watch_note) ? '：' + String(b.star_note || lead.watch_note).slice(0, 200) : '') : '', `操作：${me.name}${ctx.via === 'ai' ? '（AI 助理）' : ''}`].filter(Boolean).join('\n')
   }) : 'skipped';
-  return { ok: true, lead: lead.name, from: fromName, to: toName, stage: upd.stage_id ? '已分配' : cur, discord, crm_link: link };
+  return { ok: true, lead: lead.name, from: fromName, to: toName, stage: upd.stage_id ? '已分配' : cur, starred: (star || lead.watch) || undefined, discord, crm_link: link };
+}
+
+// ★ 主管關注：只有管理員能標；標了會在紀錄留一筆、通知 Discord，讓業務知道這家主管會看
+function starOk(ctx, v) {
+  if (v !== true && v !== 'true') return false;
+  if (ctx.me.role !== 'admin') throw new HttpError(403, '只有主管能標記「主管關注」');
+  return true;
+}
+async function setStar(ctx, leadId, b) {
+  const { db, me, url } = ctx;
+  if (me.role !== 'admin') throw new HttpError(403, '只有主管能標記「主管關注」');
+  const lead = await loadLead({ db }, leadId);
+  const on = !(b.on === false || b.on === 'false');
+  const note = String(b.note || '').trim();
+  if (!!lead.watch === on && (!on || !note || note === lead.watch_note)) return { ok: true, unchanged: true, lead: lead.name, starred: on };
+  await db.update('leads', `id=eq.${leadId}`, on ? { watch: true, watch_at: new Date().toISOString(), watch_by: me.id, watch_note: note || lead.watch_note || null } : { watch: false, watch_note: null });
+  await db.insert('activities', { type: 'note', content: (on ? '★ 主管關注' + (note ? '：' + note : '') : '取消主管關注') + (ctx.via === 'ai' ? AI_TAG : ''), lead_id: leadId, user_id: me.id, created_at: new Date().toISOString() });
+  const link = url.origin + '/#lead=' + leadId;
+  const discord = on ? await notifyDiscord(ctx, {
+    title: `★ 主管關注：${lead.name}`, url: link, color: 0xf5b301,
+    description: [`負責：${lead.user_name || '未指派'}`, note.slice(0, 300), `標記：${me.name}${ctx.via === 'ai' ? '（AI 助理）' : ''}`].filter(Boolean).join('\n')
+  }) : 'skipped';
+  return { ok: true, lead: lead.name, owner: lead.user_name || null, starred: on, note: note || null, discord, crm_link: link };
 }
 
 // ───────── 成交後：導入階段 ─────────
@@ -1017,7 +1051,7 @@ async function weeklyReport({ db, me, url }) {
   const safe = p => p.catch(() => []);
   const [sources, leads, events, ccs, logs, kpis, deals, acts, touches, quotes, cts] = await Promise.all([
     db.get('sources?select=id,name'),
-    getAll(db, 'leads?select=id,name,stage_id,source_id,user_id,created_at,lost_reason,lost_at,next_contact_date,expected_total,flag,industry,product_type&order=id'),
+    getAll(db, 'leads?select=id,name,stage_id,source_id,user_id,created_at,lost_reason,lost_at,next_contact_date,expected_total,flag,industry,product_type,watch,watch_note&order=id'),
     getAll(db, `lead_events?select=lead_id,kind,from_stage,to_stage,to_user,at,backfill&at=lt.${iso(T)}&order=at`),
     getAll(db, 'cold_calls?select=id,company,owner_id,status,status_at,close_reason,close_note,sales_note,lead_id,industry&order=id'),
     getAll(db, `call_logs?select=cold_call_id,outcome,note,user_id,called_at&called_at=gte.${iso(P)}&called_at=lt.${iso(T)}&order=id`),
@@ -1074,7 +1108,7 @@ async function weeklyReport({ db, me, url }) {
       industry: indOf(l), industry_set: !!l.industry,
       next: l.next_contact_date || null, overdue: !!(l.next_contact_date && l.next_contact_date < today && isOpen(l)),
       days_in_stage: ss ? days(ss) : null, days_since_touch: lt ? days(lt) : null, age: days(ms(l.created_at)),
-      quoted: quoted.has(l.id), flag: l.flag || null, expected: l.expected_total || null, lost_reason: l.lost_reason || null
+      quoted: quoted.has(l.id), flag: l.flag || null, star: !!l.watch, star_note: l.watch_note || null, expected: l.expected_total || null, lost_reason: l.lost_reason || null
     };
   };
 
@@ -1278,6 +1312,7 @@ async function weeklyReport({ db, me, url }) {
       if (st === '等待' && !l.next_contact_date) { why.push('等待沒排日期'); w += 10; }
       if (st === '議價中' && !quoted.has(l.id)) { why.push('議價中沒報價單'); w += 10; }
       if (l.flag === 'key' && why.length) w += 15;
+      if (l.watch && why.length) { w += 30; why.unshift('★ 主管關注'); }
       if (why.length) att.push({ id: l.id, why, w });
     }
     att.sort((a, b) => b.w - a.w);
@@ -1314,6 +1349,7 @@ async function weeklyReport({ db, me, url }) {
         lost: { n: myLost.length, reasons: shareOf(myLost.map(l => reasonCat(l.lost_reason))), leads: ids(myLost) },
         expected_hot: sumExp(mine.filter(l => ['有望成交', '議價中'].includes(S[l.stage_id]))) || null,
         key: mine.filter(l => l.flag === 'key').length, help: mine.filter(l => l.flag === 'help').length,
+        starred: ref(mine.filter(l => l.watch).map(l => l.id)),
         overdue: overdue(mine).length, no_next_date: mine.filter(l => !l.next_contact_date && S[l.stage_id] !== '新名單').length,
         by_industry: matrixBy(mine, indOf)
       },
@@ -1349,7 +1385,8 @@ async function weeklyReport({ db, me, url }) {
       new_leads: newLeads, assigned, deals: { companies: new Set(dealsWk.map(d => d.company)).size, list: dealsWk }, lost, open,
       funnel_4w: funnelOf(cohort4), funnel_12w: funnelOf(cohortLeads), week_moves: weekMoves(leads), week_tracked: T > Date.parse('2026-11-08T00:00:00+08:00'),
       team: reps.map(r => ({ rep: r.rep, user_id: r.user_id, ...r.kpi.cur, open: r.pipeline.open, overdue: r.pipeline.overdue, help: r.pipeline.help, first_touch_hours: r.assigned.first_touch_hours_median })),
-      renewals, dues
+      renewals, dues,
+      starred: ref(openLeads.filter(l => l.watch).map(l => l.id))
     },
     reps, leads: leadsOut,
     notes: [
