@@ -612,11 +612,8 @@ async function setStar(ctx, leadId, b) {
   await db.update('leads', `id=eq.${leadId}`, on ? { watch: true, watch_at: new Date().toISOString(), watch_by: me.id, watch_note: note || lead.watch_note || null } : { watch: false, watch_note: null });
   await db.insert('activities', { type: 'note', content: (on ? '★ 主管關注' + (note ? '：' + note : '') : '取消主管關注') + (ctx.via === 'ai' ? AI_TAG : ''), lead_id: leadId, user_id: me.id, created_at: new Date().toISOString() });
   const link = url.origin + '/#lead=' + leadId;
-  const discord = on ? await notifyDiscord(ctx, {
-    title: `★ 主管關注：${lead.name}`, url: link, color: 0xf5b301,
-    description: [`負責：${lead.user_name || '未指派'}`, note.slice(0, 300), `標記：${me.name}${ctx.via === 'ai' ? '（AI 助理）' : ''}`].filter(Boolean).join('\n')
-  }) : 'skipped';
-  return { ok: true, lead: lead.name, owner: lead.user_name || null, starred: on, note: note || null, discord, crm_link: link };
+  // 單獨標記不發 Discord；只有分派時一起標才會在分派通知裡註明
+  return { ok: true, lead: lead.name, owner: lead.user_name || null, starred: on, note: note || null, crm_link: link };
 }
 
 // ───────── 成交後：導入階段 ─────────

@@ -45,7 +45,7 @@ const TOOLS = [
     confirm_not_duplicate: { type: 'boolean', description: '使用者確認不是重複名單後才設 true' }
   }, ['name', 'source'], false),
   T('assign_lead', '改名單的負責業務，並通知 Discord 群組；可同時標「主管關注」', { lead_id: S('名單 id'), owner: S('業務姓名；none＝取消指派'), note: S('交接說明（選填）'), star: { type: 'boolean', description: '主管說這家是重點、要盯、他會看 → true（限主管）' }, star_note: S('給業務的一句話（選填）') }, ['lead_id', 'owner'], false),
-  T('set_star', '標記／取消「★ 主管關注」：主管要持續追蹤的名單，業務會在 CRM 和 Discord 看到（限主管）', { lead_id: S('名單 id'), on: { type: 'boolean', description: 'true＝標記，false＝取消' }, note: S('給業務的一句話（選填）') }, ['lead_id', 'on'], false),
+  T('set_star', '標記／取消「★ 主管關注」：主管要持續追蹤的名單，業務在 CRM 看得到（不發 Discord；分派時一起標才會寫進分派通知）（限主管）', { lead_id: S('名單 id'), on: { type: 'boolean', description: 'true＝標記，false＝取消' }, note: S('給業務的一句話（選填）') }, ['lead_id', 'on'], false),
   T('attach_deal_file', '把回簽報價單／合約（PDF 或照片）歸檔到這家的成交單', {
     lead_id: S('名單 id'), file: FILE, kind: S('檔案類型', { enum: ['回簽報價單', '合約', '發票', '其他'] }), deal_id: S('指定成交單 id（選填，預設最新一張）')
   }, ['lead_id', 'file'], false, { 'openai/fileParams': ['file'] }),
