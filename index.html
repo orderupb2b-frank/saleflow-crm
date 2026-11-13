@@ -1089,6 +1089,12 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .wk-leads thead th { white-space:nowrap; font-size:11px; color:var(--text3); font-weight:500; text-align:right; padding:2px 6px; }
 .wk-leads td:not(:first-child) { white-space:nowrap; text-align:right; width:1%; }
 .wk-why { text-align:right; }
+.star-mk { color:#f5b301; font-size:12px; margin-right:4px; }
+.star-badge { display:inline-flex; align-items:center; height:24px; padding:0 9px; border-radius:12px; background:rgba(245,179,1,.14); color:#f5b301; font-size:12px; font-weight:600; white-space:nowrap; }
+.star-btn { display:inline-flex; align-items:center; height:26px; padding:0 10px; border-radius:13px; border:1px dashed var(--border); background:none; color:var(--text3); font:inherit; font-size:12px; cursor:pointer; white-space:nowrap; }
+.star-btn.on { border:1px solid rgba(245,179,1,.5); background:rgba(245,179,1,.14); color:#f5b301; font-weight:600; }
+.star-btn:hover { border-color:#f5b301; color:#f5b301; }
+.wq-star { margin-top:12px; padding:8px 12px; border-radius:8px; background:rgba(245,179,1,.12); color:#f5b301; font-size:13px; }
 #stagesDragList { width:100%; }
 .stage-drag-item { width:100%; }
 .st-color { width:28px; height:24px; padding:0; border:0; background:none; cursor:pointer; flex-shrink:0; }
@@ -1609,7 +1615,7 @@ async function mLoadFresh() {
 async function mLoadFresh2() {
   if (!usersData.length || !stagesData.length) await loadGlobalData();
   const [lr, ar, cr, ctr, qr, ccr] = await Promise.all([
-    db.from('leads').select('id,name,company,tax_id,stage_id,user_id,user_name,next_contact_date,color_tag,updated_at,created_at,expected_total,expected_months,expected_monthly,lost_reason,source_id'),
+    db.from('leads').select('id,name,company,tax_id,watch,watch_note,stage_id,user_id,user_name,next_contact_date,color_tag,updated_at,created_at,expected_total,expected_months,expected_monthly,lost_reason,source_id'),
     db.from('accounts').select('id,lead_id,name,status,user_id,onboarding_stage,updated_at'),
     db.from('contacts').select('id,lead_id,name,phone,role'),
     db.from('contracts').select('*'),
@@ -1653,7 +1659,7 @@ function mLeadRow(l, m, opt) {
   const due = opt.why != null ? { t: opt.why, cls: opt.whyCls || '' } : mDue(l.next_contact_date);
   const ph = m.phoneOf[l.id];
   return '<div class="m-row' + ctagCls(l) + '" onclick="openCompany(\'' + mQ(l.id) + '\')">' + mDot(l)
-    + '<div class="m-nm">' + esc(l.name) + '<small>' + sub + '</small></div>'
+    + '<div class="m-nm">' + starMark(l) + esc(l.name) + '<small>' + sub + '</small></div>'
     + (due.t ? '<span class="m-why ' + due.cls + '">' + due.t + '</span>' : '')
     + (opt.call ? mTel(ph && ph.phone) : '') + '</div>';
 }
@@ -1872,7 +1878,7 @@ function renderMCompany() {
   document.getElementById('content').innerHTML = ''
     + '<div class="cp-head' + ctagCls(lead) + '" style="padding:4px 2px 0">'
     + '<div style="display:flex;align-items:center;gap:10px">' + ctagHtml(lead) + '<div style="flex:1;min-width:0;font-size:20px;font-weight:700;line-height:1.3">' + esc(lead.name) + '</div><button class="btn btn-ghost btn-sm" onclick="openCpMore(\'' + id + '\')" aria-label="更多">⋯</button></div>'
-    + '<div class="m-pills">' + stageHtml + '<span style="display:inline-flex;align-items:center">' + ownerSelectHtml(lead) + '</span>' + nextBtn + '</div>'
+    + '<div class="m-pills">' + stageHtml + starBtnHtml(lead) + '<span style="display:inline-flex;align-items:center">' + ownerSelectHtml(lead) + '</span>' + nextBtn + '</div>'
     + '<div class="m-acts">' + (phone ? '<a class="p" href="tel:' + esc(phone) + '">📞 ' + esc(c0.name || '撥打') + '</a>' : '<button class="p" style="opacity:.5" onclick="setCpTabM(\'contacts\')">📞 沒有電話</button>') + '<button onclick="openQuickLog(\'' + id + '\')">🎤 記錄</button></div>'
     + '</div>'
     + '<div class="m-card" style="margin-top:14px">' + info + '</div>'
@@ -4406,7 +4412,7 @@ const DECKS = [
   { id: 'intro', file: 'slides/intro.html', icon: '🎯',
     name: '解決方案簡介',
     desc: '給潛在客戶的完整介紹。B2B 接單痛點 → 解決方案 → 六大核心功能 → 案例與方案價目 → 資安防護。',
-    ver: 'v9.9', pages: 36, updated: '2026-11-09' },
+    ver: 'v9.9.1', pages: 36, updated: '2026-11-12' },
   { id: 'onboarding', file: 'slides/onboarding.html', icon: '🚀',
     name: '導入指南',
     desc: '成交後的導入啟動會議。上線地圖、準備期四大元素（商品／客戶／價格／訂單）、ERP 串接、試營運到正式上線。',
@@ -4806,6 +4812,7 @@ function wkOverall(d) {
     + '<div class="card"><div class="wk-h">結案原因 ' + wkPopBtn(o.lost.leads, '本週結案', '<span class="wk-mut">' + o.lost.total + ' 間 ›</span>') + '</div>' + wkBar(o.lost.reasons) + '</div>'
     + '</div>'
     + (team ? '<div class="card wk-wide"><div class="wk-h">業務對照</div>' + team + '</div>' : '')
+    + (o.starred && o.starred.length ? '<div class="card wk-wide"><div class="wk-h"><span style="color:#f5b301">★</span> 主管關注 <span class="wk-mut">' + o.starred.length + '</span></div>' + wkLeadRows(o.starred, { pop: -2, stay: true }) + '</div>' : '')
     + '<div class="card wk-wide"><div class="wk-h">進行中 <span class="wk-mut">' + m.total + '</span><span style="flex:1"></span>' + wkSeg('mx', [['rep', '業務'], ['ind', '產業']]) + '</div>' + mxHtml + '</div>'
     + '<div class="card wk-wide">' + wkFunnelCard(o.funnel_12w, o.funnel_4w, false, o.week_moves) + '</div>'
     + ((ren || due) ? '<div class="wk-grid">'
@@ -4855,7 +4862,7 @@ function wkRep(d, r) {
     + p.stages.filter(function (s) { return s.stage === '等待'; }).map(function (s) { return wkArrow(s.stage, s.n, s.moved_in, 'side'); }).join('')
     + wkArrow('結案', p.lost.n, 0, 'side lost');
   const panel = _wk.st ? wkStagePanel(r, adm) : '';
-  const flags = [p.key ? '⭐ ' + p.key : '', p.help ? '🆘 ' + p.help : '', p.no_next_date ? '沒排下次 ' + p.no_next_date : ''].filter(Boolean).join('　');
+  const flags = [p.starred && p.starred.length ? '<span style="color:#f5b301">★ ' + p.starred.length + '</span>' : '', p.key ? '🎯 ' + p.key : '', p.help ? '🆘 ' + p.help : '', p.no_next_date ? '沒排下次 ' + p.no_next_date : ''].filter(Boolean).join('　');
   const dev = '<div class="card wk-wide"><div class="wk-h">開發 <span class="wk-mut">' + p.open + '</span><span style="flex:1"></span><span class="wk-mut">' + flags + '</span></div>'
     + '<div class="wk-arrows">' + arrows + '</div>' + panel + '</div>';
   const att = r.attention.length ? '<table class="wk-tbl wk-leads"><tbody>' + r.attention.map(function (x) {
@@ -4868,7 +4875,8 @@ function wkRep(d, r) {
     + (_wk.logOpen ? '<div class="wk-log">' + r.activity.log.map(function (x) {
       return '<div class="wk-logi"><div class="wk-mut">' + esc(x.when.slice(5)) + '・' + esc(x.type) + '</div><div>' + (x.lead ? wkCo(x.lead, x.company) : esc(x.company || '')) + '<div class="wk-logc">' + esc(x.content) + '</div></div></div>';
     }).join('') + '</div>' : '') + '</div>' : '';
-  return tiles + '<div class="wk-grid">' + cold + asg + '</div>' + dev
+  const starCard = p.starred && p.starred.length ? '<div class="card wk-wide"><div class="wk-h"><span style="color:#f5b301">★</span> 主管關注 <span class="wk-mut">' + p.starred.length + '</span></div>' + wkLeadRows(p.starred, { stay: true }) + '</div>' : '';
+  return tiles + starCard + '<div class="wk-grid">' + cold + asg + '</div>' + dev
     + '<div class="wk-grid"><div class="card"><div class="wk-h">需要關注</div>' + att + '</div>'
     + '<div class="card"><div class="wk-h">產業 × 階段</div>' + ind + '</div></div>'
     + '<div class="card wk-wide">' + wkFunnelCard(r.funnel_12w, r.funnel_4w, true, r.week_moves) + '</div>' + log;
@@ -4901,7 +4909,7 @@ function wkLeadRows(ids, opt) {
   return '<table class="wk-tbl wk-leads"><thead><tr><th></th><th>下次</th><th>沒聯絡</th>' + (opt.stay ? '<th>停留</th>' : '') + (opt.exp ? '<th>預估</th>' : '') + (opt.quote ? '<th>報價</th>' : '') + '<th></th></tr></thead><tbody>' + rows.map(function (x) {
     const nd = x.next ? x.next.slice(5).replace('-', '/') : '';
     const sub = [opt.pop != null ? stageLabelOf(x.stage) : '', opt.pop != null ? x.owner : '', x.industry && x.industry !== '未分類' ? x.industry : ''].filter(Boolean).join('・');
-    return '<tr data-id="' + x.id + '"><td><a class="wk-co" onclick="wkQuick(\'' + x.id + '\',' + back + ')">' + esc(x.name || '') + '</a>'
+    return '<tr data-id="' + x.id + '"><td>' + (x.star ? '<span class="star-mk" title="主管關注' + (x.star_note ? '：' + esc(x.star_note) : '') + '">★</span>' : '') + '<a class="wk-co" onclick="wkQuick(\'' + x.id + '\',' + back + ')">' + esc(x.name || '') + '</a>'
       + (sub ? '<div class="wk-mut">' + esc(sub) + '</div>' : '') + (opt.lost && x.lost_reason ? '<div class="wk-mut">' + esc(x.lost_reason) + '</div>' : '')
       + (x.last ? '<div class="wk-last" title="' + esc(x.last.text) + '"><span>' + esc(x.last.when) + '</span>' + esc(x.last.text) + '</div>' : '') + '</td>'
       + '<td class="wk-mut">' + (nd ? '<span' + (x.overdue ? ' class="wk-bad"' : '') + '>' + nd + '</span>' : '') + '</td>'
@@ -4913,7 +4921,7 @@ function wkLeadRows(ids, opt) {
   }).join('') + '</tbody></table>';
 }
 function wkFlagBtns(x) {
-  return '<button class="wk-flag' + (x.flag === 'key' ? ' on' : '') + '" data-f="key" title="重點" onclick="wkFlag(\'' + x.id + '\',\'key\')">⭐</button>'
+  return '<button class="wk-flag' + (x.flag === 'key' ? ' on' : '') + '" data-f="key" title="重點" onclick="wkFlag(\'' + x.id + '\',\'key\')">🎯</button>'
     + '<button class="wk-flag' + (x.flag === 'help' ? ' on' : '') + '" data-f="help" title="需協助" onclick="wkFlag(\'' + x.id + '\',\'help\')">🆘</button>';
 }
 function wkPop(i) {
@@ -4964,7 +4972,8 @@ function wqDraw() {
       + (B.quoted ? f('報價', '✓') : '')
       + (l.lost_reason ? f('結案原因', esc(l.lost_reason)) : '')
       + '</div>'
-      + '<div class="wq-flags">' + wkFlagBtns({ id: l.id, flag: l.flag }) + '</div>'
+      + (l.watch ? '<div class="wq-star">★ 主管關注' + (l.watch_note ? '：' + esc(l.watch_note) : '') + '</div>' : '')
+      + '<div class="wq-flags">' + wkFlagBtns({ id: l.id, flag: l.flag }) + (window.isAdmin ? starBtnHtml(l) : '') + '</div>'
       + (last ? '<div class="wq-last"><div class="wk-mut">' + esc(fmtDate(last.created_at)) + '・' + esc(ACT[last.type] || last.type) + '・' + esc(userNameById(last.user_id, '')) + '</div>' + esc(String(last.content || '').slice(0, 400)) + '</div>' : '');
   } else if (_wq.tab === 'log') {
     body = _wq.acts.length ? _wq.acts.map(function (a) {
@@ -5393,7 +5402,7 @@ function createKanbanCard(lead) {
   const dueHtml = due.txt ? '<span class="kc-due ' + due.cls + '">' + due.txt.replace('📅 ', '') + '</span>'
     : (idle >= 14 && !convertedLeadIds.has(lead.id) ? '<span class="kc-due late">' + idle + ' 天沒動</span>' : '<span class="kc-due">未排</span>');
   const owner = lead.user_name ? '<span class="kc-owner" title="' + esc(lead.user_name) + '">' + esc(String(lead.user_name).split(/\s+/)[0].slice(0, 6)) + '</span>' : '<span class="kc-owner none">未指派</span>';
-  card.innerHTML = '<div class="kc-name">' + ctagHtml(lead) + esc(lead.name) + (convertedLeadIds.has(lead.id) ? ' <span class="badge badge-green" style="font-size:10px;padding:1px 6px">已成交</span>' : '') + '</div>'
+  card.innerHTML = '<div class="kc-name">' + ctagHtml(lead) + starMark(lead) + esc(lead.name) + (convertedLeadIds.has(lead.id) ? ' <span class="badge badge-green" style="font-size:10px;padding:1px 6px">已成交</span>' : '') + '</div>'
     + '<div class="kc-foot">' + dueHtml + '<span style="flex:1"></span>' + (isExpStage(lead) ? expChipHtml(lead) : '') + owner + '</div>';
   const logB = document.createElement('button');
   logB.className = 'kc-log'; logB.type = 'button'; logB.textContent = '＋'; logB.title = '記錄聯絡'; logB.setAttribute('aria-label', '記錄聯絡');
@@ -6550,7 +6559,7 @@ function companyHeaderHtml(lead, acc) {
     .concat(acc ? [] : [expChipHtml(lead)].filter(Boolean));
   return '<div class="cp-card cp-head' + ctagCls(lead) + '">'
     + '<div class="cp-head-row">'
-    +   ctagHtml(lead) + '<div class="cp-name">' + esc(lead.name) + '</div>' + stageHtml
+    +   ctagHtml(lead) + '<div class="cp-name">' + esc(lead.name) + '</div>' + stageHtml + starBtnHtml(lead)
     +   '<span style="display:inline-flex;align-items:center">' + ownerSelectHtml(lead) + '</span>'
     +   '<span style="flex:1"></span>'
     +   (phone ? '<a class="cp-call" href="tel:' + esc(phone) + '" aria-label="撥打">📞</a>' : '')
@@ -10586,6 +10595,35 @@ function fmtNum(n) {
 }
 
 // 階段：name 是系統用的固定代號（邏輯判斷用），label 是畫面顯示的名稱（設定裡可改）
+// ★ 主管關注
+function starMark(l) { return l && l.watch ? '<span class="star-mk" title="主管關注' + (l.watch_note ? '：' + esc(l.watch_note) : '') + '">★</span>' : ''; }
+function starBtnHtml(l) {
+  if (!l) return '';
+  if (!window.isAdmin) return l.watch ? '<span class="star-badge" title="' + esc(l.watch_note || '') + '">★ 主管關注</span>' : '';
+  return '<button type="button" class="star-btn' + (l.watch ? ' on' : '') + '" onclick="event.stopPropagation();starToggle(\'' + l.id + '\')" title="' + (l.watch ? '取消主管關注' : '標記主管關注') + '">' + (l.watch ? '★ 主管關注' : '☆ 關注') + '</button>';
+}
+function starToggle(leadId) {
+  const l = leadsData.find(function (x) { return x.id === leadId; }) || (_mCache && _mCache.leadById[leadId]) || {};
+  if (l.watch) { starSave(leadId, false, ''); return; }
+  openModal('★ 主管關注', '<div style="font-size:13px;color:var(--text2);margin-bottom:8px">' + esc(l.name || '') + (l.user_name ? '・' + esc(l.user_name) : '') + '</div><textarea class="form-textarea" id="starNote" rows="2" placeholder="給業務的一句話（選填）"></textarea>',
+    '<button class="btn btn-secondary" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="starSave(\'' + leadId + '\',true,document.getElementById(\'starNote\').value)">標記</button>');
+  setTimeout(function () { const t = document.getElementById('starNote'); if (t) t.focus(); }, 50);
+}
+async function starSave(leadId, on, note) {
+  try {
+    const sess = (await db.auth.getSession()).data.session;
+    const r = await fetch('/api/leads/' + leadId + '/star', { method: 'PATCH', headers: { Authorization: 'Bearer ' + sess.access_token, 'X-Client': 'crm', 'Content-Type': 'application/json' }, body: JSON.stringify({ on: on, note: note || '' }) });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
+    [leadsData.find(function (x) { return x.id === leadId; }), _mCache && _mCache.leadById[leadId]].forEach(function (x) { if (x) { x.watch = on; x.watch_note = on ? (note || x.watch_note || null) : null; } });
+    if (typeof _wk !== 'undefined') Object.keys(_wk.cache).forEach(function (k) { const x = _wk.cache[k].leads[leadId]; if (x) { x.star = on; x.star_note = on ? (note || null) : null; } });
+    if (modalIsOpen()) closeModal();
+    toast(on ? '★ 已標記，業務會收到通知' : '已取消主管關注', 'success');
+    if (currentPage === 'leads') renderKanban(document.getElementById('leadSearch')?.value || '');
+    else if (currentPage === 'mclients') mcDraw();
+    else if (currentPage === 'weekly') renderWeekly();
+    else refreshCurrentView(leadId);
+  } catch (e) { toast('沒存到：' + e.message, 'error'); }
+}
 function stLabel(s) { return (s && (s.label || s.name)) || ''; }
 function getStageName(stageId) { return stLabel(stagesData.find(s => s.id === stageId)); }
 function getStageKey(stageId) { return stagesData.find(s => s.id === stageId)?.name || ''; }
