@@ -1572,9 +1572,27 @@ function openMoreMenu() {
     + b('quotes', '🧾', '報價單') + b('pricing', '💲', '價格表') + b('decks', '📽', '簡報')
     + b('feed', '📰', '動態') + b('settings', '⚙️', '設定')
     + '</div>'
+    + (isAndroid() ? '<button class="btn btn-ghost" style="width:100%;height:44px" onclick="opDialToggle()">📞　撥號：' + (opDialOn() ? 'OP 開店包' : '手機內建') + '</button>' : '')
     + '<button class="btn btn-ghost" style="width:100%;height:44px" onclick="toggleTheme();closeModal()">' + (dark ? '☀️　切成淺色' : '🌙　切成深色') + '</button>');
 }
 
+// 📞 改用台灣大「OP 開店包」撥出（Android；iPhone 要在系統設定把預設通話 App 改成 OP 開店包）
+const OP_PKG = 'com.taiwanmobile.opbizapp';
+function isAndroid() { return /Android/i.test(navigator.userAgent || ''); }
+function opDialOn() { try { return localStorage.getItem('opDial') === '1'; } catch (e) { return false; } }
+function opDialToggle() {
+  const on = !opDialOn();
+  try { localStorage.setItem('opDial', on ? '1' : '0'); } catch (e) {}
+  closeModal(); toast(on ? '📞 之後用 OP 開店包撥號' : '📞 之後用手機內建撥號', 'success');
+}
+document.addEventListener('click', function (e) {
+  const a = e.target.closest && e.target.closest('a[href^="tel:"]');
+  if (!a || !isAndroid() || !opDialOn()) return;
+  const num = decodeURIComponent(a.getAttribute('href').slice(4)).replace(/[^\d+#,*]/g, '');
+  if (!num) return;
+  e.preventDefault();
+  location.href = 'intent:' + encodeURIComponent(num) + '#Intent;scheme=tel;action=android.intent.action.DIAL;package=' + OP_PKG + ';S.browser_fallback_url=' + encodeURIComponent('tel:' + num) + ';end';
+}, true);
 function onFabClick() {
   if (currentPage === 'company' && currentLeadId) openQuickLog(currentLeadId);
   else openQuickLogPicker();
