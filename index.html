@@ -974,6 +974,11 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .wk-tiles.in { grid-template-columns:repeat(3,1fr); margin:0 0 12px; }
 .wk-tile { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; }
 .wk-tile.wk-tap { cursor:pointer; transition:border-color .15s; }
+.wk-intake th { font-weight:500; font-size:12px; color:var(--text3); text-align:left; padding:4px 6px; }
+.wk-intake th.wk-num { text-align:right; }
+.wk-intake tr.wk-dayh td { background:var(--bg3); font-weight:600; font-size:12.5px; padding:6px 8px; }
+.wk-intake tr.wk-dayh .wk-mut { margin-left:8px; font-weight:400; }
+.wk-good { color:var(--green); }
 .wk-tile.wk-tap:hover { border-color:var(--accent); }
 .wk-tile.wk-tap .wk-l::after { content:' ›'; color:var(--text3); }
 .wk-tiles.in .wk-tile { background:var(--bg3); border:0; }
@@ -1619,7 +1624,7 @@ async function renderPage(page) {
     case 'pricing': renderPricing(); break;
     case 'performance': await renderPerformance(); break;
     case 'dashboard': await renderDashboard(); break;
-    case 'weekly': _wk.cache = {}; await renderWeekly(); break;
+    case 'weekly': _wk.cache = {}; _wi.data = null; await renderWeekly(); break;
     case 'leads': await renderLeads(); break;
     case 'leadlist': await renderLeads(); break;
     case 'bonus': await renderPerformance(); break;
@@ -4903,6 +4908,7 @@ function wkOverall(d) {
     + '<div class="card"><div class="wk-h">結案原因 ' + wkPopBtn(o.lost.leads, '本週結案', '<span class="wk-mut">' + o.lost.total + ' 間 ›</span>') + '</div>' + wkBar(o.lost.reasons) + '</div>'
     + '</div>'
     + (team ? '<div class="card wk-wide"><div class="wk-h">業務對照</div>' + team + '</div>' : '')
+    + wkIntakeCard(null)
     + (o.starred && o.starred.length ? '<div class="card wk-wide"><div class="wk-h"><span style="color:#f5b301">★</span> 主管關注 <span class="wk-mut">' + o.starred.length + '</span></div>' + wkLeadRows(o.starred, { pop: -2, stay: true }) + '</div>' : '')
     + '<div class="card wk-wide"><div class="wk-h">進行中 <span class="wk-mut">' + m.total + '</span><span style="flex:1"></span>' + wkSeg('mx', [['rep', '業務'], ['ind', '產業']]) + '</div>' + mxHtml + '</div>'
     + '<div class="card wk-wide">' + wkFunnelCard(o.funnel_12w, o.funnel_4w, false, o.week_moves) + '</div>'
@@ -4967,10 +4973,59 @@ function wkRep(d, r) {
       return '<div class="wk-logi"><div class="wk-mut">' + esc(x.when.slice(5)) + '・' + esc(x.type) + '</div><div>' + (x.lead ? wkCo(x.lead, x.company) : esc(x.company || '')) + '<div class="wk-logc">' + esc(x.content) + '</div></div></div>';
     }).join('') + '</div>' : '') + '</div>' : '';
   const starCard = p.starred && p.starred.length ? '<div class="card wk-wide"><div class="wk-h"><span style="color:#f5b301">★</span> 主管關注 <span class="wk-mut">' + p.starred.length + '</span></div>' + wkLeadRows(p.starred, { stay: true }) + '</div>' : '';
-  return tiles + starCard + '<div class="wk-grid">' + cold + asg + '</div>' + dev
+  return tiles + starCard + wkIntakeCard(r.rep) + '<div class="wk-grid">' + cold + asg + '</div>' + dev
     + '<div class="wk-grid"><div class="card"><div class="wk-h">需要關注</div>' + att + '</div>'
     + '<div class="card"><div class="wk-h">產業 × 階段</div>' + ind + '</div></div>'
     + '<div class="card wk-wide">' + wkFunnelCard(r.funnel_12w, r.funnel_4w, true, r.week_moves) + '</div>' + log;
+}
+// ── 名單追蹤：每天進來的名單，多快第一次聯絡、後來走到哪 ──
+let _wi = { days: 14, data: null, loading: false };
+async function wkIntakeLoad(force) {
+  if (_wi.loading || (_wi.data && !force && _wi.data.range.days === _wi.days)) return;
+  _wi.loading = true;
+  try {
+    const s = (await db.auth.getSession()).data.session;
+    const r = await fetch('/api/report/intake?days=' + _wi.days, { headers: { Authorization: 'Bearer ' + s.access_token, 'X-Client': 'crm' } });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
+    _wi.data = j;
+  } catch (e) { _wi.data = { error: e.message, range: { days: _wi.days } }; }
+  _wi.loading = false;
+  if (currentPage === 'weekly') wkRedraw();
+}
+function wkIntakeDays(n) { _wi.days = n; _wi.data = null; wkIntakeLoad(); wkRedraw(); }
+function wkH(h) { if (h == null) return ''; if (h < 1) return Math.max(1, Math.round(h * 60)) + ' 分'; if (h < 48) return (Math.round(h * 10) / 10) + ' 小時'; return Math.round(h / 24) + ' 天'; }
+function wkIntakeCard(rep) {
+  const D = _wi.data;
+  const seg = '<span class="wk-seg">' + [7, 14, 30].map(function (n) { return '<button class="' + (_wi.days === n ? 'on' : '') + '" onclick="wkIntakeDays(' + n + ')">' + n + '天</button>'; }).join('') + '</span>';
+  const head = function (sub) { return '<div class="wk-h">名單追蹤 <span class="wk-mut">' + sub + '</span><span style="flex:1"></span>' + seg + '</div>'; };
+  if (!D || D.range.days !== _wi.days) { wkIntakeLoad(); return '<div class="card wk-wide">' + head('') + '<div class="wk-none">載入中…</div></div>'; }
+  if (D.error) return '<div class="card wk-wide">' + head('') + '<div class="wk-none">讀取失敗：' + esc(D.error) + '</div></div>';
+  const days = D.days.map(function (d) { return Object.assign({}, d, { leads: rep ? d.leads.filter(function (x) { return x.owner === rep; }) : d.leads }); }).filter(function (d) { return d.leads.length; });
+  const all = [].concat.apply([], days.map(function (d) { return d.leads; }));
+  if (!all.length) return '<div class="card wk-wide">' + head('近 ' + _wi.days + ' 天') + '<div class="wk-none">沒有新進名單</div></div>';
+  const med = function (a) { if (!a.length) return null; const s = a.slice().sort(function (x, y) { return x - y; }), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+  const fts = all.map(function (x) { return x.first_touch_hours; }).filter(function (x) { return x != null; });
+  const adv = function (ls) { return ls.filter(function (x) { return ['約Demo', '有望成交', '議價中', '簽約進件'].indexOf(x.furthest) >= 0; }).length; };
+  const sum = all.length + ' 家・已聯絡 ' + fts.length + (fts.length ? '・首次聯絡中位 ' + wkH(med(fts)) + '・24 小時內 ' + fts.filter(function (x) { return x <= 24; }).length : '') + '・進 Demo ' + adv(all);
+  const WD = '日一二三四五六';
+  const tone = function (h) { return h <= 4 ? 'wk-good' : h <= 24 ? 'wk-warn' : 'wk-bad'; };
+  const rows = days.map(function (d) {
+    const f = d.leads.map(function (x) { return x.first_touch_hours; }).filter(function (x) { return x != null; });
+    const wd = WD[new Date(d.day + 'T00:00:00').getDay()];
+    return '<tr class="wk-dayh"><td colspan="4">' + d.day.slice(5).replace('-', '/') + '（' + wd + '）<span class="wk-mut">' + d.leads.length + ' 家・已聯絡 ' + f.length + (f.length ? '・中位 ' + wkH(med(f)) : '') + '・進 Demo ' + adv(d.leads) + '</span></td></tr>'
+      + d.leads.map(function (x) {
+        const ft = !x.owner ? '<span class="wk-warn">未分配</span>'
+          : x.first_touch_hours != null ? '<span class="' + tone(x.first_touch_hours) + '">' + wkH(x.first_touch_hours) + '</span>'
+          : '<span class="wk-bad">還沒・' + wkH(x.waiting_hours) + '</span>';
+        const st = esc(stageLabelOf(x.stage || '')) + (x.furthest && x.furthest !== x.stage && x.stage !== '簽約進件' ? '<div class="wk-mut">最遠 ' + esc(stageLabelOf(x.furthest)) + '</div>' : '') + (x.lost_reason ? '<div class="wk-mut">' + esc(x.lost_reason) + '</div>' : '');
+        return '<tr><td>' + (x.star ? '<span class="star-mk">★</span>' : '') + wkCo(x.id, x.name)
+          + '<div class="wk-mut">' + esc([rep ? '' : (x.owner || ''), x.source, x.arrived.slice(11)].filter(Boolean).join('・')) + '</div>'
+          + (x.last ? '<div class="wk-last" title="' + esc(x.last.text) + '"><span>' + esc(x.last.when) + '</span>' + esc(x.last.text) + '</div>' : '') + '</td>'
+          + '<td class="wk-num">' + ft + '</td><td class="wk-num wk-mut">' + (x.touches ? x.touches + ' 次' : '') + '</td><td>' + st + '</td></tr>';
+      }).join('');
+  }).join('');
+  return '<div class="card wk-wide">' + head('近 ' + _wi.days + ' 天・' + sum)
+    + '<div class="wk-scroll"><table class="wk-tbl wk-intake"><thead><tr><th></th><th class="wk-num">分配→首次聯絡</th><th class="wk-num">聯絡</th><th>現在</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>';
 }
 function wkHours(h) { return h < 48 ? h + ' 小時' : Math.round(h / 24) + ' 天'; }
 function wkArrow(st, n, moved, cls) {
@@ -6372,6 +6427,7 @@ function openNewLeadModal(stageId = null, opt) {
     + '<div class="form-group"><input class="form-input" id="lPhone" type="tel" placeholder="聯絡人電話" style="font-size:16px;height:44px" inputmode="tel"></div>'
     + '<div class="form-group"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center" id="lSrcChips"><span style="font-size:12px;color:var(--text3);margin-right:2px">來源</span>' + srcChips + '</div><input type="hidden" id="lSource" value=""></div>'
     + (ownerSel ? '<div class="form-group" style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text3)">負責 ' + ownerSel + '</div>' : '')
+    + '<div class="form-group" style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text3)">進來 <input type="datetime-local" class="form-input" id="lArrived" value="' + dtLocal() + '" max="' + dtLocal() + '" style="width:auto;height:34px;font-size:13px"></div>'
     + '<input type="hidden" id="lStage" value="' + esc(defaultStage) + '">'
     + '<div style="font-size:11.5px;color:var(--text3)">統編、聯絡人、需求之後在公司頁補</div>', [
     { label: '取消', cls: 'btn-secondary', action: closeModal },
@@ -6473,7 +6529,8 @@ async function saveLead(andLog) {
     need_types: selectedNeedTypes.length ? selectedNeedTypes : null,
     product_type: document.getElementById('lProductType')?.value.trim() || null,
     deal_type_id: document.getElementById('lDealType')?.value || null,
-    user_id: userId, user_name: userName, created_at: new Date().toISOString()
+    user_id: userId, user_name: userName, created_at: new Date().toISOString(),
+    arrived_at: (function () { const v = document.getElementById('lArrived')?.value; const t = v ? new Date(v) : null; return t && !isNaN(t) && t <= new Date() ? t.toISOString() : new Date().toISOString(); })()
   };
   const note = document.getElementById('lNote')?.value.trim() || '';
   const { data: lead, error } = await db.from('leads').insert(payload).select().single();
@@ -6700,6 +6757,25 @@ function companyDealsCardHtml(acc, contracts) {
     + '</div>';
 }
 
+function dtLocal(iso) { const d = iso ? new Date(iso) : new Date(); const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 16); }
+function fmtArrived(iso) { return iso ? dtLocal(iso).replace('T', ' ').slice(0, 16) : '—'; }
+async function arrivedEdit(id) {
+  const { data: l } = await db.from('leads').select('id,arrived_at,created_at').eq('id', id).single();
+  if (!l) return;
+  openModal('進來時間', '<input type="datetime-local" class="form-input" id="arrIn" value="' + dtLocal(l.arrived_at || l.created_at) + '" max="' + dtLocal() + '" style="height:44px;font-size:16px">', [
+    { label: '取消', action: closeModal },
+    { label: '儲存', cls: 'btn-primary', action: async function () {
+      const v = document.getElementById('arrIn').value; if (!v) return;
+      const t = new Date(v); if (t > new Date()) { toast('不能是未來時間', 'error'); return; }
+      const { error } = await db.from('leads').update({ arrived_at: t.toISOString() }).eq('id', id);
+      if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
+      closeModal(); toast('已更新', 'success');
+      const x = leadsData.find(function (q) { return q.id === id; }); if (x) x.arrived_at = t.toISOString();
+      if (currentPage === 'company') openCompany(id);
+    } }
+  ]);
+  document.getElementById('modalBox').style.maxWidth = '360px';
+}
 function companyInfoCardHtml(lead, acc) {
   const row = function (label, val) { return val ? '<div><div class="form-label">' + label + '</div><div style="font-size:13px">' + val + '</div></div>' : ''; };
   const needs = (lead.need_types || []).map(function (id) { const t = needTypesData.find(n => n.id === id); return t ? '<span class="need-tag selected" style="cursor:default">' + esc(t.name) + '</span>' : ''; }).join('');
@@ -6713,7 +6789,7 @@ function companyInfoCardHtml(lead, acc) {
     +   row('客戶產品類型', esc(lead.product_type || ''))
     +   row('預計成交方案', esc(plan || ''))
     +   row('預估金額', lead.amount ? '$' + fmtNum(lead.amount) : '')
-    +   row('建立時間', fmtDate(lead.created_at))
+    +   row('進來時間', '<a style="cursor:pointer;border-bottom:1px dotted var(--text3)" onclick="arrivedEdit(\'' + lead.id + '\')">' + fmtArrived(lead.arrived_at || lead.created_at) + '</a>')
     +   (acc ? row('成為客戶', fmtDate(acc.created_at)) + row('產業', esc(acc.industry || '')) : '')
     + '</div>'
     + (needs ? '<div style="margin-top:10px"><div class="form-label">需求類型</div><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">' + needs + '</div></div>' : '')
