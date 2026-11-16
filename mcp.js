@@ -16,6 +16,7 @@ const INSTRUCTIONS = `你在操作奧德上（OrderUp B2B）的 SaleFlow CRM。�
 - 導入階段（啟動會議→填資料→系統教學→內部建置→小量試用→上線推廣→維運狀態）用 set_onboarding 更新，先確認。
 - 新增名單：一定要帶 source（來源），問清楚要給哪位業務（owner 用 get_me 的 team 名字；「阿璁」= Greenion）。沒講就是使用者自己。寫入前複述公司、聯絡人、負責業務並確認。建好或改負責業務會自動通知 Discord 群組，回覆時說明通知結果（discord=sent 已通知；not_configured 尚未設定通知）。
 - 改負責業務用 assign_lead（業務只能轉出自己的或沒人負責的名單，其他要主管）。
+- 新增名單時，使用者有講客戶什麼時候來的（填表、來電、寄信時間），就帶 arrived_at；這是算業務多快聯絡的起點。
 - ★ 主管關注：主管分派或提到某家是重點、要盯、他會看，就帶 star=true（assign_lead／create_lead），或用 set_star；star_note 寫給業務的一句話。限主管。名單有 starred=true 的，回報時標 ★。週會檢討時先講 ★ 名單的進度。
 - 回簽報價單／合約檔：使用者傳 PDF 或照片 → search_leads 找公司 → 已有這張報價的成交單就直接 attach_deal_file 歸檔；還沒有的，用 record_deal 建單，file 帶同一個檔案、quote_no 帶檔案上的報價編號，金額會自動照報價單算，不用自己填 items。成交只能從 CRM 裡的報價單轉，也一定要有回簽檔；兩者缺一就請使用者補，不要硬建。
 - 找名單／挖信箱時：拿到候選公司先用 check_duplicates 一次比對（公司名、電話、Email、統編都可以帶），回報哪些已經在 CRM（是誰的、什麼狀態）、哪些全新。要在外部自己去重時用 export_names 撈全部名單（看 next_offset 分頁）。
@@ -42,6 +43,7 @@ const TOOLS = [
     owner: S('負責業務姓名（get_me 的 team）；省略＝使用者自己'), note: S('名單備註（選填）'),
     source: S('名單來源：業務陌開、FB、Google、官網、行銷信（AI 找名單、開發信回覆＝行銷信）。不確定就問使用者'), industry: S('產業（選填，會歸到固定分類；沒給會用公司名猜）'),
     star: { type: 'boolean', description: '主管說這家是重點、要盯、他會看 → true（限主管）' }, star_note: S('給業務的一句話：為什麼重要、要注意什麼（選填）'),
+    arrived_at: S('名單進來的時間（台北，YYYY-MM-DD HH:mm）：客戶填表、來電、寄信的時間。使用者有提就帶；沒提＝現在'),
     confirm_not_duplicate: { type: 'boolean', description: '使用者確認不是重複名單後才設 true' }
   }, ['name', 'source'], false),
   T('assign_lead', '改名單的負責業務，並通知 Discord 群組；可同時標「主管關注」', { lead_id: S('名單 id'), owner: S('業務姓名；none＝取消指派'), note: S('交接說明（選填）'), star: { type: 'boolean', description: '主管說這家是重點、要盯、他會看 → true（限主管）' }, star_note: S('給業務的一句話（選填）') }, ['lead_id', 'owner'], false),
@@ -110,7 +112,7 @@ const ROUTES = {
   get_me: () => ['GET', '/api/me'],
   search_leads: a => ['GET', '/api/leads' + qs(a, ['q'])],
   get_lead: a => ['GET', '/api/leads/' + id(a)],
-  create_lead: a => ['POST', '/api/leads', pick(a, ['name', 'tax_id', 'stage', 'product_type', 'contact_name', 'contact_title', 'contact_phone', 'contact_email', 'owner', 'note', 'source', 'industry', 'confirm_not_duplicate'])],
+  create_lead: a => ['POST', '/api/leads', pick(a, ['name', 'tax_id', 'stage', 'product_type', 'contact_name', 'contact_title', 'contact_phone', 'contact_email', 'owner', 'note', 'source', 'industry', 'star', 'star_note', 'arrived_at', 'confirm_not_duplicate'])],
   assign_lead: a => ['PATCH', `/api/leads/${id(a)}/owner`, pick(a, ['owner', 'note', 'star', 'star_note'])],
   set_star: a => ['PATCH', `/api/leads/${id(a)}/star`, pick(a, ['on', 'note'])],
   attach_deal_file: a => ['POST', `/api/leads/${id(a)}/files`, pick(a, ['file', 'kind', 'deal_id'])],

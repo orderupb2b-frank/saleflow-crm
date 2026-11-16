@@ -178,6 +178,7 @@ async function api(request, env, url, ectx) {
   if (m === 'GET' && path === '/api/report/activity') return json(await activityReport(ctx));
   if (m === 'GET' && path === '/api/report/attention') return json(await attentionReport(ctx));
   if (m === 'GET' && path === '/api/report/weekly') return json(await weeklyReport(ctx));
+  if (m === 'GET' && path === '/api/report/intake') return json(await intakeReport(ctx));
   if (m === 'GET' && path === '/api/customers') return json(await listCustomers(ctx));
   if (m === 'POST' && path === '/api/dedupe') return json(await checkDuplicates(ctx, await readBody(request)));
   if (m === 'GET' && path === '/api/names') return json(await exportNames(ctx));
@@ -395,6 +396,7 @@ function leadSummary(l, L) {
     id: l.id, name: l.name, tax_id: l.tax_id || null,
     stage: L.stageName(l.stage_id), owner: l.user_name || L.userName(l.user_id),
     next_contact_date: l.next_contact_date || null, last_updated: toTW(l.updated_at || l.created_at),
+    arrived_at: toTW(l.arrived_at || l.created_at),
     ...(l.watch ? { starred: true, star_note: l.watch_note || null } : {}),
     crm_link: null
   };
@@ -424,13 +426,13 @@ async function searchLeads({ db, url }) {
   const pat = encodeURIComponent('*' + q.replace(/[*,()]/g, ' ').trim() + '*');
   const [L, byLead, byContact] = await Promise.all([
     lookups(db),
-    db.get(`leads?select=id,name,tax_id,stage_id,user_id,user_name,next_contact_date,created_at,updated_at,watch,watch_note&or=(name.ilike.${pat},company.ilike.${pat},tax_id.ilike.${pat})&limit=10`),
+    db.get(`leads?select=id,name,tax_id,stage_id,user_id,user_name,next_contact_date,created_at,updated_at,arrived_at,watch,watch_note&or=(name.ilike.${pat},company.ilike.${pat},tax_id.ilike.${pat})&limit=10`),
     db.get(`contacts?select=name,role,lead_id&or=(name.ilike.${pat},phone.ilike.${pat},email.ilike.${pat})&limit=10`)
   ]);
   const ids = new Set(byLead.map(l => l.id));
   const extra = byContact.map(c => c.lead_id).filter(id => id && !ids.has(id));
   let more = [];
-  if (extra.length) more = await db.get(`leads?select=id,name,tax_id,stage_id,user_id,user_name,next_contact_date,created_at,updated_at,watch,watch_note&id=in.(${[...new Set(extra)].join(',')})`);
+  if (extra.length) more = await db.get(`leads?select=id,name,tax_id,stage_id,user_id,user_name,next_contact_date,created_at,updated_at,arrived_at,watch,watch_note&id=in.(${[...new Set(extra)].join(',')})`);
   const results = [...byLead, ...more].map(l => {
     const o = withLink(leadSummary(l, L), url.origin);
     const cs = byContact.filter(c => c.lead_id === l.id);
@@ -514,6 +516,17 @@ async function setStage({ db, url }, leadId, b) {
   return { ok: true, lead: lead.name, from: prev, to: st.name, next_contact_date: patch.next_contact_date || undefined, crm_link: url.origin + '/#lead=' + leadId };
 }
 
+// 名單進來的時間：ISO、或台北時間「YYYY-MM-DD HH:mm」「YYYY-MM-DD」
+function parseArrived(v) {
+  if (v == null || v === '') return null;
+  let s = String(v).trim().replace(/\//g, '-');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) s += ' 09:00';
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{1,2}:\d{2}(:\d{2})?$/.test(s)) s = s.replace(' ', 'T') + (s.length <= 16 ? ':00' : '') + '+08:00';
+  const t = Date.parse(s);
+  if (isNaN(t)) throw new HttpError(400, 'arrived_at 格式看不懂，請用「YYYY-MM-DD HH:mm」（台北時間）');
+  if (t > Date.now() + 5 * 60e3) throw new HttpError(400, 'arrived_at 不能是未來時間');
+  return new Date(t).toISOString();
+}
 async function createLead(ctx, b) {
   const { db, me, url } = ctx;
   const name = String(b.name || '').trim();
@@ -546,8 +559,9 @@ async function createLead(ctx, b) {
   }
   const industry = (b.industry && indNorm(b.industry).industry) || industryGuess(name) || null;
   const star = starOk(ctx, b.star);
+  const arrived = parseArrived(b.arrived_at) || new Date().toISOString();
   const lead = await db.insert('leads', {
-    name, tax_id: tax, stage_id: stage.id, product_type: b.product_type || null, source_id, industry,
+    name, tax_id: tax, arrived_at: arrived, stage_id: stage.id, product_type: b.product_type || null, source_id, industry,
     ...(star ? { watch: true, watch_at: new Date().toISOString(), watch_by: me.id, watch_note: String(b.star_note || '').trim() || null } : {}),
     user_id: owner.id, user_name: owner.full_name, created_at: new Date().toISOString(), updated_at: new Date().toISOString()
   });
@@ -1028,6 +1042,79 @@ function industryGuess(name) {
   return null;
 }
 
+// 名單追蹤：近 N 天進來（非陌開）的名單 → 分配多久第一次聯絡、後來走到哪
+async function intakeReport({ db, me, url }) {
+  const L = await lookups(db);
+  const nDays = Math.min(60, Math.max(3, +url.searchParams.get('days') || 14));
+  const today = todayTW(), now = Date.now();
+  const F = Date.parse(addDays(today, -(nDays - 1)) + 'T00:00:00+08:00');
+  const iso = x => new Date(x).toISOString();
+  const ms = t => t ? Date.parse(t) : NaN;
+  const [sources, leads0, ccs] = await Promise.all([
+    db.get('sources?select=id,name'),
+    getAll(db, `leads?select=id,name,stage_id,source_id,user_id,created_at,arrived_at,lost_reason,next_contact_date,watch&or=(arrived_at.gte.${iso(F)},created_at.gte.${iso(F)})&order=id`),
+    getAll(db, 'cold_calls?select=lead_id&lead_id=not.is.null&order=id')
+  ]);
+  const ccSrcId = sources.find(s => s.name === CC_SRC)?.id;
+  const coldIds = new Set(ccs.map(c => c.lead_id));
+  const arr = l => ms(l.arrived_at || l.created_at);
+  const leads = leads0.filter(l => !coldIds.has(l.id) && l.source_id !== ccSrcId && arr(l) >= F);
+  const ids = leads.map(l => l.id);
+  let events = [], acts = [];
+  for (let i = 0; i < ids.length; i += 80) {
+    const ch = ids.slice(i, i + 80).join(',');
+    const [ev, ac] = await Promise.all([
+      getAll(db, `lead_events?select=lead_id,kind,to_stage,to_user,at,backfill&lead_id=in.(${ch})&order=at`),
+      getAll(db, `activities?select=lead_id,type,user_id,content,created_at&lead_id=in.(${ch})&type=neq.note&order=created_at`)
+    ]);
+    events = events.concat(ev); acts = acts.concat(ac);
+  }
+  const S = Object.fromEntries(L.stages.map(s => [s.id, s.name]));
+  const flow = id => MAIN_FLOW.indexOf(S[id]);
+  const srcName = id => sources.find(s => s.id === id)?.name || '未填來源';
+  const h = (a, b) => Math.round((b - a) / 36e5 * 10) / 10;
+  const rows = leads.map(l => {
+    const ev = events.filter(e => e.lead_id === l.id);
+    const ac = acts.filter(a => a.lead_id === l.id);
+    const a0 = arr(l);
+    // 分配時間：最後一次指派給現在這位業務（建立時就指定也算）
+    const asg = ev.filter(e => (e.kind === 'assign' || e.kind === 'create') && e.to_user && e.to_user === l.user_id).pop();
+    const asgAt = asg ? Math.max(ms(asg.at), a0) : (l.user_id ? a0 : null);
+    const first = asgAt != null ? ac.find(a => ms(a.created_at) >= asgAt - 60e3) : null;
+    const mx = Math.max(flow(l.stage_id), 0, ...ev.filter(e => e.kind === 'stage' && !e.backfill).map(e => flow(e.to_stage)));
+    const last = ac[ac.length - 1];
+    return {
+      id: l.id, name: l.name, owner: l.user_id ? L.userName(l.user_id) || '未知' : null, source: srcName(l.source_id),
+      arrived: toTW(iso(a0)), day: toTW(iso(a0)).slice(0, 10),
+      assign_hours: asgAt != null ? h(a0, asgAt) : null,
+      first_touch_hours: first ? h(asgAt, ms(first.created_at)) : null,
+      waiting_hours: asgAt != null && !first ? h(asgAt, now) : null,
+      touches: ac.length, stage: S[l.stage_id] || null, furthest: MAIN_FLOW[mx] || null,
+      lost_reason: l.lost_reason || null, star: !!l.watch,
+      last: last ? { when: toTW(last.created_at).slice(5), text: String(last.content || '').replace(AI_TAG, '').replace(/\s+/g, ' ').trim().slice(0, 80) } : null,
+      days_since_touch: last ? Math.floor((now - ms(last.created_at)) / 864e5) : null
+    };
+  }).sort((a, b) => (a.arrived < b.arrived ? 1 : -1));
+  const days = [];
+  for (let i = 0; i < nDays; i++) {
+    const d = addDays(today, -i), rs = rows.filter(r => r.day === d);
+    if (!rs.length) continue;
+    const ft = rs.map(r => r.first_touch_hours).filter(x => x != null);
+    days.push({
+      day: d, n: rs.length, unassigned: rs.filter(r => !r.owner).length, contacted: rs.filter(r => r.first_touch_hours != null).length,
+      first_touch_median: ft.length ? Math.round(median(ft) * 10) / 10 : null,
+      demo: rs.filter(r => MAIN_FLOW.indexOf(r.furthest) >= 1).length, lost: rs.filter(r => r.stage === '結案').length,
+      leads: rs
+    });
+  }
+  const ftAll = rows.map(r => r.first_touch_hours).filter(x => x != null);
+  return {
+    range: { from: addDays(today, -(nDays - 1)), to: today, days: nDays },
+    total: { n: rows.length, contacted: ftAll.length, first_touch_median: ftAll.length ? Math.round(median(ftAll) * 10) / 10 : null, within_24h: ftAll.filter(x => x <= 24).length, demo: rows.filter(r => MAIN_FLOW.indexOf(r.furthest) >= 1).length },
+    days,
+    note: '只算非陌開來源的名單；以名單「進來時間」(arrived_at) 分天。首次聯絡＝分配給現在這位業務之後的第一筆活動（不含備註）。'
+  };
+}
 async function weeklyReport({ db, me, url }) {
   const L = await lookups(db);
   const ws = url.searchParams.get('week_start');
@@ -1260,7 +1347,7 @@ async function weeklyReport({ db, me, url }) {
     // 陌開
     const myLogs = logs.filter(x => x.user_id === u.id && inWk(x.called_at));
     const conv = nl.filter(l => isCold(l) && coldRep(l) === u.id);
-    const ended = ccs.filter(c => c.owner_id === u.id && (c.status === 'rejected' || c.status === 'invalid') && inWk(c.status_at));
+    const ended = ccs.filter(c => c.owner_id === u.id && (c.status === 'rejected' || c.status === 'invalid') && c.close_reason !== '整批結案' && inWk(c.status_at));
     const kC = kp(u.id, 'calls'), kV = kp(u.id, 'conv'), kR = kp(u.id, 'rate');
     const OUT = { interested: '有興趣', callback: '再聯絡', reject: '婉拒', no_answer: '沒人接', gatekeeper: '沒找到窗口', invalid: '空號' };
     const outcomes = shareOf(myLogs.map(x => OUT[x.outcome] || x.outcome));
