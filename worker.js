@@ -1347,7 +1347,9 @@ async function weeklyReport({ db, me, url }) {
         expected_hot: sumExp(mine.filter(l => ['有望成交', '議價中'].includes(S[l.stage_id]))) || null,
         key: mine.filter(l => l.flag === 'key').length, help: mine.filter(l => l.flag === 'help').length,
         starred: ref(mine.filter(l => l.watch).map(l => l.id)),
-        overdue: overdue(mine).length, no_next_date: mine.filter(l => !l.next_contact_date && S[l.stage_id] !== '新名單').length,
+        overdue: overdue(mine).length, overdue_leads: ids(overdue(mine)),
+        hot_leads: ids(mine.filter(l => ['有望成交', '議價中'].includes(S[l.stage_id]))),
+        demo_in_leads: ref([...new Set(evWk.filter(e => e.to_user === u.id && e.to_stage === demoId && leadById.has(e.lead_id)).map(e => e.lead_id))]), no_next_date: mine.filter(l => !l.next_contact_date && S[l.stage_id] !== '新名單').length,
         by_industry: matrixBy(mine, indOf)
       },
       attention,
