@@ -902,6 +902,18 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .ctag-red{background:#E5484D}.ctag-orange{background:#F76B15}.ctag-yellow{background:#F5C400}.ctag-green{background:#30A46C}.ctag-blue{background:#3E63DD}.ctag-purple{background:#8E4EC6}.ctag-gray{background:#8B8D98}
 .ctag-pop{position:fixed;z-index:9999;background:var(--bg2,#fff);border:1px solid var(--border,#e3e6eb);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:8px;display:flex;gap:6px;align-items:center}
 .ctag-pop .ctag{width:22px;height:22px}
+.ctag-pop{flex-direction:column;align-items:stretch;gap:2px;min-width:180px;padding:6px}
+.ctag-pop .ctp-h{font-size:11.5px;color:var(--text3);padding:2px 8px 4px}
+.ctag-pop .ctp-row{display:flex;align-items:center;gap:10px;border:0;background:none;color:var(--text);font:inherit;font-size:13px;padding:6px 8px;border-radius:8px;cursor:pointer;text-align:left}
+.ctag-pop .ctp-row:hover{background:var(--bg3)}
+.ctag-pop .ctp-row.sel{background:var(--bg3);font-weight:600}
+.ctag-pop .ctp-row .ctag{width:16px;height:16px}
+.ctag-pop .ctp-row em{font-style:normal;color:var(--text3)}
+.ctag-pop .ctp-foot{display:flex;justify-content:space-between;border-top:1px solid var(--border);margin-top:4px;padding-top:4px}
+.ctag-pop .ctp-foot button{border:0;background:none;color:var(--text2);font:inherit;font-size:12px;padding:4px 8px;cursor:pointer;border-radius:6px}
+.ctag-pop .ctp-foot button:hover{background:var(--bg3)}
+.ctl{display:inline-block;font-size:11px;font-weight:600;line-height:16px;padding:0 6px;border-radius:8px;margin-left:6px;vertical-align:1px;white-space:nowrap}
+.ctl-red{color:#E5484D;background:rgba(229,72,77,.12)}.ctl-orange{color:#F76B15;background:rgba(247,107,21,.12)}.ctl-yellow{color:#b08c00;background:rgba(245,196,0,.16)}.ctl-green{color:#30A46C;background:rgba(48,164,108,.12)}.ctl-blue{color:#3E63DD;background:rgba(62,99,221,.12)}.ctl-purple{color:#8E4EC6;background:rgba(142,78,198,.12)}.ctl-gray{color:#8B8D98;background:rgba(139,141,152,.14)}
 .ctag-pop .ctag.sel{box-shadow:0 0 0 2px var(--bg2,#fff),0 0 0 4px var(--text,#15171a)}
 .ctag-pop .ctag-x{width:22px;height:22px;border-radius:50%;border:1px solid var(--border,#e3e6eb);background:transparent;color:var(--text3);font-size:12px;cursor:pointer;padding:0;line-height:20px}
 .ctag-filter{display:inline-flex;gap:5px;align-items:center;padding:0 4px}
@@ -1506,7 +1518,8 @@ async function loadGlobalData() {
   } catch(e) { dealTypesData = []; }
   try {
     // Try to fetch all user profiles; RLS may limit results
-    const { data: up, error: upErr } = await db.from('user_profiles').select('id,full_name,role,email').order('created_at');
+    let { data: up, error: upErr } = await db.from('user_profiles').select('id,full_name,role,email,ctag_labels').order('created_at');
+    if (upErr) ({ data: up, error: upErr } = await db.from('user_profiles').select('id,full_name,role,email').order('created_at'));
     if (upErr) throw upErr;
     usersData = (up || []).filter(u => u.full_name || u.email); // only include users with a name
     console.log('usersData loaded:', JSON.stringify(usersData));
@@ -4046,9 +4059,37 @@ function ctagHtml(l) {
   return '<button type="button" class="ctag' + (c ? ' on ctag-' + c : '') + '" data-ctag="' + l.id + '" draggable="false" aria-label="標顏色"'
     + ' onmousedown="event.stopPropagation()" ontouchstart="event.stopPropagation()" onclick="openCtagPop(event,\'' + l.id + '\')"></button>';
 }
+// 顏色的意義：每位業務自己定義；名單顯示「負責業務」的定義
+function ctagLabels(uid) {
+  const u = usersData.find(function (x) { return x.id === uid; });
+  const own = uid === currentUser.id && window.userProfile ? window.userProfile.ctag_labels : null;
+  return (u && u.ctag_labels) || own || {};
+}
+function ctagLabel(l) { if (!l || !l.color_tag) return ''; return ctagLabels(l.user_id || currentUser.id)[l.color_tag] || ''; }
+function ctagLblHtml(l) { const t = ctagLabel(l); return t ? '<span class="ctl ctl-' + l.color_tag + '">' + esc(t) + '</span>' : ''; }
+function ctagEdit() {
+  closeCtagPop();
+  const L = ctagLabels(currentUser.id);
+  openModal('我的顏色', '<div style="display:flex;flex-direction:column;gap:8px">' + CTAGS.map(function (c) {
+    return '<div style="display:flex;align-items:center;gap:10px"><span class="ctag on ctag-' + c + '" style="width:20px;height:20px"></span><input class="form-input" data-c="' + c + '" maxlength="12" value="' + esc(L[c] || '') + '" placeholder="這個顏色代表…" style="height:38px"></div>';
+  }).join('') + '</div>', [
+    { label: '取消', action: closeModal },
+    { label: '儲存', cls: 'btn-primary', action: async function () {
+      const v = {}; document.querySelectorAll('#modalBody input[data-c]').forEach(function (i) { const t = i.value.trim(); if (t) v[i.dataset.c] = t; });
+      const { error } = await db.from('user_profiles').update({ ctag_labels: v }).eq('id', currentUser.id);
+      if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
+      const u = usersData.find(function (x) { return x.id === currentUser.id; }); if (u) u.ctag_labels = v;
+      if (window.userProfile) window.userProfile.ctag_labels = v;
+      closeModal(); toast('已儲存', 'success');
+      if (typeof leadsRedraw === 'function') leadsRedraw();
+    } }
+  ]);
+  document.getElementById('modalBox').style.maxWidth = '380px';
+}
 function ctagFilterHtml(fn) {
+  const ML = ctagLabels(currentUser.id);
   return '<span class="ctag-filter">' + CTAGS.map(function (c) {
-    return '<button type="button" class="ctag on ctag-' + c + (ctagFilter.has(c) ? ' act' : '') + '" onclick="toggleCtagFilter(\'' + c + '\')" aria-label="篩選顏色"></button>';
+    return '<button type="button" class="ctag on ctag-' + c + (ctagFilter.has(c) ? ' act' : '') + '" onclick="toggleCtagFilter(\'' + c + '\')" title="' + esc(ML[c] || '') + '" aria-label="篩選顏色"></button>';
   }).join('') + (ctagFilter.size ? '<button type="button" class="ctag-clr" onclick="toggleCtagFilter(\'\')">清除</button>' : '') + '</span>';
 }
 function toggleCtagFilter(c) {
@@ -4066,9 +4107,10 @@ function openCtagPop(ev, id) {
   const l = leadsData.find(function (x) { return x.id === id; }) || (window._cp && window._cp.lead && window._cp.lead.id === id ? window._cp.lead : {});
   const pop = document.createElement('div');
   pop.id = 'ctagPop'; pop.className = 'ctag-pop'; pop.dataset.lead = id;
-  pop.innerHTML = CTAGS.map(function (c) {
-    return '<button type="button" class="ctag on ctag-' + c + (l.color_tag === c ? ' sel' : '') + '" onclick="setLeadColor(\'' + id + '\',\'' + c + '\')"></button>';
-  }).join('') + '<button type="button" class="ctag-x" onclick="setLeadColor(\'' + id + '\',\'\')" aria-label="取消">✕</button>';
+  const ownerId = l.user_id || currentUser.id, L = ctagLabels(ownerId), mine = ownerId === currentUser.id;
+  pop.innerHTML = (mine ? '' : '<div class="ctp-h">' + esc(userNameById(ownerId, '') || '') + ' 的顏色</div>') + CTAGS.map(function (c) {
+    return '<button type="button" class="ctp-row' + (l.color_tag === c ? ' sel' : '') + '" onclick="setLeadColor(\'' + id + '\',\'' + c + '\')"><span class="ctag on ctag-' + c + '"></span><span>' + (L[c] ? esc(L[c]) : '<em>未命名</em>') + '</span></button>';
+  }).join('') + '<div class="ctp-foot">' + (l.color_tag ? '<button type="button" onclick="setLeadColor(\'' + id + '\',\'\')">清除</button>' : '<span></span>') + '<button type="button" onclick="ctagEdit()">✏️ 我的顏色</button></div>';
   document.body.appendChild(pop);
   const r = ev.currentTarget.getBoundingClientRect();
   const w = pop.offsetWidth, h = pop.offsetHeight;
@@ -4094,7 +4136,9 @@ async function setLeadColor(id, c) {
   paint(c);
   const r = await db.from('leads').update({ color_tag: c || null }).eq('id', id).select('id');
   if (r.error || !r.data || !r.data.length) { paint(prev); toast('標顏色失敗' + (r.error ? '：' + r.error.message : '（沒有權限）'), 'error'); return; }
-  if (ctagFilter.size && isLeadsPage()) { if (window.innerWidth <= 768) renderLeadsMobile(); else filterLeads(); }
+  const t = c ? ctagLabel(targets[0] || { color_tag: c, user_id: currentUser.id }) : '';
+  if (t) toast(t, 'success');
+  if (isLeadsPage()) { if (window.innerWidth <= 768) renderLeadsMobile(); else filterLeads(); }
 }
 
 // ════════ 紀錄附圖：貼上／拖曳／選照片，壓縮後上傳 ════════
@@ -4288,7 +4332,7 @@ function mlCard(l, due, showOwner) {
   const stg = won ? '<span class="m-stg">已成交</span>'
     : '<button type="button" class="m-stg" onclick="event.stopPropagation();stagePick(this,\'' + mQ(l.id) + '\')">' + esc(getStageName(l.stage_id) || '階段') + ' ▾</button>';
   return '<div class="ml-card mb' + ctagCls(l) + (l.watch ? ' ml-starred' : '') + '" onclick="openCompany(\'' + mQ(l.id) + '\')">'
-    + '<div class="ml-top"><div class="ml-name">' + ctagHtml(l) + starMark(l) + esc(l.name) + '</div>' + stg + '</div>'
+    + '<div class="ml-top"><div class="ml-name">' + ctagHtml(l) + starMark(l) + esc(l.name) + ctagLblHtml(l) + '</div>' + stg + '</div>'
     + (l.watch && l.watch_note ? '<div class="star-note">主管：' + esc(l.watch_note) + '</div>' : '')
     + (isExpStage(l) ? '<div style="margin-top:6px">' + expChipHtml(l) + '</div>' : '')
     + '<div class="ml-bot"><span class="ml-due ' + dueCls + '">' + dueTxt + '</span><span class="ml-who">' + esc(who) + '</span>'
@@ -5573,7 +5617,7 @@ function createKanbanCard(lead) {
   const dueHtml = due.txt ? '<span class="kc-due ' + due.cls + '">' + due.txt.replace('📅 ', '') + '</span>'
     : (idle >= 14 && !convertedLeadIds.has(lead.id) ? '<span class="kc-due late">' + idle + ' 天沒動</span>' : '<span class="kc-due">未排</span>');
   const owner = lead.user_name ? '<span class="kc-owner" title="' + esc(lead.user_name) + '">' + esc(String(lead.user_name).split(/\s+/)[0].slice(0, 6)) + '</span>' : '<span class="kc-owner none">未指派</span>';
-  card.innerHTML = '<div class="kc-name">' + ctagHtml(lead) + starMark(lead) + esc(lead.name) + (convertedLeadIds.has(lead.id) ? ' <span class="badge badge-green" style="font-size:10px;padding:1px 6px">已成交</span>' : '') + '</div>'
+  card.innerHTML = '<div class="kc-name">' + ctagHtml(lead) + starMark(lead) + esc(lead.name) + ctagLblHtml(lead) + (convertedLeadIds.has(lead.id) ? ' <span class="badge badge-green" style="font-size:10px;padding:1px 6px">已成交</span>' : '') + '</div>'
     + (lead.watch && lead.watch_note ? '<div class="star-note">主管：' + esc(lead.watch_note) + '</div>' : '')
     + '<div class="kc-foot">' + dueHtml + '<span style="flex:1"></span>' + (isExpStage(lead) ? expChipHtml(lead) : '') + (function () { const s = sourcesData.find(function (x) { return x.id === lead.source_id; }); return '<span class="kc-src' + (s ? '' : ' none') + '">' + (s ? esc(srcLabel(s.name)) : '來源？') + '</span>'; })() + owner + '</div>';
   const logB = document.createElement('button');
