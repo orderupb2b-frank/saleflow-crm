@@ -1120,6 +1120,11 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .ml-card.mb .ml-log { width:32px; height:28px; }
 .ml-xlink { display:block; width:100%; margin-top:6px; border:1px dashed var(--border); background:none; border-radius:10px; height:42px; color:var(--text2); font:inherit; font-size:13px; cursor:pointer; }
 .star-badge { display:inline-flex; align-items:center; height:24px; padding:0 9px; border-radius:12px; background:rgba(245,179,1,.14); color:#f5b301; font-size:12px; font-weight:600; white-space:nowrap; }
+.src-chip { display:inline-flex; align-items:center; height:22px; padding:0 8px; border-radius:11px; border:1px solid var(--border); background:var(--bg3); color:var(--text2); font:inherit; font-size:12px; cursor:pointer; }
+.src-chip.none { border-style:dashed; color:var(--yellow); background:none; }
+.src-chip:hover { border-color:var(--accent); }
+.kc-src { font-size:11px; color:var(--text3); margin-right:6px; white-space:nowrap; }
+.kc-src.none { color:var(--yellow); }
 .star-btn { display:inline-flex; align-items:center; height:26px; padding:0 10px; border-radius:13px; border:1px dashed var(--border); background:none; color:var(--text3); font:inherit; font-size:12px; cursor:pointer; white-space:nowrap; }
 .star-btn.on { border:1px solid rgba(245,179,1,.5); background:rgba(245,179,1,.14); color:#f5b301; font-weight:600; }
 .star-btn:hover { border-color:#f5b301; color:#f5b301; }
@@ -1920,7 +1925,7 @@ function renderMCompany() {
   if (!contacts.length) info += kv('聯絡人', '<span style="color:var(--accent)">＋ 加一位</span>', 'setCpTabM(\'contacts\')');
   info += kv('統編', lead.tax_id ? '<span style="font-family:var(--mono)">' + esc(lead.tax_id) + '</span>' : '', 'openEditLeadModal(\'' + id + '\')');
   const src = sourcesData.find(function (x) { return x.id === lead.source_id; });
-  info += kv('來源', src ? esc(src.name) : '', 'openEditLeadModal(\'' + id + '\')');
+  info += kv('來源', src ? esc(srcLabel(src.name)) : '<span class="wk-warn">未填，點這裡補</span>', 'srcPick(\'' + id + '\')');
   if (lead.lost_reason && !acc) info += kv('結案原因', '<span style="color:var(--red)">' + esc(lead.lost_reason) + '</span>');
   document.getElementById('content').innerHTML = ''
     + '<div class="cp-head' + ctagCls(lead) + '" style="padding:4px 2px 0">'
@@ -4908,6 +4913,7 @@ function wkOverall(d) {
     + '<div class="card"><div class="wk-h">結案原因 ' + wkPopBtn(o.lost.leads, '本週結案', '<span class="wk-mut">' + o.lost.total + ' 間 ›</span>') + '</div>' + wkBar(o.lost.reasons) + '</div>'
     + '</div>'
     + (team ? '<div class="card wk-wide"><div class="wk-h">業務對照</div>' + team + '</div>' : '')
+    + wkSourceCard(o.source_12w)
     + wkIntakeCard(null)
     + (o.starred && o.starred.length ? '<div class="card wk-wide"><div class="wk-h"><span style="color:#f5b301">★</span> 主管關注 <span class="wk-mut">' + o.starred.length + '</span></div>' + wkLeadRows(o.starred, { pop: -2, stay: true }) + '</div>' : '')
     + '<div class="card wk-wide"><div class="wk-h">進行中 <span class="wk-mut">' + m.total + '</span><span style="flex:1"></span>' + wkSeg('mx', [['rep', '業務'], ['ind', '產業']]) + '</div>' + mxHtml + '</div>'
@@ -4978,6 +4984,21 @@ function wkRep(d, r) {
     + '<div class="card"><div class="wk-h">產業 × 階段</div>' + ind + '</div></div>'
     + '<div class="card wk-wide">' + wkFunnelCard(r.funnel_12w, r.funnel_4w, true, r.week_moves) + '</div>' + log;
 }
+// ── 來源分析：近 12 週新進名單，各來源走到哪 ──
+function wkSourceCard(rows) {
+  if (!rows || !rows.length) return '';
+  const lbl = function (n) { return n === '業務陌開' ? '陌開' : n; };
+  const cell = function (ids, n, rate, title, cls) { return '<td class="wk-num">' + wkPopBtn(ids, title, n, cls) + (rate != null ? '<span class="wk-mut"> ' + rate + '%</span>' : '') + '</td>'; };
+  return '<div class="card wk-wide"><div class="wk-h">來源分析 <span class="wk-mut">近 12 週新進名單</span></div><div class="wk-scroll"><table class="wk-tbl wk-intake"><thead><tr><th></th><th class="wk-num">名單</th><th class="wk-num">進 Demo</th><th class="wk-num">成交</th><th class="wk-num">結案</th><th class="wk-num">進行中</th><th>主要結案原因</th></tr></thead><tbody>'
+    + rows.map(function (r) {
+      const t = lbl(r.source);
+      return '<tr><td' + (r.source === '未填來源' ? ' class="wk-warn"' : '') + '>' + esc(t) + '</td>'
+        + cell(r.leads, r.n, null, t + '・名單') + cell(r.demo_leads, r.demo, r.demo_rate, t + '・進過 Demo') + cell(r.won_leads, r.won, r.won_rate, t + '・成交')
+        + cell(r.lost_leads, r.lost, null, t + '・結案') + '<td class="wk-num wk-mut">' + r.open + '</td>'
+        + '<td class="wk-mut">' + r.lost_reasons.map(function (x) { return esc(x.reason) + ' ' + x.n; }).join('・') + '</td></tr>';
+    }).join('') + '</tbody></table></div>'
+    + (rows.some(function (r) { return r.source === '未填來源'; }) ? '<div class="wk-note">未填來源的點數字打開，進公司頁點「來源？」補上。</div>' : '') + '</div>';
+}
 // ── 名單追蹤：每天進來的名單，多快第一次聯絡、後來走到哪 ──
 let _wi = { days: 14, data: null, loading: false };
 async function wkIntakeLoad(force) {
@@ -5019,7 +5040,7 @@ function wkIntakeCard(rep) {
           : '<span class="wk-bad">還沒・' + wkH(x.waiting_hours) + '</span>';
         const st = esc(stageLabelOf(x.stage || '')) + (x.furthest && x.furthest !== x.stage && x.stage !== '簽約進件' ? '<div class="wk-mut">最遠 ' + esc(stageLabelOf(x.furthest)) + '</div>' : '') + (x.lost_reason ? '<div class="wk-mut">' + esc(x.lost_reason) + '</div>' : '');
         return '<tr><td>' + (x.star ? '<span class="star-mk">★</span>' : '') + wkCo(x.id, x.name)
-          + '<div class="wk-mut">' + esc([rep ? '' : (x.owner || ''), x.source, x.arrived.slice(11)].filter(Boolean).join('・')) + '</div>'
+          + '<div class="wk-mut">' + esc([rep ? '' : (x.owner || ''), x.source === '未填來源' ? '' : srcLabel(x.source), x.arrived.slice(11)].filter(Boolean).join('・')) + (x.source === '未填來源' ? '<span class="wk-warn">・來源？</span>' : '') + '</div>'
           + (x.last ? '<div class="wk-last" title="' + esc(x.last.text) + '"><span>' + esc(x.last.when) + '</span>' + esc(x.last.text) + '</div>' : '') + '</td>'
           + '<td class="wk-num">' + ft + '</td><td class="wk-num wk-mut">' + (x.touches ? x.touches + ' 次' : '') + '</td><td>' + st + '</td></tr>';
       }).join('');
@@ -5554,7 +5575,7 @@ function createKanbanCard(lead) {
   const owner = lead.user_name ? '<span class="kc-owner" title="' + esc(lead.user_name) + '">' + esc(String(lead.user_name).split(/\s+/)[0].slice(0, 6)) + '</span>' : '<span class="kc-owner none">未指派</span>';
   card.innerHTML = '<div class="kc-name">' + ctagHtml(lead) + starMark(lead) + esc(lead.name) + (convertedLeadIds.has(lead.id) ? ' <span class="badge badge-green" style="font-size:10px;padding:1px 6px">已成交</span>' : '') + '</div>'
     + (lead.watch && lead.watch_note ? '<div class="star-note">主管：' + esc(lead.watch_note) + '</div>' : '')
-    + '<div class="kc-foot">' + dueHtml + '<span style="flex:1"></span>' + (isExpStage(lead) ? expChipHtml(lead) : '') + owner + '</div>';
+    + '<div class="kc-foot">' + dueHtml + '<span style="flex:1"></span>' + (isExpStage(lead) ? expChipHtml(lead) : '') + (function () { const s = sourcesData.find(function (x) { return x.id === lead.source_id; }); return '<span class="kc-src' + (s ? '' : ' none') + '">' + (s ? esc(srcLabel(s.name)) : '來源？') + '</span>'; })() + owner + '</div>';
   const logB = document.createElement('button');
   logB.className = 'kc-log'; logB.type = 'button'; logB.textContent = '＋'; logB.title = '記錄聯絡'; logB.setAttribute('aria-label', '記錄聯絡');
   logB.draggable = false;
@@ -6715,7 +6736,7 @@ function companyHeaderHtml(lead, acc) {
   const meta = []
     .concat(c0 ? ['<span>' + esc(c0.name) + (c0.role ? ' ' + esc(c0.role) : '') + (c0.phone ? '・' + (phone ? '<a href="tel:' + esc(phone) + '" style="color:inherit">' : '') + esc(c0.phone) + (phone ? '</a>' : '') : '') + '</span>'] : (lead.company ? ['<span>' + esc(lead.company) + '</span>'] : []))
     .concat(lead.tax_id ? ['<span style="font-family:var(--mono)">' + esc(lead.tax_id) + '</span>'] : [])
-    .concat(src ? ['<span>' + esc(src.name) + '</span>'] : [])
+    .concat([srcChipHtml(lead)])
     .concat([nextHtml])
     .concat(acc ? [] : [expChipHtml(lead)].filter(Boolean));
   return '<div class="cp-card cp-head' + ctagCls(lead) + '">'
@@ -10775,6 +10796,27 @@ function fmtNum(n) {
 }
 
 // 階段：name 是系統用的固定代號（邏輯判斷用），label 是畫面顯示的名稱（設定裡可改）
+// 名單來源
+function srcLabel(n) { return n === '業務陌開' ? '陌開' : n; }
+function srcChipHtml(l) {
+  const s = sourcesData.find(function (x) { return x.id === l.source_id; });
+  return '<button type="button" class="src-chip' + (s ? '' : ' none') + '" onclick="event.stopPropagation();srcPick(\'' + l.id + '\')">' + (s ? esc(srcLabel(s.name)) : '來源？') + '</button>';
+}
+function srcPick(id) {
+  const l = leadsData.find(function (x) { return x.id === id; }) || (_mCache && _mCache.leadById[id]) || {};
+  openModal('來源', '<div style="display:flex;flex-wrap:wrap;gap:8px">' + sourcesData.map(function (s) {
+    return '<button class="btn ' + (l.source_id === s.id ? 'btn-primary' : 'btn-secondary') + '" style="height:42px;min-width:84px" onclick="srcSave(\'' + id + '\',\'' + s.id + '\')">' + esc(srcLabel(s.name)) + '</button>';
+  }).join('') + '</div>', []);
+  document.getElementById('modalFooter').style.display = 'none';
+  document.getElementById('modalBox').style.maxWidth = '380px';
+}
+async function srcSave(id, sid) {
+  const { error } = await db.from('leads').update({ source_id: sid }).eq('id', id);
+  if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
+  [leadsData.find(function (x) { return x.id === id; }), _mCache && _mCache.leadById[id]].forEach(function (x) { if (x) x.source_id = sid; });
+  closeModal(); toast('已更新來源', 'success');
+  if (currentPage === 'company') openCompany(id); else if (typeof leadsRedraw === 'function') leadsRedraw();
+}
 // ★ 主管關注
 function starMark(l) { return l && l.watch ? '<span class="star-mk" title="主管關注' + (l.watch_note ? '：' + esc(l.watch_note) : '') + '">★</span>' : ''; }
 function starBtnHtml(l) {
