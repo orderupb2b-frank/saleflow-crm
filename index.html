@@ -1619,7 +1619,7 @@ async function renderPage(page) {
     case 'pricing': renderPricing(); break;
     case 'performance': await renderPerformance(); break;
     case 'dashboard': await renderDashboard(); break;
-    case 'weekly': await renderWeekly(); break;
+    case 'weekly': _wk.cache = {}; await renderWeekly(); break;
     case 'leads': await renderLeads(); break;
     case 'leadlist': await renderLeads(); break;
     case 'bonus': await renderPerformance(); break;
@@ -4928,7 +4928,7 @@ function wkRep(d, r) {
   const prog = function (n, t) { return t ? '<div class="wk-prog"><span style="width:' + Math.min(100, n / t * 100) + '%;background:' + (n >= t ? 'var(--green)' : 'var(--accent)') + '"></span></div>' : ''; };
   const tiles = '<div class="wk-tiles six">'
     + wkTile(k.activities + wkDelta(k.activities, kp.activities), '活動', '接觸 ' + k.companies + ' 家', '', r.activity.n ? 'wkActPop()' : '')
-    + wkTile(k.demo_in + wkDelta(k.demo_in, kp.demo_in), '新約 Demo', '', 'good', (p.demo_in_leads || []).length ? 'wkPop(' + wkReg(p.demo_in_leads, r.rep + '・新約 Demo') + ')' : '')
+    + wkTile(k.demo_in + wkDelta(k.demo_in, kp.demo_in), '新約 Demo', '', 'good', (p.demo_in_leads || []).length ? 'wkPop(' + wkReg(p.demo_in_leads, r.rep + '・本週進過約Demo', { now: true }) + ')' : '')
     + wkTile(k.deals + wkDelta(k.deals, kp.deals), '成交', '', 'good', p.won.n ? 'wkDealPop(' + wkReg([], r.rep + '・成交') + ')' : '')
     + wkTile(k.lost + wkDelta(k.lost, kp.lost, true), '結案', '', 'bad', p.lost.n ? 'wkLostPop()' : '')
     + wkTile(p.open, '進行中', p.overdue ? '<span class="wk-bad" onclick="event.stopPropagation();wkPop(' + wkReg(p.overdue_leads || [], r.rep + '・逾期') + ')">逾期 ' + p.overdue + ' ›</span>' : '', '', p.open ? 'wkPop(' + wkReg([].concat.apply([], p.stages.map(function (s) { return s.leads; })), r.rep + '・進行中') + ')' : '')
@@ -4999,7 +4999,7 @@ function wkLeadRows(ids, opt) {
   const back = opt.pop != null ? opt.pop : -1;
   return '<table class="wk-tbl wk-leads"><thead><tr><th></th><th>下次</th><th>沒聯絡</th>' + (opt.stay ? '<th>停留</th>' : '') + (opt.exp ? '<th>預估</th>' : '') + (opt.quote ? '<th>報價</th>' : '') + '<th></th></tr></thead><tbody>' + rows.map(function (x) {
     const nd = x.next ? x.next.slice(5).replace('-', '/') : '';
-    const sub = [opt.pop != null ? stageLabelOf(x.stage) : '', opt.pop != null ? x.owner : '', x.industry && x.industry !== '未分類' ? x.industry : ''].filter(Boolean).join('・');
+    const sub = [opt.pop != null ? (opt.now ? '現在：' : '') + stageLabelOf(x.stage) : '', opt.pop != null ? x.owner : '', x.industry && x.industry !== '未分類' ? x.industry : ''].filter(Boolean).join('・');
     return '<tr data-id="' + x.id + '"><td>' + (x.star ? '<span class="star-mk" title="主管關注' + (x.star_note ? '：' + esc(x.star_note) : '') + '">★</span>' : '') + '<a class="wk-co" onclick="wkQuick(\'' + x.id + '\',' + back + ')">' + esc(x.name || '') + '</a>'
       + (sub ? '<div class="wk-mut">' + esc(sub) + '</div>' : '') + (opt.lost && x.lost_reason ? '<div class="wk-mut">' + esc(x.lost_reason) + '</div>' : '')
       + (x.last ? '<div class="wk-last" title="' + esc(x.last.text) + '"><span>' + esc(x.last.when) + '</span>' + esc(x.last.text) + '</div>' : '') + '</td>'
