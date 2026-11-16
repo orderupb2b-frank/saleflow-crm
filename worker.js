@@ -1184,6 +1184,9 @@ async function weeklyReport({ db, me, url }) {
       return !(nx && !nx.backfill && ms(nx.at) - ms(e.at) < NOISE_MS && flowIdx(nx.to_stage) < flowIdx(e.to_stage));
     });
   };
+  const realEvSet = new Set(leads.flatMap(l => realEvs(l)));
+  // 這週「進到某階段」：同一家只算一次，10 分鐘內拖回的不算
+  const movedIn = (evs, uid, stageId) => new Set(evs.filter(e => e.to_user === uid && e.to_stage === stageId && realEvSet.has(e) && leadById.has(e.lead_id)).map(e => e.lead_id));
   const maxStage = l => Math.max(flowIdx(l.stage_id), 0, ...realEvs(l).map(e => flowIdx(e.to_stage)));
   const reached = maxStage;
   const firstReach = (l, i) => { const e = realEvs(l).find(e => !e.backfill && flowIdx(e.to_stage) >= i); return e ? ms(e.at) : null; };
@@ -1242,7 +1245,7 @@ async function weeklyReport({ db, me, url }) {
       calls: lg.length, called: new Set(lg.map(x => x.cold_call_id)).size,
       cold_converted: leads.filter(l => inW(l.created_at) && isCold(l) && coldRep(l) === u.id).length,
       assigned: [...asgMap.values()].filter(e => e.to_user === u.id).length,
-      demo_in: evW.filter(e => e.to_user === u.id && e.to_stage === demoId).length,
+      demo_in: movedIn(evW, u.id, demoId).size,
       deals: dealList.filter(d => d.user_id === u.id).length,
       lost: leads.filter(l => l.user_id === u.id && l.stage_id === CLOSED && inW(l.lost_at)).length
     };
@@ -1292,7 +1295,7 @@ async function weeklyReport({ db, me, url }) {
     };
     const stages = cols.map(c => {
       const ls = by(c), exp = sumExp(ls);
-      return { stage: c, n: ls.length, moved_in: evWk.filter(e => e.to_user === u.id && S[e.to_stage] === c).length, leads: ids(ls), focus: focusOf(c, ls), expected: exp || null };
+      return { stage: c, n: ls.length, moved_in: movedIn(evWk, u.id, sid(c)).size, leads: ids(ls), focus: focusOf(c, ls), expected: exp || null };
     });
     const myDeals = dealsWk.filter(d => d.user_id === u.id);
     const myLost = lostWk.filter(l => l.user_id === u.id);
@@ -1349,7 +1352,7 @@ async function weeklyReport({ db, me, url }) {
         starred: ref(mine.filter(l => l.watch).map(l => l.id)),
         overdue: overdue(mine).length, overdue_leads: ids(overdue(mine)),
         hot_leads: ids(mine.filter(l => ['有望成交', '議價中'].includes(S[l.stage_id]))),
-        demo_in_leads: ref([...new Set(evWk.filter(e => e.to_user === u.id && e.to_stage === demoId && leadById.has(e.lead_id)).map(e => e.lead_id))]), no_next_date: mine.filter(l => !l.next_contact_date && S[l.stage_id] !== '新名單').length,
+        demo_in_leads: ref([...movedIn(evWk, u.id, demoId)]), no_next_date: mine.filter(l => !l.next_contact_date && S[l.stage_id] !== '新名單').length,
         by_industry: matrixBy(mine, indOf)
       },
       attention,
