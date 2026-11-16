@@ -169,6 +169,7 @@ async function api(request, env, url, ectx) {
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/next-contact$/)) && m === 'PATCH') return json(await setNextContact(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/stage$/)) && m === 'PATCH') return json(await setStage(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/owner$/)) && m === 'PATCH') return json(await setOwner(ctx, mm[1], await readBody(request)));
+  if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/source$/)) && m === 'PATCH') return json(await setSource(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/star$/)) && m === 'PATCH') return json(await setStar(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/files$/)) && m === 'POST') return json(await attachFile(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/onboarding$/)) && m === 'PATCH') return json(await setOnboarding(ctx, mm[1], await readBody(request)));
@@ -443,12 +444,13 @@ async function searchLeads({ db, url }) {
 }
 
 async function getLead({ db, url }, id) {
-  const [L, l, contacts, acts] = await Promise.all([
+  const [L, l, contacts, acts, srcs] = await Promise.all([
     lookups(db), loadLead({ db }, id),
     db.get(`contacts?lead_id=eq.${id}&select=id,name,role,phone,email,line_id`),
-    db.get(`activities?lead_id=eq.${id}&select=type,content,created_at,user_id,contact_id&order=created_at.desc&limit=15`)
+    db.get(`activities?lead_id=eq.${id}&select=type,content,created_at,user_id,contact_id&order=created_at.desc&limit=15`),
+    db.get('sources?select=id,name')
   ]);
-  const extra = {};
+  const extra = { source: srcs.find(x => x.id === l.source_id)?.name || '未填（請問使用者後用 set_source 補）' };
   for (const k of ['product_type', 'amount', 'need_types', 'lost_reason', 'watch_note']) if (l[k] != null && l[k] !== '') extra[k] = l[k];
   return {
     ...withLink(leadSummary(l, L), url.origin), ...extra,
@@ -527,6 +529,20 @@ function parseArrived(v) {
   if (t > Date.now() + 5 * 60e3) throw new HttpError(400, 'arrived_at 不能是未來時間');
   return new Date(t).toISOString();
 }
+async function resolveSource(db, raw) {
+  const srcs = await db.get('sources?select=id,name');
+  const k = String(raw || '').trim().toLowerCase();
+  const al = { '陌開': '業務陌開', '電話': '業務陌開', '陌生開發': '業務陌開', 'facebook': 'FB', 'fb': 'FB', 'meta': 'FB', '臉書': 'FB', 'ig': 'FB', 'instagram': 'FB', 'google': 'Google', '谷歌': 'Google', '網站': '官網', '官方網站': '官網', 'email': '行銷信', 'e-mail': '行銷信', '開發信': '行銷信' };
+  const hit = k && (srcs.find(x => x.name.toLowerCase() === k) || srcs.find(x => x.name === al[k]) || srcs.find(x => x.name.toLowerCase().includes(k) || k.includes(x.name.toLowerCase())));
+  if (!hit) throw new HttpError(400, `來源「${raw}」不在清單：${srcs.map(x => x.name).join('、')}`);
+  return hit;
+}
+async function setSource({ db, url }, leadId, b) {
+  const l = await loadLead({ db }, leadId);
+  const src = await resolveSource(db, b.source);
+  await db.update('leads', `id=eq.${leadId}`, { source_id: src.id, updated_at: new Date().toISOString() });
+  return { ok: true, lead: l.name, source: src.name, crm_link: url.origin + '/#lead=' + leadId };
+}
 async function createLead(ctx, b) {
   const { db, me, url } = ctx;
   const name = String(b.name || '').trim();
@@ -548,15 +564,7 @@ async function createLead(ctx, b) {
   if (BLOCKED_STAGES.includes(stage.name)) throw new HttpError(400, `新名單不能直接放在「${stage.name}」`);
   // 指派給別人、又沒指定階段 → 直接放「已分配」
   if (!b.stage && owner.id !== me.id && L.stageByName('已分配')) stage = L.stageByName('已分配');
-  let source_id = null;
-  if (b.source) {
-    const srcs = await db.get('sources?select=id,name');
-    const k = String(b.source).trim().toLowerCase();
-    const al = { '陌開': '業務陌開', '電話': '業務陌開', 'facebook': 'FB', 'fb': 'FB', 'google': 'Google', '網站': '官網', 'email': '行銷信', 'e-mail': '行銷信', '開發信': '行銷信' };
-    const hit = srcs.find(x => x.name.toLowerCase() === k) || srcs.find(x => x.name === al[k]) || srcs.find(x => x.name.toLowerCase().includes(k) || k.includes(x.name.toLowerCase()));
-    if (!hit) throw new HttpError(400, `來源「${b.source}」不在清單：${srcs.map(x => x.name).join('、')}`);
-    source_id = hit.id;
-  }
+  const source_id = b.source ? (await resolveSource(db, b.source)).id : null;
   const industry = (b.industry && indNorm(b.industry).industry) || industryGuess(name) || null;
   const star = starOk(ctx, b.star);
   const arrived = parseArrived(b.arrived_at) || new Date().toISOString();
@@ -1299,6 +1307,18 @@ async function weeklyReport({ db, me, url }) {
     return { reached: out, lost: Object.entries(by).map(([stage, ids]) => ({ stage, n: ids.length, leads: ref(ids) })) };
   };
   const cohortLeads = leads.filter(l => inCohort(l.created_at) || asgCohort.has(l.id));
+  // 來源分析：近 12 週新進的名單，各來源走到哪
+  const srcOf = l => isCold(l) ? '陌開' : srcName(l.source_id);
+  const srcStats = (() => {
+    const ls = leads.filter(l => inCohort(l.created_at)), g = {};
+    ls.forEach(l => { (g[srcOf(l)] ||= []).push(l); });
+    return Object.entries(g).map(([source, a]) => {
+      const demo = a.filter(l => maxStage(l) >= 1), won = a.filter(l => l.stage_id === WON), lost = a.filter(l => l.stage_id === CLOSED);
+      return { source, n: a.length, leads: ref(a.map(l => l.id)), demo: demo.length, demo_leads: ref(demo.map(l => l.id)), won: won.length, won_leads: ref(won.map(l => l.id)),
+        lost: lost.length, lost_leads: ref(lost.map(l => l.id)), open: a.filter(isOpen).length,
+        demo_rate: pctOf(demo.length, a.length), won_rate: pctOf(won.length, a.length), lost_reasons: shareOf(lost.map(l => reasonCat(l.lost_reason))).slice(0, 3) };
+    }).sort((a, b) => b.n - a.n);
+  })();
   const cohort4 = leads.filter(l => in4(l.created_at) || asg4.has(l.id));
 
   // 續約、收款（原「數據」頁）
@@ -1473,6 +1493,7 @@ async function weeklyReport({ db, me, url }) {
     overall: {
       new_leads: newLeads, assigned, deals: { companies: new Set(dealsWk.map(d => d.company)).size, list: dealsWk }, lost, open,
       funnel_4w: funnelOf(cohort4), funnel_12w: funnelOf(cohortLeads), week_moves: weekMoves(leads), week_tracked: T > Date.parse('2026-11-08T00:00:00+08:00'),
+      source_12w: srcStats,
       team: reps.map(r => ({ rep: r.rep, user_id: r.user_id, ...r.kpi.cur, open: r.pipeline.open, overdue: r.pipeline.overdue, help: r.pipeline.help, first_touch_hours: r.assigned.first_touch_hours_median })),
       renewals, dues,
       starred: ref(openLeads.filter(l => l.watch).map(l => l.id))
