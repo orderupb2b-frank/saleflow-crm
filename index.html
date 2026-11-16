@@ -973,6 +973,9 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .wk-tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:12px; }
 .wk-tiles.in { grid-template-columns:repeat(3,1fr); margin:0 0 12px; }
 .wk-tile { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:12px 14px; }
+.wk-tile.wk-tap { cursor:pointer; transition:border-color .15s; }
+.wk-tile.wk-tap:hover { border-color:var(--accent); }
+.wk-tile.wk-tap .wk-l::after { content:' ›'; color:var(--text3); }
 .wk-tiles.in .wk-tile { background:var(--bg3); border:0; }
 .wk-n { font-size:26px; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; }
 .wk-n small { font-size:14px; color:var(--text3); font-weight:500; margin-left:2px; }
@@ -4738,7 +4741,22 @@ async function wkFetch(start, force) {
   _wk.cache[start] = j; return j;
 }
 // 名單清單登記：按鈕只帶編號，避免把 id 陣列塞進 HTML
-function wkReg(ids, title) { _wk.reg.push({ ids: ids || [], title: title || '' }); return _wk.reg.length - 1; }
+function wkReg(ids, title, opt) { _wk.reg.push({ ids: ids || [], title: title || '', opt: opt || null }); return _wk.reg.length - 1; }
+function wkCurRep() { return _wk.data && _wk.data.reps.find(function (x) { return x.user_id === _wk.tab; }); }
+function wkModal(title, html) { openModal(title, html); document.getElementById('modalFooter').style.display = 'none'; document.getElementById('modalBox').style.maxWidth = '680px'; }
+function wkActPop() {
+  const r = wkCurRep(); if (!r) return;
+  const a = r.activity;
+  wkModal(r.rep + '・本週活動（' + a.n + '）', '<div class="wk-mut" style="margin-bottom:8px">' + a.by_type.map(function (t) { return esc(t.type) + ' ' + t.n; }).join('・') + '</div><div class="wk-log">'
+    + a.log.map(function (x) { return '<div class="wk-logi"><div class="wk-mut">' + esc(x.when.slice(5)) + '・' + esc(x.type) + '</div><div>' + (x.lead ? wkCo(x.lead, x.company) : esc(x.company || '')) + '<div class="wk-logc">' + esc(x.content) + '</div></div></div>'; }).join('') + '</div>');
+}
+function wkOvPop(k) {
+  const o = _wk.data.overall;
+  if (k === 'deals') wkModal('本週成交（' + o.deals.list.length + '）', wkDealsTable(o.deals.list, _wk.data.viewer.role === 'admin', true));
+  else wkModal('本週結案（' + o.lost.total + '）', wkBar(o.lost.reasons) + '<div style="margin-top:10px">' + wkLeadRows(o.lost.leads, { pop: -2, lost: true }) + '</div>');
+}
+function wkDealPop() { const r = wkCurRep(); if (!r) return; wkModal(r.rep + '・本週成交（' + r.pipeline.won.n + '）', wkDealsTable(r.pipeline.won.list, _wk.data.viewer.role === 'admin', false)); }
+function wkLostPop() { const r = wkCurRep(); if (!r) return; const l = r.pipeline.lost; wkModal(r.rep + '・本週結案（' + l.n + '）', wkBar(l.reasons) + '<div style="margin-top:10px">' + wkLeadRows(l.leads, { lost: true }) + '</div>'); }
 async function renderWeekly(force) {
   const thisSat = wkSat(nowDateStr());
   if (!_wk.start) _wk.start = wkAdd(thisSat, -7);
@@ -4776,7 +4794,7 @@ function wkDelta(c, p, badUp) {
   const good = badUp ? d < 0 : d > 0;
   return '<span class="wk-d ' + (good ? 'up' : 'dn') + '">' + (d > 0 ? '▲' : '▼') + Math.abs(d) + '</span>';
 }
-function wkTile(n, label, sub, cls) { return '<div class="wk-tile ' + (cls || '') + '"><div class="wk-n">' + n + '</div><div class="wk-l">' + label + '</div>' + (sub ? '<div class="wk-s">' + sub + '</div>' : '') + '</div>'; }
+function wkTile(n, label, sub, cls, onclick) { return '<div class="wk-tile ' + (cls || '') + (onclick ? ' wk-tap" onclick="' + onclick : '') + '"><div class="wk-n">' + n + '</div><div class="wk-l">' + label + '</div>' + (sub ? '<div class="wk-s">' + sub + '</div>' : '') + '</div>'; }
 function wkPopBtn(ids, title, inner, cls) {
   if (!ids || !ids.length) return '<span class="' + (cls || '') + ' wk-zero">' + inner + '</span>';
   return '<button class="wk-link ' + (cls || '') + '" onclick="wkPop(' + wkReg(ids, title) + ')">' + inner + '</button>';
@@ -4874,7 +4892,10 @@ function wkOverall(d) {
   const ren = o.renewals.length ? o.renewals.map(function (r) { return '<tr><td>' + wkCo(r.lead_id, r.company) + '</td><td class="wk-mut">' + esc(r.owner) + '</td><td class="wk-num ' + (r.days < 0 ? 'wk-bad' : r.days <= 14 ? 'wk-warn' : '') + '">' + (r.days < 0 ? '過期 ' + (-r.days) + ' 天' : r.days + ' 天') + '</td></tr>'; }).join('') : '';
   const due = o.dues.length ? o.dues.map(function (r) { return '<tr><td>' + wkCo(r.lead_id, r.company) + '<div class="wk-mut">' + esc(r.label) + '</div></td><td class="wk-mut">' + esc(r.owner) + '</td>' + (adm ? '<td class="wk-num">' + wkMoney(r.amount) + '</td>' : '') + '<td class="wk-num ' + (r.days < 0 ? 'wk-bad' : '') + '">' + (r.days < 0 ? '逾期 ' + (-r.days) + ' 天' : r.days === 0 ? '今天' : r.days + ' 天') + '</td></tr>'; }).join('') : '';
   return '<div class="wk-tiles">'
-    + wkTile(o.new_leads.total, '新線索') + wkTile(o.assigned.total, '分配') + wkTile(o.deals.companies, '成交', '', 'good') + wkTile(o.lost.total, '結案', '', 'bad')
+    + wkTile(o.new_leads.total, '新線索', '', '', o.new_leads.total ? 'wkPop(' + wkReg([].concat.apply([], o.new_leads.by_source.map(function (g) { return g.leads; })), '本週新線索') + ')' : '')
+    + wkTile(o.assigned.total, '分配', '', '', o.assigned.total ? 'wkPop(' + wkReg([].concat.apply([], o.assigned.by_rep.map(function (g) { return g.leads; })), '本週分配') + ')' : '')
+    + wkTile(o.deals.companies, '成交', '', 'good', o.deals.list.length ? 'wkOvPop(\'deals\')' : '')
+    + wkTile(o.lost.total, '結案', '', 'bad', o.lost.total ? 'wkOvPop(\'lost\')' : '')
     + '</div><div class="wk-grid">'
     + '<div class="card"><div class="wk-h">線索來源</div>' + src + '</div>'
     + '<div class="card"><div class="wk-h">分配</div>' + asg + '</div>'
@@ -4906,12 +4927,12 @@ function wkRep(d, r) {
   const c = r.cold, a = r.assigned, p = r.pipeline, k = r.kpi.cur, kp = r.kpi.prev, adm = d.viewer.role === 'admin';
   const prog = function (n, t) { return t ? '<div class="wk-prog"><span style="width:' + Math.min(100, n / t * 100) + '%;background:' + (n >= t ? 'var(--green)' : 'var(--accent)') + '"></span></div>' : ''; };
   const tiles = '<div class="wk-tiles six">'
-    + wkTile(k.activities + wkDelta(k.activities, kp.activities), '活動', '接觸 ' + k.companies + ' 家')
-    + wkTile(k.demo_in + wkDelta(k.demo_in, kp.demo_in), '新約 Demo', '', 'good')
-    + wkTile(k.deals + wkDelta(k.deals, kp.deals), '成交', '', 'good')
-    + wkTile(k.lost + wkDelta(k.lost, kp.lost, true), '結案', '', 'bad')
-    + wkTile(p.open, '進行中', p.overdue ? '<span class="wk-bad">逾期 ' + p.overdue + '</span>' : '')
-    + wkTile(p.expected_hot ? wkMoney(p.expected_hot) : '—', '有望＋議價 預估', '')
+    + wkTile(k.activities + wkDelta(k.activities, kp.activities), '活動', '接觸 ' + k.companies + ' 家', '', r.activity.n ? 'wkActPop()' : '')
+    + wkTile(k.demo_in + wkDelta(k.demo_in, kp.demo_in), '新約 Demo', '', 'good', (p.demo_in_leads || []).length ? 'wkPop(' + wkReg(p.demo_in_leads, r.rep + '・新約 Demo') + ')' : '')
+    + wkTile(k.deals + wkDelta(k.deals, kp.deals), '成交', '', 'good', p.won.n ? 'wkDealPop(' + wkReg([], r.rep + '・成交') + ')' : '')
+    + wkTile(k.lost + wkDelta(k.lost, kp.lost, true), '結案', '', 'bad', p.lost.n ? 'wkLostPop()' : '')
+    + wkTile(p.open, '進行中', p.overdue ? '<span class="wk-bad" onclick="event.stopPropagation();wkPop(' + wkReg(p.overdue_leads || [], r.rep + '・逾期') + ')">逾期 ' + p.overdue + ' ›</span>' : '', '', p.open ? 'wkPop(' + wkReg([].concat.apply([], p.stages.map(function (s) { return s.leads; })), r.rep + '・進行中') + ')' : '')
+    + wkTile(p.expected_hot ? wkMoney(p.expected_hot) : '—', '有望＋議價 預估', '', '', (p.hot_leads || []).length ? 'wkPop(' + wkReg(p.hot_leads, r.rep + '・有望＋議價', { exp: true, quote: true }) + ')' : '')
     + '</div>';
   const cold = '<div class="card"><div class="wk-h">陌開</div><div class="wk-tiles in">'
     + wkTile(c.called + (c.target_week ? '<small>/' + c.target_week + '</small>' : '') + wkDelta(k.called, kp.called), '打了', prog(c.called, c.target_week) + (c.dials > c.called ? c.dials + ' 通' : ''))
@@ -4996,7 +5017,7 @@ function wkFlagBtns(x) {
 }
 function wkPop(i) {
   const g = _wk.reg[i]; if (!g) return;
-  openModal(g.title + '（' + g.ids.length + '）', wkLeadRows(g.ids, { pop: i }));
+  openModal(g.title + '（' + g.ids.length + '）', wkLeadRows(g.ids, Object.assign({ pop: i }, g.opt || {})));
   document.getElementById('modalFooter').style.display = 'none';
   document.getElementById('modalBox').style.maxWidth = '640px';
 }
