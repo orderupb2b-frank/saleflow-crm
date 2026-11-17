@@ -180,6 +180,7 @@ async function api(request, env, url, ectx) {
   if (m === 'GET' && path === '/api/report/attention') return json(await attentionReport(ctx));
   if (m === 'GET' && path === '/api/report/weekly') return json(await weeklyReport(ctx));
   if (m === 'GET' && path === '/api/report/intake') return json(await intakeReport(ctx));
+  if (m === 'GET' && path === '/api/report/daily') return json(await dailyReport(ctx));
   if (m === 'GET' && path === '/api/customers') return json(await listCustomers(ctx));
   if (m === 'POST' && path === '/api/dedupe') return json(await checkDuplicates(ctx, await readBody(request)));
   if (m === 'GET' && path === '/api/names') return json(await exportNames(ctx));
@@ -1050,6 +1051,68 @@ function industryGuess(name) {
   return null;
 }
 
+// 每日 KPI：每位業務每天的聯絡量（分配名單有沒有聯絡完、既有客戶活動、陌開撥打）
+async function dailyReport({ db, url }) {
+  const L = await lookups(db);
+  const nDays = Math.min(31, Math.max(1, +url.searchParams.get('days') || 7));
+  const today = todayTW(), now = Date.now();
+  const F = Date.parse(addDays(today, -(nDays - 1)) + 'T00:00:00+08:00');
+  const iso = x => new Date(x).toISOString();
+  const day = t => toTW(t).slice(0, 10);
+  const [events, acts, logs, ccs] = await Promise.all([
+    getAll(db, `lead_events?select=lead_id,kind,to_user,at&kind=in.(assign,create)&at=gte.${iso(F)}&order=at`),
+    getAll(db, `activities?select=user_id,lead_id,type,created_at&created_at=gte.${iso(F - 2 * 864e5)}&type=neq.note&order=id`),
+    getAll(db, `call_logs?select=user_id,outcome,called_at,cold_call_id&called_at=gte.${iso(F)}&order=id`),
+    getAll(db, 'cold_calls?select=owner_id,status,next_call_at&status=in.(new,calling,callback)&next_call_at=not.is.null&order=id')
+  ]);
+  const ccLeadIds = new Set((await getAll(db, 'cold_calls?select=lead_id&lead_id=not.is.null&order=id')).map(c => c.lead_id));
+  // 分配：最後一次指給這位業務（同一天同一家只算一次；陌開轉進來的不算分配）
+  const asg = new Map();
+  events.filter(e => e.to_user && !ccLeadIds.has(e.lead_id)).forEach(e => asg.set(e.lead_id + '|' + e.to_user, e));
+  const actsBy = {}; acts.forEach(a => { if (a.lead_id) (actsBy[a.lead_id] ||= []).push(a); });
+  const CONNECTED = new Set(['interested', 'callback']);
+  const rows = [];
+  for (const u of L.users) {
+    const myAsg = [...asg.values()].filter(e => e.to_user === u.id);
+    const myActs = acts.filter(a => a.user_id === u.id && Date.parse(a.created_at) >= F);
+    const myLogs = logs.filter(x => x.user_id === u.id);
+    const todayLeft = u.id ? ccs.filter(c => c.owner_id === u.id && String(c.next_call_at).slice(0, 10) <= today).length : 0;
+    if (!myAsg.length && !myActs.length && !myLogs.length && !todayLeft) continue;
+    const days = [];
+    for (let i = 0; i < nDays; i++) {
+      const d = addDays(today, -i);
+      const a = myAsg.filter(e => day(e.at) === d);
+      const firstIds = new Set();
+      const asgLeads = a.map(e => {
+        const t = Date.parse(e.at) - 60e3;
+        const f = (actsBy[e.lead_id] || []).find(x => Date.parse(x.created_at) >= t);
+        if (f && day(f.created_at) === d) firstIds.add(e.lead_id);
+        return { id: e.lead_id, contacted: !!f, same_day: !!f && day(f.created_at) === d };
+      });
+      const dayActs = myActs.filter(x => day(x.created_at) === d);
+      const newTouch = dayActs.filter(x => firstIds.has(x.lead_id));
+      const exist = dayActs.filter(x => !firstIds.has(x.lead_id));
+      const dl = myLogs.filter(x => day(x.called_at) === d);
+      days.push({
+        day: d,
+        assigned: a.length, contacted: asgLeads.filter(x => x.contacted).length, same_day: asgLeads.filter(x => x.same_day).length,
+        pending: asgLeads.filter(x => !x.contacted).map(x => x.id),
+        existing: exist.length, existing_companies: new Set(exist.map(x => x.lead_id)).size,
+        new_touch: newTouch.length,
+        calls: dl.length, connected: dl.filter(x => CONNECTED.has(x.outcome)).length, interested: dl.filter(x => x.outcome === 'interested').length,
+        total: dayActs.length + dl.length
+      });
+    }
+    rows.push({ user_id: u.id, rep: u.full_name || u.email, cold_today_left: todayLeft, days });
+  }
+  // 待聯絡的名單附名稱，方便點開
+  const pend = [...new Set(rows.flatMap(r => r.days.flatMap(d => d.pending)))];
+  const names = {};
+  for (let i = 0; i < pend.length; i += 100) (await db.get(`leads?select=id,name&id=in.(${pend.slice(i, i + 100).join(',')})`)).forEach(l => { names[l.id] = l.name; });
+  rows.forEach(r => r.days.forEach(d => { d.pending = d.pending.map(id => ({ id, name: names[id] || '' })); }));
+  return { range: { from: addDays(today, -(nDays - 1)), to: today, days: nDays }, today, reps: rows,
+    note: '分配＝主管或系統指給這位業務的名單（陌開轉入不算）；已聯絡＝分配後有任何活動（不含備註），當天聯絡另計；既有客戶＝當天對其他名單的活動數；陌開＝當天撥打紀錄。' };
+}
 // 名單追蹤：近 N 天進來（非陌開）的名單 → 分配多久第一次聯絡、後來走到哪
 async function intakeReport({ db, me, url }) {
   const L = await lookups(db);
