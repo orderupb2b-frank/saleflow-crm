@@ -1054,9 +1054,15 @@ function industryGuess(name) {
 // 每日 KPI：每位業務每天的聯絡量（分配名單有沒有聯絡完、既有客戶活動、陌開撥打）
 async function dailyReport({ db, url }) {
   const L = await lookups(db);
+  const weekly = url.searchParams.get('mode') === 'week';
   const nDays = Math.min(31, Math.max(1, +url.searchParams.get('days') || 7));
+  const nWeeks = Math.min(12, Math.max(1, +url.searchParams.get('weeks') || 6));
   const today = todayTW(), now = Date.now();
-  const F = Date.parse(addDays(today, -(nDays - 1)) + 'T00:00:00+08:00');
+  // 區間：每天一格，或每週（週六～週五）一格
+  const periods = weekly
+    ? Array.from({ length: nWeeks }, (_, i) => { const f = addDays(weekStartOf(today), -7 * i); return { key: f, from: f, to: addDays(f, 6) }; })
+    : Array.from({ length: nDays }, (_, i) => { const d = addDays(today, -i); return { key: d, from: d, to: d }; });
+  const F = Date.parse(periods[periods.length - 1].from + 'T00:00:00+08:00');
   const iso = x => new Date(x).toISOString();
   const day = t => toTW(t).slice(0, 10);
   const [events, acts, logs, ccs] = await Promise.all([
@@ -1078,31 +1084,31 @@ async function dailyReport({ db, url }) {
     const myLogs = logs.filter(x => x.user_id === u.id);
     const todayLeft = u.id ? ccs.filter(c => c.owner_id === u.id && String(c.next_call_at).slice(0, 10) <= today).length : 0;
     if (!myAsg.length && !myActs.length && !myLogs.length && !todayLeft) continue;
-    const days = [];
-    for (let i = 0; i < nDays; i++) {
-      const d = addDays(today, -i);
-      const a = myAsg.filter(e => day(e.at) === d);
+    const days = periods.map(P => {
+      const d = P.key, inP = x => x >= P.from && x <= P.to;
+      const a = myAsg.filter(e => inP(day(e.at)));
       const firstIds = new Set();
       const asgLeads = a.map(e => {
         const t = Date.parse(e.at) - 60e3;
         const f = (actsBy[e.lead_id] || []).find(x => Date.parse(x.created_at) >= t);
-        if (f && day(f.created_at) === d) firstIds.add(e.lead_id);
-        return { id: e.lead_id, contacted: !!f, same_day: !!f && day(f.created_at) === d };
+        if (f && inP(day(f.created_at))) firstIds.add(e.lead_id);
+        return { id: e.lead_id, contacted: !!f, same_day: !!f && day(f.created_at) === day(e.at) };
       });
-      const dayActs = myActs.filter(x => day(x.created_at) === d);
+      const dayActs = myActs.filter(x => inP(day(x.created_at)));
       const newTouch = dayActs.filter(x => firstIds.has(x.lead_id));
       const exist = dayActs.filter(x => !firstIds.has(x.lead_id));
-      const dl = myLogs.filter(x => day(x.called_at) === d);
-      days.push({
-        day: d,
+      const dl = myLogs.filter(x => inP(day(x.called_at)));
+      return {
+        day: d, to: P.to,
         assigned: a.length, contacted: asgLeads.filter(x => x.contacted).length, same_day: asgLeads.filter(x => x.same_day).length,
         pending: asgLeads.filter(x => !x.contacted).map(x => x.id),
         existing: exist.length, existing_companies: new Set(exist.map(x => x.lead_id)).size,
         new_touch: newTouch.length,
         calls: dl.length, connected: dl.filter(x => CONNECTED.has(x.outcome)).length, interested: dl.filter(x => x.outcome === 'interested').length,
+        active_days: new Set(dayActs.map(x => day(x.created_at)).concat(dl.map(x => day(x.called_at)))).size,
         total: dayActs.length + dl.length
-      });
-    }
+      };
+    });
     rows.push({ user_id: u.id, rep: u.full_name || u.email, cold_today_left: todayLeft, days });
   }
   // 待聯絡的名單附名稱，方便點開
@@ -1110,7 +1116,7 @@ async function dailyReport({ db, url }) {
   const names = {};
   for (let i = 0; i < pend.length; i += 100) (await db.get(`leads?select=id,name&id=in.(${pend.slice(i, i + 100).join(',')})`)).forEach(l => { names[l.id] = l.name; });
   rows.forEach(r => r.days.forEach(d => { d.pending = d.pending.map(id => ({ id, name: names[id] || '' })); }));
-  return { range: { from: addDays(today, -(nDays - 1)), to: today, days: nDays }, today, reps: rows,
+  return { mode: weekly ? 'week' : 'day', range: { from: periods[periods.length - 1].from, to: today }, today, this_week: weekStartOf(today), reps: rows,
     note: '分配＝主管或系統指給這位業務的名單（陌開轉入不算）；已聯絡＝分配後有任何活動（不含備註），當天聯絡另計；既有客戶＝當天對其他名單的活動數；陌開＝當天撥打紀錄。' };
 }
 // 名單追蹤：近 N 天進來（非陌開）的名單 → 分配多久第一次聯絡、後來走到哪
