@@ -1642,7 +1642,7 @@ async function renderPage(page) {
     case 'pricing': renderPricing(); break;
     case 'performance': await renderPerformance(); break;
     case 'dashboard': await renderDashboard(); break;
-    case 'weekly': _wk.cache = {}; _wi.data = null; _wd.data = null; await renderWeekly(); break;
+    case 'weekly': _wk.cache = {}; _wi.data = null; _wd.data = null; _wd.cache = {}; await renderWeekly(); break;
     case 'leads': await renderLeads(); break;
     case 'leadlist': await renderLeads(); break;
     case 'bonus': await renderPerformance(); break;
@@ -5029,31 +5029,42 @@ function wkRep(d, r) {
     + '<div class="card wk-wide">' + wkFunnelCard(r.funnel_12w, r.funnel_4w, true, r.week_moves) + '</div>' + log;
 }
 // ── 每日 KPI：每位業務每天的聯絡量 ──
-let _wd = { data: null, loading: false, day: null };
+let _wd = { mode: 'day', data: null, cache: {}, loading: false, day: null, week: null };
 async function wkDailyLoad() {
-  if (_wd.loading || _wd.data) return;
+  const m = _wd.mode;
+  if (_wd.cache[m]) { _wd.data = _wd.cache[m]; return; }
+  if (_wd.loading) return;
   _wd.loading = true;
   try {
     const s = (await db.auth.getSession()).data.session;
-    const r = await fetch('/api/report/daily?days=7', { headers: { Authorization: 'Bearer ' + s.access_token, 'X-Client': 'crm' } });
+    const r = await fetch('/api/report/daily?' + (m === 'week' ? 'mode=week&weeks=6' : 'days=7'), { headers: { Authorization: 'Bearer ' + s.access_token, 'X-Client': 'crm' } });
     const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
-    _wd.data = j; if (!_wd.day) _wd.day = j.today;
-  } catch (e) { _wd.data = { error: e.message }; }
+    _wd.cache[m] = j;
+    if (m === 'day' && !_wd.day) _wd.day = j.today;
+    if (m === 'week' && !_wd.week) _wd.week = j.this_week;
+  } catch (e) { _wd.cache[m] = { error: e.message }; }
   _wd.loading = false;
+  if (_wd.mode === m) _wd.data = _wd.cache[m];
   if (currentPage === 'weekly') wkRedraw();
 }
+function wkDailyMode(m) { _wd.mode = m; _wd.data = _wd.cache[m] || null; wkRedraw(); }
 function wkDailyPend(uid, day) {
   const r = _wd.data.reps.find(function (x) { return x.user_id === uid; }); if (!r) return;
   const d = r.days.find(function (x) { return x.day === day; }); if (!d || !d.pending.length) return;
-  wkPop(wkReg(d.pending.map(function (p) { return p.id; }), r.rep + '・' + day.slice(5).replace('-', '/') + ' 分配還沒聯絡'));
+  wkPop(wkReg(d.pending.map(function (p) { return p.id; }), r.rep + '・' + wkDailyLbl(d, true) + ' 分配還沒聯絡'));
+}
+function wkDailyLbl(d, long) {
+  const D = _wd.data, WD = '日一二三四五六', md = function (x) { return x.slice(5).replace('-', '/'); };
+  if (D.mode === 'week') return d.day === D.this_week ? '本週' + (long ? '（' + md(d.day) + '～' + md(d.to) + '）' : '') : md(d.day) + '～' + md(d.to);
+  return d.day === D.today ? '今天' : md(d.day) + (long ? '（' + WD[new Date(d.day + 'T00:00:00').getDay()] + '）' : '');
 }
 function wkDailyCard(uid) {
-  const D = _wd.data;
-  const head = function (extra) { return '<div class="wk-h">每日 KPI' + (extra || '') + '</div>'; };
-  if (!D) { wkDailyLoad(); return '<div class="card wk-wide">' + head() + '<div class="wk-none">載入中…</div></div>'; }
+  if (!_wd.data) wkDailyLoad();
+  const D = _wd.data, wk = _wd.mode === 'week';
+  const seg = '<span class="wk-seg">' + [['day', '每日'], ['week', '每週']].map(function (x) { return '<button class="' + (_wd.mode === x[0] ? 'on' : '') + '" onclick="wkDailyMode(\'' + x[0] + '\')">' + x[1] + '</button>'; }).join('') + '</span>';
+  const head = function (extra) { return '<div class="wk-h">KPI ' + seg + (extra || '') + '</div>'; };
+  if (!D) return '<div class="card wk-wide">' + head() + '<div class="wk-none">載入中…</div></div>';
   if (D.error) return '<div class="card wk-wide">' + head() + '<div class="wk-none">讀取失敗：' + esc(D.error) + '</div></div>';
-  const WD = '日一二三四五六';
-  const dl = function (d) { return d === D.today ? '今天' : d.slice(5).replace('-', '/') + '（' + WD[new Date(d + 'T00:00:00').getDay()] + '）'; };
   const asgCell = function (r, d) {
     if (!d.assigned) return '<td class="wk-num wk-zero">—</td>';
     const left = d.assigned - d.contacted;
@@ -5064,23 +5075,24 @@ function wkDailyCard(uid) {
     return asgCell(r, d)
       + '<td class="wk-num">' + (d.existing ? d.existing + '<span class="wk-mut"> ・' + d.existing_companies + ' 家</span>' : '<span class="wk-zero">0</span>') + '</td>'
       + '<td class="wk-num">' + (d.calls ? d.calls + '<span class="wk-mut"> ・接通 ' + d.connected + '</span>' : '<span class="wk-zero">0</span>') + '</td>'
-      + '<td class="wk-num"><b>' + d.total + '</b></td>';
+      + '<td class="wk-num"><b>' + d.total + '</b>' + (wk ? '<div class="wk-mut">' + (d.active_days || 0) + ' 天有紀錄</div>' : '') + '</td>';
   };
   const th = '<thead><tr><th></th><th class="wk-num">分配→已聯絡</th><th class="wk-num">既有客戶活動</th><th class="wk-num">陌開撥打</th><th class="wk-num">合計</th></tr></thead>';
   if (uid) {
     const r = D.reps.find(function (x) { return x.user_id === uid; });
     if (!r) return '';
-    return '<div class="card wk-wide">' + head(r.cold_today_left ? '<span class="wk-mut">陌開今日待打還剩 ' + r.cold_today_left + '</span>' : '')
+    return '<div class="card wk-wide">' + head(!wk && r.cold_today_left ? '<span class="wk-mut">陌開今日待打還剩 ' + r.cold_today_left + '</span>' : '')
       + '<div class="wk-scroll"><table class="wk-tbl wk-intake">' + th + '<tbody>'
-      + r.days.map(function (d) { return '<tr><td>' + dl(d.day) + '</td>' + cells(r, d) + '</tr>'; }).join('') + '</tbody></table></div></div>';
+      + r.days.map(function (d) { return '<tr><td>' + wkDailyLbl(d, true) + '</td>' + cells(r, d) + '</tr>'; }).join('') + '</tbody></table></div></div>';
   }
-  const days = D.reps.length ? D.reps[0].days.map(function (d) { return d.day; }) : [];
-  const chips = '<span class="wk-seg" style="margin-left:auto">' + days.slice().reverse().map(function (d) { return '<button class="' + (_wd.day === d ? 'on' : '') + '" onclick="_wd.day=\'' + d + '\';wkRedraw()">' + (d === D.today ? '今天' : d.slice(5).replace('-', '/')) + '</button>'; }).join('') + '</span>';
+  const days = D.reps.length ? D.reps[0].days : [];
+  const sel = wk ? _wd.week : _wd.day;
+  const chips = '<span class="wk-seg" style="margin-left:auto">' + days.slice().reverse().map(function (d) { return '<button class="' + (sel === d.day ? 'on' : '') + '" onclick="_wd.' + (wk ? 'week' : 'day') + '=\'' + d.day + '\';wkRedraw()">' + wkDailyLbl(d) + '</button>'; }).join('') + '</span>';
   return '<div class="card wk-wide">' + head(chips)
     + '<div class="wk-scroll"><table class="wk-tbl wk-intake">' + th + '<tbody>'
     + D.reps.map(function (r) {
-      const d = r.days.find(function (x) { return x.day === _wd.day; }) || r.days[0];
-      return '<tr><td>' + esc(r.rep) + (_wd.day === D.today && r.cold_today_left ? '<div class="wk-mut">陌開待打剩 ' + r.cold_today_left + '</div>' : '') + '</td>' + cells(r, d) + '</tr>';
+      const d = r.days.find(function (x) { return x.day === sel; }) || r.days[0];
+      return '<tr><td>' + esc(r.rep) + (!wk && sel === D.today && r.cold_today_left ? '<div class="wk-mut">陌開待打剩 ' + r.cold_today_left + '</div>' : '') + '</td>' + cells(r, d) + '</tr>';
     }).join('') + '</tbody></table></div></div>';
 }
 // ── 來源分析：近 12 週新進名單，各來源走到哪 ──
