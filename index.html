@@ -5090,7 +5090,7 @@ function wkDailyCard(uid) {
   const chips = '<span class="wk-seg" style="margin-left:auto">' + days.slice().reverse().map(function (d) { return '<button class="' + (sel === d.day ? 'on' : '') + '" onclick="_wd.' + (wk ? 'week' : 'day') + '=\'' + d.day + '\';wkRedraw()">' + wkDailyLbl(d) + '</button>'; }).join('') + '</span>';
   return '<div class="card wk-wide">' + head(chips)
     + '<div class="wk-scroll"><table class="wk-tbl wk-intake">' + th + '<tbody>'
-    + D.reps.map(function (r) {
+    + D.reps.filter(function (r) { return r.days.some(function (x) { return x.total; }) || r.cold_today_left; }).map(function (r) {
       const d = r.days.find(function (x) { return x.day === sel; }) || r.days[0];
       return '<tr><td>' + esc(r.rep) + (!wk && sel === D.today && r.cold_today_left ? '<div class="wk-mut">陌開待打剩 ' + r.cold_today_left + '</div>' : '') + '</td>' + cells(r, d) + '</tr>';
     }).join('') + '</tbody></table></div></div>';
