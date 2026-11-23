@@ -346,7 +346,7 @@ async function importColdCalls({ db, me, url }, b) {
 async function lookups(db) {
   const [stages, users] = await Promise.all([
     db.get('stages?select=id,name,label,order_index&order=order_index'),
-    db.get('user_profiles?select=id,full_name,role,email')
+    db.get('user_profiles?select=id,full_name,role,email,cold_daily')
   ]);
   return {
     stages,
@@ -1052,6 +1052,7 @@ function industryGuess(name) {
 }
 
 // 每日 KPI：每位業務每天的聯絡量（分配名單有沒有聯絡完、既有客戶活動、陌開撥打）
+const COLD_CARRY_FROM = '2026-11-14'; // 陌開未完成量從這週開始往下週累積
 async function dailyReport({ db, url }) {
   const L = await lookups(db);
   const weekly = url.searchParams.get('mode') === 'week';
@@ -1068,13 +1069,13 @@ async function dailyReport({ db, url }) {
   const [events, acts, logs, ccs] = await Promise.all([
     getAll(db, `lead_events?select=lead_id,kind,to_user,at&kind=in.(assign,create)&at=gte.${iso(F)}&order=at`),
     getAll(db, `activities?select=user_id,lead_id,type,created_at&created_at=gte.${iso(F - 2 * 864e5)}&type=neq.note&order=id`),
-    getAll(db, `call_logs?select=user_id,outcome,called_at,cold_call_id&called_at=gte.${iso(F)}&order=id`),
+    getAll(db, `call_logs?select=user_id,outcome,called_at,cold_call_id&called_at=gte.${iso(Math.min(F, Date.parse(COLD_CARRY_FROM + 'T00:00:00+08:00')))}&order=id`),
     getAll(db, 'cold_calls?select=owner_id,status,next_call_at&status=in.(new,calling,callback)&next_call_at=not.is.null&order=id')
   ]);
   const ccLeadIds = new Set((await getAll(db, 'cold_calls?select=lead_id&lead_id=not.is.null&order=id')).map(c => c.lead_id));
   // ── 陌開目標：上班日（一～五）每天 15 通；參展那天免；當週有成交整週免；當週每有一家陌開來的進 Demo 減 10 ──
-  const COLD_DAILY = 15, DEMO_CUT = 10;
-  const fromDay = periods[periods.length - 1].from, wkFrom = weekStartOf(fromDay);
+  const DEMO_CUT = 10;
+  const fromDay = periods[periods.length - 1].from, wkFrom = [weekStartOf(fromDay), COLD_CARRY_FROM].sort()[0];
   const demoId = L.stages.find(x => x.name === '約Demo')?.id;
   const [exempts, deals, stageEvs, srcs] = await Promise.all([
     getAll(db, `kpi_exempt?select=user_id,day,reason&day=gte.${wkFrom}&order=day`).catch(() => []),
@@ -1092,14 +1093,33 @@ async function dailyReport({ db, url }) {
   const isWorkday = d => { const w = new Date(d + 'T00:00:00Z').getUTCDay(); return w >= 1 && w <= 5; };
   const dealsInWeek = (uid, ws) => (deals || []).filter(x => x.sales_user_id === uid && x.signed >= ws && x.signed <= addDays(ws, 6)).length;
   const coldDemosInWeek = (uid, ws) => new Set(stageEvs.filter(e => e.to_user === uid && coldLeadSet.has(e.lead_id) && day(e.at) >= ws && day(e.at) <= addDays(ws, 6)).map(e => e.lead_id)).size;
+  // 每週配額：沒打完的量累積到下週（從 COLD_CARRY_FROM 那週開始算）；有成交的週整週免、也把累積清掉；打超過不會存到下週
+  const callsIn = (uid, f, t) => logs.filter(x => x.user_id === uid && day(x.called_at) >= f && day(x.called_at) <= t).length;
+  const weekBase = (u, ws) => {
+    let work = 0, ex = [];
+    for (let i = 0; i < 7; i++) { const d = addDays(ws, i); if (!isWorkday(d)) continue; work++; if (exemptOf(u.id, d)) ex.push(d); }
+    return { work, ex, base: (work - ex.length) * u.cold_daily };
+  };
+  const quotaMemo = {};
+  const weekQuota = (u, ws) => {
+    const k = u.id + ws; if (quotaMemo[k]) return quotaMemo[k];
+    const b = weekBase(u, ws), dealN = dealsInWeek(u.id, ws), demoN = coldDemosInWeek(u.id, ws);
+    let carry = 0;
+    if (ws > COLD_CARRY_FROM) { const pw = addDays(ws, -7), pq = weekQuota(u, pw); carry = Math.max(0, pq.quota - callsIn(u.id, pw, addDays(pw, 6))); }
+    const own = Math.max(0, b.base - demoN * DEMO_CUT);
+    const q = { quota: dealN ? 0 : own + carry, own: dealN ? 0 : own, carry: dealN ? 0 : carry, deal_waived: dealN > 0, deals: dealN, cold_demos: demoN, demo_cut: demoN * DEMO_CUT, ...b };
+    return (quotaMemo[k] = q);
+  };
   const coldTarget = (u, P) => {
-    if (u.role === 'admin') return null;
-    const ws = weekStartOf(P.from), dealN = dealsInWeek(u.id, ws), demoN = coldDemosInWeek(u.id, ws);
-    const ds = []; for (let d = P.from; d <= P.to; d = addDays(d, 1)) ds.push(d);
-    const work = ds.filter(isWorkday), ex = work.filter(d => exemptOf(u.id, d));
-    const base = (work.length - ex.length) * COLD_DAILY;
-    const cut = weekly ? demoN * DEMO_CUT : 0;
-    return { target: dealN ? 0 : Math.max(0, base - cut), base, workdays: work.length, exempt_days: ex, deal_waived: dealN > 0, deals: dealN, cold_demos: demoN, demo_cut: cut };
+    if (!u.cold_daily) return null;
+    const ws = weekStartOf(P.from);
+    if (weekly) {
+      const q = weekQuota(u, ws);
+      return { target: q.quota, carry: q.carry, workdays: q.work, exempt_days: q.ex, deal_waived: q.deal_waived, deals: q.deals, cold_demos: q.cold_demos, demo_cut: q.deal_waived ? 0 : q.demo_cut };
+    }
+    const d = P.from, work = isWorkday(d) ? 1 : 0, ex = work && exemptOf(u.id, d) ? [d] : [];
+    const dealN = dealsInWeek(u.id, ws);
+    return { target: dealN || !work || ex.length ? 0 : u.cold_daily, carry: 0, workdays: work, exempt_days: ex, deal_waived: dealN > 0, deals: dealN, cold_demos: 0, demo_cut: 0 };
   };
   // 分配：最後一次指給這位業務（同一天同一家只算一次；陌開轉進來的不算分配）
   const asg = new Map();
@@ -1146,7 +1166,7 @@ async function dailyReport({ db, url }) {
   const names = {};
   for (let i = 0; i < pend.length; i += 100) (await db.get(`leads?select=id,name&id=in.(${pend.slice(i, i + 100).join(',')})`)).forEach(l => { names[l.id] = l.name; });
   rows.forEach(r => r.days.forEach(d => { d.pending = d.pending.map(id => ({ id, name: names[id] || '' })); }));
-  return { cold_rule: { daily: COLD_DAILY, demo_cut: DEMO_CUT, text: '上班日每天 15 通；參展那天免；當週有成交整週免；當週每一家陌開進 Demo 減 10 通' }, mode: weekly ? 'week' : 'day', range: { from: periods[periods.length - 1].from, to: today }, today, this_week: weekStartOf(today), reps: rows,
+  return { cold_rule: { demo_cut: DEMO_CUT, text: '有設目標的業務：上班日每天 N 通；參展那天免；當週有成交整週免；當週每一家陌開進 Demo 減 10 通；沒打完的量累積到下週', carry_from: COLD_CARRY_FROM }, mode: weekly ? 'week' : 'day', range: { from: periods[periods.length - 1].from, to: today }, today, this_week: weekStartOf(today), reps: rows,
     note: '分配＝主管或系統指給這位業務的名單（陌開轉入不算）；已聯絡＝分配後有任何活動（不含備註），當天聯絡另計；既有客戶＝當天對其他名單的活動數；陌開＝當天撥打紀錄。' };
 }
 // 名單追蹤：近 N 天進來（非陌開）的名單 → 分配多久第一次聯絡、後來走到哪
