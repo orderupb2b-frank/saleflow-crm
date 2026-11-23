@@ -5098,6 +5098,7 @@ function wkDailyCard(uid) {
       const ongoing = wk ? d.day === D.this_week : d.day === D.today;
       const cls = d.calls >= c.target ? 'wk-good' : ongoing ? '' : 'wk-bad';
       main = '<span class="' + cls + '">' + d.calls + '／' + c.target + '</span>' + conn;
+      if (wk && c.carry) notes.push('<span class="wk-warn">含上週未完成 +' + c.carry + '</span>');
       if (wk && isEx) notes.push('參展 ' + c.exempt_days.length + ' 天');
       if (c.demo_cut) notes.push('陌開 Demo ' + c.cold_demos + ' 家 −' + c.demo_cut);
     }
