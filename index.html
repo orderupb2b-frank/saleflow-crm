@@ -5047,6 +5047,13 @@ async function wkDailyLoad() {
   if (_wd.mode === m) _wd.data = _wd.cache[m];
   if (currentPage === 'weekly') wkRedraw();
 }
+async function wkExempt(uid, day, on) {
+  const q = on ? db.from('kpi_exempt').delete().eq('user_id', uid).eq('day', day) : db.from('kpi_exempt').insert({ user_id: uid, day: day, reason: 'exhibit' });
+  const { error } = await q;
+  if (error) { toast('儲存失敗：' + error.message, 'error'); return; }
+  toast(on ? '已取消參展' : '已標參展，當天免陌開', 'success');
+  _wd.cache = {}; _wd.data = null; wkRedraw();
+}
 function wkDailyMode(m) { _wd.mode = m; _wd.data = _wd.cache[m] || null; wkRedraw(); }
 function wkDailyPend(uid, day) {
   const r = _wd.data.reps.find(function (x) { return x.user_id === uid; }); if (!r) return;
@@ -5074,10 +5081,29 @@ function wkDailyCard(uid) {
   const cells = function (r, d) {
     return asgCell(r, d)
       + '<td class="wk-num">' + (d.existing ? d.existing + '<span class="wk-mut"> ・' + d.existing_companies + ' 家</span>' : '<span class="wk-zero">0</span>') + '</td>'
-      + '<td class="wk-num">' + (d.calls ? d.calls + '<span class="wk-mut"> ・接通 ' + d.connected + '</span>' : '<span class="wk-zero">0</span>') + '</td>'
+      + coldCell(r, d)
       + '<td class="wk-num"><b>' + d.total + '</b>' + (wk ? '<div class="wk-mut">' + (d.active_days || 0) + ' 天有紀錄</div>' : '') + '</td>';
   };
-  const th = '<thead><tr><th></th><th class="wk-num">分配→已聯絡</th><th class="wk-num">既有客戶活動</th><th class="wk-num">陌開撥打</th><th class="wk-num">合計</th></tr></thead>';
+  const coldCell = function (r, d) {
+    const c = d.cold, conn = d.connected ? '<span class="wk-mut"> ・接通 ' + d.connected + '</span>' : '';
+    if (!c) return '<td class="wk-num">' + (d.calls ? d.calls + conn : '<span class="wk-zero">0</span>') + '</td>';
+    const canEx = !wk && c.workdays && (window.isAdmin || r.user_id === currentUser.id);
+    const isEx = c.exempt_days.length > 0;
+    const exBtn = canEx ? '<button class="wk-link wk-mut" style="font-size:11px" onclick="wkExempt(\'' + r.user_id + '\',\'' + d.day + '\',' + (isEx ? 'true' : 'false') + ')">' + (isEx ? '取消參展' : '標參展') + '</button>' : '';
+    let main, notes = [];
+    if (c.deal_waived) { main = d.calls + conn; notes.push('<span class="wk-good">本週有成交，免陌開</span>'); }
+    else if (!c.workdays) main = d.calls ? d.calls + conn : '<span class="wk-zero">—</span>';
+    else if (!wk && isEx) { main = d.calls + conn; notes.push('<span class="wk-good">參展，免陌開</span>'); }
+    else {
+      const ongoing = wk ? d.day === D.this_week : d.day === D.today;
+      const cls = d.calls >= c.target ? 'wk-good' : ongoing ? '' : 'wk-bad';
+      main = '<span class="' + cls + '">' + d.calls + '／' + c.target + '</span>' + conn;
+      if (wk && isEx) notes.push('參展 ' + c.exempt_days.length + ' 天');
+      if (c.demo_cut) notes.push('陌開 Demo ' + c.cold_demos + ' 家 −' + c.demo_cut);
+    }
+    return '<td class="wk-num">' + main + (notes.length ? '<div class="wk-mut">' + notes.join('・') + '</div>' : '') + (exBtn ? '<div>' + exBtn + '</div>' : '') + '</td>';
+  };
+  const th = '<thead><tr><th></th><th class="wk-num">分配→已聯絡</th><th class="wk-num">既有客戶活動</th><th class="wk-num">陌開撥打／目標</th><th class="wk-num">合計</th></tr></thead>';
   if (uid) {
     const r = D.reps.find(function (x) { return x.user_id === uid; });
     if (!r) return '';
