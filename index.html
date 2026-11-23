@@ -1518,7 +1518,7 @@ async function loadGlobalData() {
   } catch(e) { dealTypesData = []; }
   try {
     // Try to fetch all user profiles; RLS may limit results
-    let { data: up, error: upErr } = await db.from('user_profiles').select('id,full_name,role,email,ctag_labels').order('created_at');
+    let { data: up, error: upErr } = await db.from('user_profiles').select('id,full_name,role,email,ctag_labels,cold_daily').order('created_at');
     if (upErr) ({ data: up, error: upErr } = await db.from('user_profiles').select('id,full_name,role,email').order('created_at'));
     if (upErr) throw upErr;
     usersData = (up || []).filter(u => u.full_name || u.email); // only include users with a name
@@ -1994,9 +1994,10 @@ async function renderMMe() {
   // 陌開 KPI
   let cc = '';
   try {
-    const [kpis, lr] = await Promise.all([ccLoadKpis(ym), fetchAllPaged(function () { return db.from('call_logs').select('cold_call_id,outcome,called_at,user_id').gte('called_at', ym + '-01').order('id', { ascending: true }); })]);
+    const [wkD, lr] = await Promise.all([ccWeekLoad(), fetchAllPaged(function () { return db.from('call_logs').select('cold_call_id,outcome,called_at,user_id').gte('called_at', ym + '-01').order('id', { ascending: true }); })]);
     const logs = lr.data || [], convs = m.ccs.filter(function (c) { return c.status === 'converted'; });
-    const prog = ccKpiProgress(uid, kpis, logs, convs, ym);
+    const w = uid && uid !== 'all' ? ccWeekOf(wkD, uid) : null;
+    const prog = w ? [{ label: '本週陌開 ' + w.c.target + ' 通', done: w.c.deal_waived || w.calls >= w.c.target, pct: w.c.target ? w.calls / w.c.target : 1, sub: w.calls + ' / ' + w.c.target + (ccWeekNotes(w).length ? '・' + ccWeekNotes(w).join('・') : '') }] : [];
     const g = ccGameOf(uid, logs, convs, ccGoal());
     const myLogs = logs.filter(function (l) { return l.user_id === uid; });
     if (prog.length || myLogs.length) {
@@ -2825,7 +2826,7 @@ const CC_TITLES = [[20, '傳說', '👑'], [15, '金牌', '🥇'], [10, '銀牌'
 function ccLvlNeed(L) { return 50 * L * (L - 1); }
 function ccLevelOf(xp) { let L = 1; while (ccLvlNeed(L + 1) <= xp) L++; return L; }
 function ccTitleOf(L) { return CC_TITLES.find(function (t) { return L >= t[0]; }) || CC_TITLES[CC_TITLES.length - 1]; }
-function ccGoal() { try { const v = parseInt(localStorage.getItem('ccGoal2_' + currentUser.id)); if (v > 0) return v; } catch (e) {} return 20; }
+function ccGoal() { const me = usersData.find(function (u) { return u.id === currentUser.id; }); if (me && me.cold_daily) return me.cold_daily; try { const v = parseInt(localStorage.getItem('ccGoal2_' + currentUser.id)); if (v > 0) return v; } catch (e) {} return 20; }
 function ccDayKey(iso) { const d = new Date(iso); return d.getFullYear() + '-' + _pad2(d.getMonth() + 1) + '-' + _pad2(d.getDate()); }
 // 算一個人的經驗值、等級、連續天數、今天任務
 function ccGameOf(uid, logs, convs, goal) {
@@ -2869,7 +2870,7 @@ function ccHudHtml(g, overdue, todayDue, board, extra) {
     +   '<div style="flex:1;min-width:0"><div class="gm-title">' + g.title[2] + ' ' + g.title[1] + '獵人</div>'
     +   '<div class="gm-bar"><div style="width:' + pct + '%"></div></div>'
     +   '<div class="gm-xp">' + fmtNum(g.into) + ' / ' + fmtNum(g.need) + ' XP・再 ' + fmtNum(g.need - g.into) + ' 升級</div></div></div>'
-    + '<div class="gm-quests"><div class="gm-h">今日任務<button type="button" class="gm-edit" onclick="ccSetGoal2()" title="改每日目標">✎</button></div>'
+    + '<div class="gm-quests"><div class="gm-h">今日任務' + ((usersData.find(function (u) { return u.id === currentUser.id; }) || {}).cold_daily ? '' : '<button type="button" class="gm-edit" onclick="ccSetGoal2()" title="改每日目標">✎</button>') + '</div>'
     +   q(g.today.n >= goal, '處理 ' + goal + ' 筆', Math.min(g.today.n, goal) + '/' + goal)
     +   q(g.today.dev >= 1, '送 1 筆進開發', Math.min(g.today.dev, 1) + '/1')
     +   q(todayDue === 0, '今日待打清空', todayDue ? '剩 ' + todayDue : '✓')
@@ -2907,7 +2908,39 @@ function ccCheckLevel(L) {
   if (prev && L > prev) ccLevelUp(L);
 }
 
-// ── 陌開：每月 KPI（管理員設定，HUD 與統計顯示）──
+// ── 陌開：每週目標（跟週會 KPI 同一套算法：上班日每天 N 通、參展免、有成交整週免、陌開 Demo 每家減 10、沒打完累積到下週）──
+let _ccWk = { at: 0, data: null };
+async function ccWeekLoad() {
+  if (_ccWk.data && Date.now() - _ccWk.at < 60000) return _ccWk.data;
+  try {
+    const s = (await db.auth.getSession()).data.session;
+    const r = await fetch('/api/report/daily?mode=week&weeks=1', { headers: { Authorization: 'Bearer ' + s.access_token, 'X-Client': 'crm' } });
+    const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status);
+    _ccWk = { at: Date.now(), data: j };
+  } catch (e) { _ccWk = { at: Date.now(), data: { error: e.message, reps: [] } }; }
+  return _ccWk.data;
+}
+function ccWeekOf(D, uid) { const r = D && (D.reps || []).find(function (x) { return x.user_id === uid; }); const d = r && r.days[0]; return d && d.cold ? { rep: r.rep, calls: d.calls, c: d.cold, connected: d.connected } : null; }
+function ccWorkdaysLeft() { const t = new Date(), dow = t.getDay(); if (dow === 6) return 5; if (dow === 0) return 5; return 6 - dow; }
+function ccWeekNotes(w) {
+  const c = w.c, n = [];
+  if (c.deal_waived) return ['本週有成交，免陌開'];
+  if (c.carry) n.push('含上週未完成 +' + c.carry);
+  if (c.exempt_days.length) n.push('參展 ' + c.exempt_days.length + ' 天');
+  if (c.demo_cut) n.push('陌開 Demo ' + c.cold_demos + ' 家 −' + c.demo_cut);
+  return n;
+}
+function ccWeekHudHtml(w) {
+  if (!w) return '';
+  const c = w.c, t = c.target, done = c.deal_waived || w.calls >= t, pct = t ? Math.min(1, w.calls / t) : 1;
+  const left = Math.max(0, t - w.calls), days = ccWorkdaysLeft();
+  const sub = c.deal_waived ? '本週已達成' : done ? w.calls + ' / ' + t : w.calls + ' / ' + t + '・還差 ' + left + (days ? '（每天約 ' + Math.ceil(left / days) + '）' : '');
+  return '<div class="gm-kpi"><div class="gm-h">本週陌開目標</div>'
+    + '<div class="gm-boss' + (done ? ' done' : '') + '"><div class="gm-bt"><span>' + (done ? '🏆 ' : '⚔️ ') + '撥打 ' + t + ' 通</span><span class="gm-bs">' + esc(sub) + '</span></div><div class="gm-bbar"><div style="width:' + Math.round(pct * 100) + '%"></div></div></div>'
+    + (ccWeekNotes(w).length ? '<div style="font-size:12px;opacity:.75;margin-top:4px">' + esc(ccWeekNotes(w).join('・')) + '</div>' : '')
+    + '</div>';
+}
+// ── 陌開：每月 KPI（舊，已改用每週目標）──
 const CC_KPI_KINDS = { calls: '處理筆數', rate: '轉換率', conv: '轉線索' };
 function ccMonthKey(d) { d = d || new Date(); return d.getFullYear() + '-' + _pad2(d.getMonth() + 1); }
 async function ccLoadKpis(month) {
@@ -3035,11 +3068,11 @@ async function renderCcBoard() {
   const content = document.getElementById('content');
   document.getElementById('topbarActions').innerHTML = '';
   if (ccbScope === null) ccbScope = currentUser.id;
-  const [r, lr, cvr, kpiRows] = await Promise.all([
+  const [r, lr, cvr, wkD] = await Promise.all([
     fetchAllPaged(function () { return db.from('cold_calls').select('*').eq('owner_id', ccbScope).order('updated_at', { ascending: false }).order('id', { ascending: true }); }),
     fetchAllPaged(function () { return db.from('call_logs').select('cold_call_id,outcome,called_at,user_id,user_name').order('id', { ascending: true }); }),
     fetchAllPaged(function () { return db.from('cold_calls').select('id,owner_id,owner_name,updated_at').eq('status', 'converted').order('id', { ascending: true }); }),
-    ccLoadKpis()
+    ccWeekLoad()
   ]);
 
   if (currentPage !== 'ccboard') return;
@@ -3054,9 +3087,8 @@ async function renderCcBoard() {
   const names = {}; logsAll.forEach(function (l) { names[l.user_id] = l.user_name || names[l.user_id]; }); convs.forEach(function (c) { names[c.owner_id] = names[c.owner_id] || c.owner_name; });
   const board = Object.keys(names).filter(Boolean).map(function (u) { return { uid: u, name: userNameById(u, names[u] || ''), week: ccGameOf(u, logsAll, convs, goal).week }; }).filter(function (x) { return x.week > 0; }).sort(function (a, b) { return b.week - a.week; });
   const todayN = all.filter(function (c) { return ccbColOf(c) === 'today'; }).length;
-  const kprog = ccKpiProgress(ccbScope, kpiRows || [], logsAll, convs);
-  const hud = ccHudHtml(g, 0, todayN, board, ccKpiHudHtml(kprog, window.isAdmin));
-  if (ccbScope === currentUser.id) { ccCheckLevel(g.lvl); setTimeout(function () { ccKpiCelebrate(kprog); }, 300); }
+  const hud = ccHudHtml(g, 0, todayN, board, ccWeekHudHtml(ccWeekOf(wkD, ccbScope)));
+  if (ccbScope === currentUser.id) ccCheckLevel(g.lvl);
   let scopeSel = '';
   if (window.isAdmin) scopeSel = '<select class="form-select" style="width:auto;height:30px;font-size:12.5px;padding:0 24px 0 8px" onchange="ccbScope=this.value;renderCcBoard()">' + usersData.map(function (u) { return '<option value="' + u.id + '"' + (u.id === ccbScope ? ' selected' : '') + '>' + esc(u.full_name || u.email || '') + '</option>'; }).join('') + '</select>';
   const gradeChips = ['all', 'A', 'B', 'C'].map(function (g) { return '<button class="ml-chip' + (ccbGrade === g ? ' on' : '') + '" onclick="ccbGrade=\'' + g + '\';renderCcBoard()">' + (g === 'all' ? '全部等級' : g + ' ' + CC_GRADES[g]) + '</button>'; }).join('');
@@ -3229,8 +3261,8 @@ function svgBars(series, labels) {
 async function renderCcStats2() {
   if (!usersData.length) await loadGlobalData();
   const content = document.getElementById('content');
-  document.getElementById('topbarActions').innerHTML = window.isAdmin ? '<div class="action-bar"><button class="btn btn-primary btn-sm" onclick="ccOpenKpiEditor()">🎯 設定本月 KPI</button></div>' : '';
-  const kpiRows = await ccLoadKpis();
+  document.getElementById('topbarActions').innerHTML = '';
+  const wkD = await ccWeekLoad();
   const [cr, lr] = await Promise.all([fetchAllPaged(function () { return db.from('cold_calls').select('id,status,owner_id,owner_name,attempts,next_call_at,created_at,updated_at,lead_id,batch,source,close_reason').order('id', { ascending: true }); }), fetchAllPaged(function () { return db.from('call_logs').select('cold_call_id,outcome,called_at,user_id,user_name').order('id', { ascending: true }); })]);
   if (currentPage !== 'ccstats') return;
   if (cr.error || lr.error) { content.innerHTML = '<div class="cp-card" style="color:var(--red)">讀取失敗</div>'; return; }
@@ -3326,16 +3358,14 @@ async function renderCcStats2() {
   content.style.padding = '16px'; content.style.overflowX = '';
   const convAll = cc.filter(function (c) { return c.status === 'converted'; }).map(function (c) { return { id: c.id, owner_id: c.owner_id, updated_at: c.updated_at }; });
   const kpiUsers = Object.keys(reps).filter(function (u) { return window.isAdmin || u === currentUser.id; });
+  const wkRows = (wkD.reps || []).filter(function (r) { return r.days[0] && r.days[0].cold && (window.isAdmin || r.user_id === currentUser.id); });
   let kpiTable = '';
-  if (kpiRows.length) {
-    const rowsK = kpiUsers.map(function (u) {
-      const pr = ccKpiProgress(u, kpiRows, logs, convAll); if (!pr.length) return '';
-      const got = pr.filter(function (p) { return p.done; }).reduce(function (s, p) { return s + p.bonus; }, 0);
-      return '<tr><td style="font-weight:500">' + esc(reps[u].name) + '</td><td>' + pr.map(function (p) { return '<div class="kpi-cell' + (p.done ? ' done' : '') + '"><span>' + (p.done ? '🏆' : '⚔️') + ' ' + esc(p.label) + '</span><div class="fn-bar" style="height:8px"><div style="width:' + Math.round(p.pct * 100) + '%"></div></div><span class="kpi-sub">' + esc(p.sub) + '</span></div>'; }).join('') + '</td><td style="font-family:var(--mono);font-weight:700;color:' + (got ? 'var(--green)' : 'var(--text3)') + '">' + (got ? '$' + fmtNum(got) : '—') + '</td></tr>';
-    }).join('');
-    kpiTable = '<div class="st-chart" style="padding:0;overflow:auto"><div class="t" style="padding:12px 14px 4px">' + (new Date().getMonth() + 1) + ' 月 KPI<span class="lg">達成即得獎金</span></div><table class="data-table" style="min-width:600px"><thead><tr><th style="width:120px">業務</th><th>目標進度</th><th style="width:110px">已達獎金</th></tr></thead><tbody>' + (rowsK || '<tr><td colspan="3" style="color:var(--text3)">還沒有人認領名單</td></tr>') + '</tbody></table></div>';
-  } else if (window.isAdmin) {
-    kpiTable = '<div class="st-chart" style="display:flex;align-items:center;gap:10px"><span style="font-size:13px">本月還沒設定 KPI</span><button class="btn btn-primary btn-sm" onclick="ccOpenKpiEditor()">🎯 設定</button></div>';
+  if (wkRows.length) {
+    kpiTable = '<div class="st-chart" style="padding:0;overflow:auto"><div class="t" style="padding:12px 14px 4px">本週陌開目標<span class="lg">上班日每天 15 通・參展免・有成交整週免・陌開 Demo 每家 −10・沒打完累積到下週</span></div><table class="data-table" style="min-width:560px"><thead><tr><th style="width:120px">業務</th><th>進度</th><th style="width:40%">說明</th></tr></thead><tbody>'
+      + wkRows.map(function (r) {
+        const w = ccWeekOf(wkD, r.user_id), t = w.c.target, done = w.c.deal_waived || w.calls >= t, pct = t ? Math.min(1, w.calls / t) : 1;
+        return '<tr><td style="font-weight:500">' + esc(r.rep) + '</td><td><div class="kpi-cell' + (done ? ' done' : '') + '"><span>' + (done ? '🏆' : '⚔️') + ' ' + w.calls + ' / ' + t + ' 通</span><div class="fn-bar" style="height:8px"><div style="width:' + Math.round(pct * 100) + '%"></div></div></div></td><td style="font-size:12.5px;color:var(--text2)">' + esc(ccWeekNotes(w).join('・') || '—') + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
   }
   content.innerHTML = '<div class="kanban-filters" style="gap:10px">' + periodSel + scopeSel + '</div>'
     + kpiTable
