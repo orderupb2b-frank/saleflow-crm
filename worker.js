@@ -1070,7 +1070,7 @@ async function dailyReport({ db, url }) {
     getAll(db, `lead_events?select=lead_id,kind,to_user,at&kind=in.(assign,create)&at=gte.${iso(F)}&order=at`),
     getAll(db, `activities?select=user_id,lead_id,type,created_at&created_at=gte.${iso(F - 2 * 864e5)}&type=neq.note&order=id`),
     getAll(db, `call_logs?select=user_id,outcome,called_at,cold_call_id&called_at=gte.${iso(Math.min(F, Date.parse(COLD_CARRY_FROM + 'T00:00:00+08:00')))}&order=id`),
-    getAll(db, 'cold_calls?select=owner_id,status,next_call_at&status=in.(new,calling,callback)&next_call_at=not.is.null&order=id')
+    getAll(db, 'cold_calls?select=owner_id,status,next_call_at&status=in.(new,calling,callback,sent)&next_call_at=not.is.null&order=id')
   ]);
   const ccLeadIds = new Set((await getAll(db, 'cold_calls?select=lead_id&lead_id=not.is.null&order=id')).map(c => c.lead_id));
   // ── 陌開目標：上班日（一～五）每天 15 通；參展那天免；當週有成交整週免；當週每有一家陌開來的進 Demo 減 10 ──
@@ -1125,7 +1125,7 @@ async function dailyReport({ db, url }) {
   const asg = new Map();
   events.filter(e => e.to_user && !ccLeadIds.has(e.lead_id)).forEach(e => asg.set(e.lead_id + '|' + e.to_user, e));
   const actsBy = {}; acts.forEach(a => { if (a.lead_id) (actsBy[a.lead_id] ||= []).push(a); });
-  const CONNECTED = new Set(['interested', 'callback']);
+  const CONNECTED = new Set(['interested', 'callback', 'sent']);
   const rows = [];
   for (const u of L.users) {
     const myAsg = [...asg.values()].filter(e => e.to_user === u.id);
@@ -1486,7 +1486,7 @@ async function weeklyReport({ db, me, url }) {
     // 陌開
     const myLogs = logs.filter(x => x.user_id === u.id && inWk(x.called_at));
     const conv = nl.filter(l => isCold(l) && coldRep(l) === u.id);
-    const ended = ccs.filter(c => c.owner_id === u.id && (c.status === 'rejected' || c.status === 'invalid') && c.close_reason !== '整批結案' && inWk(c.status_at));
+    const ended = ccs.filter(c => c.owner_id === u.id && (c.status === 'rejected' || c.status === 'invalid') && !['整批結案', '非TA'].includes(c.close_reason) && inWk(c.status_at));
     const kC = kp(u.id, 'calls'), kV = kp(u.id, 'conv'), kR = kp(u.id, 'rate');
     const OUT = { interested: '有興趣', callback: '再聯絡', reject: '婉拒', no_answer: '沒人接', gatekeeper: '沒找到窗口', invalid: '空號' };
     const outcomes = shareOf(myLogs.map(x => OUT[x.outcome] || x.outcome));
