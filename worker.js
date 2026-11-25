@@ -230,8 +230,11 @@ function indNorm(raw) {
 }
 
 async function getAll(db, path) {
-  const out = [];
-  for (let i = 0; i < 50; i += 3) {
+  // 先拿第一頁；滿 1000 筆才平行往下拿（Cloudflare 每次呼叫有子請求上限）
+  const first = await db.get(path + '&limit=1000&offset=0');
+  const out = [...(first || [])];
+  if (!first || first.length < 1000) return out;
+  for (let i = 1; i < 50; i += 3) {
     const pages = await Promise.all([0, 1, 2].map(j => db.get(path + `&limit=1000&offset=${(i + j) * 1000}`)));
     let done = false;
     for (const d of pages) { out.push(...(d || [])); if (!d || d.length < 1000) { done = true; break; } }
@@ -1228,15 +1231,18 @@ const dayTW = t => toTW(t).slice(0, 10);
 const brief = s => String(s || '').replace(AI_TAG, '').replace(/\s+/g, ' ').trim().slice(0, 80);
 
 // 現在每家進行中名單踩到哪些規則
-async function attention(db, B, today) {
+async function attention(db, B, today, pre) {
   const { S, sid } = B;
   const closed = [sid('結案'), sid('簽約進件')].filter(Boolean);
-  const leads = await getAll(db, `leads?select=id,name,stage_id,user_id,source_id,created_at,arrived_at,next_contact_date,demo_at,watch,watch_note&stage_id=not.in.(${closed.join(',')})&order=id`);
   const since = new Date(Date.now() - 240 * 864e5).toISOString();
-  const [acts, evs] = await Promise.all([
-    getAll(db, `activities?select=lead_id,type,created_at&lead_id=not.is.null&type=neq.note&created_at=gte.${since}&order=created_at`),
-    getAll(db, `lead_events?select=lead_id,kind,to_stage,at&kind=eq.stage&order=at`)
+  const [leads0, acts0, evs0] = pre ? [pre.leads, pre.acts, pre.evs] : await Promise.all([
+    getAll(db, `leads?select=id,name,stage_id,user_id,source_id,created_at,arrived_at,next_contact_date,demo_at,watch,watch_note&order=id`),
+    getAll(db, `activities?select=lead_id,user_id,type,content,created_at&lead_id=not.is.null&type=neq.note&created_at=gte.${since}&order=created_at`),
+    getAll(db, `lead_events?select=lead_id,kind,to_stage,to_user,at,backfill&kind=in.(create,stage,assign)&order=at`)
   ]);
+  const leads = leads0.filter(l => !closed.includes(l.stage_id));
+  const acts = acts0.filter(a => a.lead_id && a.type !== 'note' && a.created_at >= since);
+  const evs = evs0.filter(e => e.kind === 'stage');
   const actBy = new Map(); for (const a of acts) { const x = actBy.get(a.lead_id); x ? x.push(a) : actBy.set(a.lead_id, [a]); }
   const stEv = new Map(); for (const e of evs) { const x = stEv.get(e.lead_id); x ? x.push(e) : stEv.set(e.lead_id, [e]); }
   const out = [];
@@ -1281,20 +1287,24 @@ async function standupReport({ db, url }) {
   const D = isDate(qd) && qd < today && qd >= addDays(today, -30) ? qd : prevWorkday(today);
   const F = Date.parse(D + 'T00:00:00+08:00'), T = F + 864e5;
   const iso = x => new Date(x).toISOString();
-  const [evs, actsD, nextEvs, leadsDue, attn] = await Promise.all([
-    getAll(db, `lead_events?select=lead_id,kind,to_user,at&kind=in.(assign,create)&at=gte.${iso(F)}&at=lt.${iso(T)}&order=at`),
-    getAll(db, `activities?select=lead_id,user_id,type,content,created_at&type=neq.note&created_at=gte.${iso(F)}&created_at=lt.${iso(T)}&order=created_at`),
+  const since = new Date(Date.now() - 240 * 864e5).toISOString();
+  const wsD = weekStartOf(D);
+  const [leadsAll, actsAll, evsAll, nextEvs, logsW] = await Promise.all([
+    getAll(db, 'leads?select=id,name,stage_id,user_id,source_id,created_at,arrived_at,next_contact_date,demo_at,watch,watch_note&order=id'),
+    getAll(db, `activities?select=lead_id,user_id,type,content,created_at&lead_id=not.is.null&type=neq.note&created_at=gte.${since}&order=created_at`),
+    getAll(db, `lead_events?select=lead_id,kind,to_stage,to_user,at,backfill&kind=in.(create,stage,assign)&order=at`),
     getAll(db, `lead_events?select=lead_id,from_date,at&kind=eq.next&at=gte.${iso(F)}&order=at`).catch(() => []),
-    getAll(db, `leads?select=id,name,stage_id,user_id,next_contact_date&order=id`),
-    attention(db, B, today)
+    getAll(db, `call_logs?select=user_id,outcome,called_at&called_at=gte.${iso(Date.parse(wsD + 'T00:00:00+08:00'))}&called_at=lt.${iso(T)}&order=id`)
   ]);
+  const attn = await attention(db, B, today, { leads: leadsAll, acts: actsAll, evs: evsAll });
+  const leadsDue = leadsAll;
+  const evs = evsAll.filter(e => (e.kind === 'assign' || e.kind === 'create') && Date.parse(e.at) >= F && Date.parse(e.at) < T);
+  const actsD = actsAll.filter(a => Date.parse(a.created_at) >= F && Date.parse(a.created_at) < T);
   const leadById = new Map(leadsDue.map(l => [l.id, l]));
   // 分配的新名單（陌開轉入不算），到現在有沒有聯絡
   const asg = new Map();
   for (const e of evs) { if (!e.to_user) continue; const l = leadById.get(e.lead_id); if (!l || B.isCold(l)) continue; asg.set(e.lead_id + '|' + e.to_user, e); }
-  const asgIds = [...new Set([...asg.values()].map(e => e.lead_id))];
-  let firstActs = [];
-  for (let i = 0; i < asgIds.length; i += 80) firstActs = firstActs.concat(await getAll(db, `activities?select=lead_id,created_at&type=neq.note&lead_id=in.(${asgIds.slice(i, i + 80).join(',')})&created_at=gte.${iso(F)}&order=created_at`));
+  const firstActs = actsAll.filter(a => Date.parse(a.created_at) >= F);
   // 到期追蹤：那天開始時的下次聯絡日 ≤ 那天
   const nextAtStart = new Map(); for (const e of nextEvs) if (!nextAtStart.has(e.lead_id)) nextAtStart.set(e.lead_id, e.from_date);
   const OPEN_NO = new Set(['結案', '簽約進件']);
@@ -1305,11 +1315,9 @@ async function standupReport({ db, url }) {
     if (nd && nd <= D) due.push({ l, nd });
   }
   const touchedD = new Set(actsD.map(a => a.lead_id));
-  // 陌開：當天＋這週累計
-  const [dd, ww] = await Promise.all([
-    dailyReport({ db, url: new URL('http://x/?days=' + Math.min(31, Math.round((Date.parse(today) - Date.parse(D)) / 864e5) + 1)) }),
-    dailyReport({ db, url: new URL('http://x/?mode=week&weeks=' + Math.min(12, Math.floor((Date.parse(weekStartOf(today)) - Date.parse(weekStartOf(D))) / 6048e5) + 1)) })
-  ]);
+  // 陌開：這週目標用週報算（含累積、成交免、Demo 減量），當天的自己算
+  const ww = L.users.some(u => u.cold_daily) ? await dailyReport({ db, url: new URL('http://x/?mode=week&weeks=' + Math.min(12, Math.floor((Date.parse(weekStartOf(today)) - Date.parse(wsD)) / 6048e5) + 1)) }) : { reps: [] };
+  const CONN = new Set(['interested', 'callback', 'sent']);
   const nameOf = id => leadById.get(id)?.name || '';
   const reps = [];
   for (const u of L.users) {
@@ -1320,12 +1328,13 @@ async function standupReport({ db, url }) {
     const myDue = due.filter(x => x.l.user_id === u.id).map(x => ({ id: x.l.id, name: x.l.name, stage: S[x.l.stage_id] || '', date: x.nd, done: touchedD.has(x.l.id) }));
     const myActs = actsD.filter(a => a.user_id === u.id && a.lead_id).map(a => ({ id: a.lead_id, name: nameOf(a.lead_id), type: a.type, label: ACT_LABEL[a.type] || a.type, time: toTW(a.created_at).slice(11), content: brief(a.content) }));
     const myAttn = attn.filter(x => x.owner_id === u.id);
-    const dr = dd.reps.find(r => r.user_id === u.id), dDay = dr && dr.days.find(x => x.day === D);
-    const wr = ww.reps.find(r => r.user_id === u.id), wDay = wr && wr.days.find(x => x.day === weekStartOf(D));
+    const wr = ww.reps.find(r => r.user_id === u.id), wDay = wr && wr.days.find(x => x.day === wsD);
     let cold = null;
     if (u.cold_daily) {
-      const ex = dDay && dDay.cold && dDay.cold.exempt_days.length ? '參展' : (dDay && dDay.cold && dDay.cold.deal_waived ? '本週有成交' : null);
-      cold = { calls: dDay ? dDay.calls : 0, target: dDay && dDay.cold ? dDay.cold.target : u.cold_daily, exempt: ex, week_calls: wDay ? wDay.calls : 0, week_target: wDay && wDay.cold ? wDay.cold.target : null, connected: dDay ? dDay.connected : 0 };
+      const myL = logsW.filter(x => x.user_id === u.id), dL = myL.filter(x => dayTW(x.called_at) === D);
+      const wc = wDay && wDay.cold;
+      const ex = !isWorkday(D) ? '假日' : wc && (wc.exempt_days || []).includes(D) ? '參展' : wc && wc.deal_waived ? '本週有成交' : null;
+      cold = { calls: dL.length, target: ex ? 0 : u.cold_daily, exempt: ex, week_calls: myL.length, week_target: wc ? wc.target : null, connected: dL.filter(x => CONN.has(x.outcome)).length };
     }
     if (!myAsg.length && !myDue.length && !myActs.length && !myAttn.length && !cold) continue;
     reps.push({ user_id: u.id, rep: u.full_name || u.email, assigned: myAsg, cold, due: myDue, acts: myActs, attention: myAttn });
@@ -1345,16 +1354,16 @@ async function reviewReport({ db, url }) {
   const F = Date.parse(from + 'T00:00:00+08:00'), T = Date.parse(addDays(to, 1) + 'T00:00:00+08:00');
   const iso = x => new Date(x).toISOString();
   const ms = t => t ? Date.parse(t) : NaN;
-  const [leads, evs, acts, logs, ccs, quotes, attn, wk] = await Promise.all([
-    getAll(db, 'leads?select=id,name,stage_id,user_id,source_id,created_at,arrived_at,lost_reason,lost_at,watch,watch_note,demo_at&order=id'),
+  const [leads, evs, acts, logs, ccs, quotes, wk] = await Promise.all([
+    getAll(db, 'leads?select=id,name,stage_id,user_id,source_id,created_at,arrived_at,lost_reason,lost_at,watch,watch_note,demo_at,next_contact_date&order=id'),
     getAll(db, `lead_events?select=lead_id,kind,to_stage,to_user,at,backfill&kind=in.(create,stage,assign)&order=at`),
-    getAll(db, `activities?select=lead_id,user_id,type,content,created_at&type=neq.note&created_at=gte.${iso(Math.min(F, Date.now() - 56 * 864e5))}&order=created_at`),
+    getAll(db, `activities?select=lead_id,user_id,type,content,created_at&lead_id=not.is.null&type=neq.note&created_at=gte.${iso(Math.min(F, Date.now() - 240 * 864e5))}&order=created_at`),
     getAll(db, `call_logs?select=cold_call_id,outcome,user_id,called_at&called_at=gte.${iso(F)}&called_at=lt.${iso(T)}&order=id`),
     getAll(db, 'cold_calls?select=id,company,owner_id,status,status_at,close_reason,next_call_at,lead_id&order=id'),
     getAll(db, `notes?select=lead_id&content=like.${encodeURIComponent(QUOTE_PREFIX)}*&order=id`).catch(() => []),
-    attention(db, B, today),
     dailyReport({ db, url: new URL('http://x/?mode=week&weeks=6') })
   ]);
+  const attn = await attention(db, B, today, { leads, acts, evs });
   const leadById = new Map(leads.map(l => [l.id, l]));
   const evBy = new Map(); for (const e of evs) { const x = evBy.get(e.lead_id); x ? x.push(e) : evBy.set(e.lead_id, [e]); }
   const actBy = new Map(); for (const a of acts) if (a.lead_id) { const x = actBy.get(a.lead_id); x ? x.push(a) : actBy.set(a.lead_id, [a]); }
