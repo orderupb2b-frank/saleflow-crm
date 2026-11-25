@@ -3,12 +3,13 @@
 // 其他路徑原樣交給 worker.js。工具一律轉呼叫既有的 /api，權限與邏輯完全共用。
 import app from './worker.js';
 
-const SERVER = { name: 'saleflow-crm', version: '1.6.0' };
+const SERVER = { name: 'saleflow-crm', version: '1.7.0' };
 const INSTRUCTIONS = `你在操作奧德上（OrderUp B2B）的 SaleFlow CRM。一律繁體中文、簡潔回覆。
 - 對話開始先呼叫 get_me 取得使用者、角色與今天日期（台北時間），相對日期都用它換算成 YYYY-MM-DD。
 - 記錄活動：search_leads 找公司 → 整理內容（重點、需求、下一步，不加料）→ 先向使用者複述公司、類型、聯絡人、內容、下次聯絡日並取得確認 → add_activity。
 - 開發主線：新名單 → 約Demo → 有望成交 → 議價中 → 簽約進件（成交）；任何一步都可能進「等待」或「結案」。
-- 改階段 set_stage、改下次聯絡日 set_next_contact，都先確認。進「等待」一定要先問下次聯絡日並帶 next_contact_date。「結案」「簽約進件」只能在 CRM 裡操作，請提供 crm_link。
+- 改階段 set_stage、改下次聯絡日 set_next_contact，都先確認。移到「約Demo」時問客戶約哪天：有日期就帶 demo_date，還沒定就不帶（之後用 set_demo_date 補）。Demo 做完記活動用 type=demo。
+- 每日站會／要關注：get_standup（預設前一個工作天：新名單有沒有打、陌開量、到期追蹤、活動、要關注名單）。進「等待」一定要先問下次聯絡日並帶 next_contact_date。「結案」「簽約進件」只能在 CRM 裡操作，請提供 crm_link。
 - 主管總結：get_activity_report（owner=all）、get_attention_report；先講結論與風險，再列細節。
 - 業務週會／每週檢討：get_weekly_review（週六～週五，預設上一週）。要看趨勢就再帶前一週的 week_start 比較。先看整體（線索來源、分配、成交、結案原因、進行中分布），再逐一給每位業務：數字與轉換率、跟上週比、卡在哪一關、哪些名單逾期或太久沒碰、標了「需協助」的案子，最後給 2～3 個具體可做的建議。數字只用工具回傳的。
 - 報價單／合約截圖：讀出公司、統編、報價編號。search_leads（可用統編）找公司，找不到先 create_lead；已簽回的用 record_deal（quote_no＋file），寫入前先把金額摘要給使用者確認。只是報價、還沒成交的，用 add_activity（note）記報價重點。
@@ -56,13 +57,15 @@ const TOOLS = [
   T('list_deal_files', '看這家已歸檔的回簽報價單／合約檔', { lead_id: S('名單 id') }, ['lead_id']),
   T('add_activity', '新增一筆活動紀錄，並可同時設定下次聯絡日', {
     lead_id: S('名單 id'),
-    type: S('email=Email, call=電話/LINE, visit=實體拜訪, event=展覽活動, note=內部備註', { enum: ['email', 'call', 'visit', 'event', 'note'] }),
+    type: S('email=Email, call=電話/LINE, visit=實體拜訪, demo=Demo（線上或實體 Demo 做完）, event=展覽活動, note=內部備註', { enum: ['email', 'call', 'visit', 'demo', 'event', 'note'] }),
     content: S('整理過的紀錄內容'), contact_name: S('互動的聯絡人姓名（選填）'),
     occurred_at: S('發生時間，台北時間 YYYY-MM-DD HH:mm；省略=現在'),
     next_contact_date: S('YYYY-MM-DD 設定下次聯絡日；none 清除；省略則照 CRM 預設規則')
   }, ['lead_id', 'type', 'content'], false),
   T('set_next_contact', '設定或清除下次聯絡日', { lead_id: S('名單 id'), date: S('YYYY-MM-DD，或 none 清除') }, ['lead_id', 'date'], false),
-  T('set_stage', '變更名單階段（不能改成 結案、簽約進件）。改成「等待」一定要帶下次聯絡日', { lead_id: S('名單 id'), stage: S('階段名稱，需與 get_me 一致'), next_contact_date: S('進「等待」時必填，YYYY-MM-DD') }, ['lead_id', 'stage'], false),
+  T('set_stage', '變更名單階段（不能改成 結案、簽約進件）。改成「等待」一定要帶下次聯絡日；改成「約Demo」有約好日期就帶 demo_date', { lead_id: S('名單 id'), stage: S('階段名稱，需與 get_me 一致'), next_contact_date: S('進「等待」時必填，YYYY-MM-DD'), demo_date: S('進「約Demo」時：約好的 Demo 日期 YYYY-MM-DD；客戶還沒給日期就不要帶') }, ['lead_id', 'stage'], false),
+  T('set_demo_date', '設定或清除 Demo 日期（客戶後來才給日期、或改期時用）', { lead_id: S('名單 id'), date: S('YYYY-MM-DD，或 none 清除') }, ['lead_id', 'date'], false),
+  T('get_standup', '每日站會：某一天（預設前一個工作天）每位業務的新名單有沒有聯絡、陌開撥打 vs 目標、到期追蹤有沒有跟、活動明細，以及現在的「要關注」名單與規則', { date: S('YYYY-MM-DD（選填）') }),
   T('set_onboarding', '更新成交客戶的導入階段', {
     lead_id: S('名單 id'), stage: S('導入階段', { enum: ['啟動會議', '填資料', '系統教學', '內部建置', '小量試用', '上線推廣', '維運狀態'] }), go_live_date: S('上線日 YYYY-MM-DD（選填；進到上線推廣時預設今天）')
   }, ['lead_id', 'stage'], false),
@@ -122,7 +125,9 @@ const ROUTES = {
   list_deal_files: a => ['GET', `/api/leads/${id(a)}/files`],
   add_activity: a => ['POST', `/api/leads/${id(a)}/activities`, pick(a, ['type', 'content', 'contact_name', 'occurred_at', 'next_contact_date'])],
   set_next_contact: a => ['PATCH', `/api/leads/${id(a)}/next-contact`, pick(a, ['date'])],
-  set_stage: a => ['PATCH', `/api/leads/${id(a)}/stage`, pick(a, ['stage', 'next_contact_date'])],
+  set_stage: a => ['PATCH', `/api/leads/${id(a)}/stage`, pick(a, ['stage', 'next_contact_date', 'demo_date'])],
+  set_demo_date: a => ['PATCH', `/api/leads/${id(a)}/demo`, pick(a, ['date'])],
+  get_standup: a => ['GET', '/api/report/standup' + qs(a, ['date'])],
   list_customers: () => ['GET', '/api/customers'],
   set_onboarding: a => ['PATCH', `/api/leads/${id(a)}/onboarding`, pick(a, ['stage', 'go_live_date'])],
   get_customer_deals: a => ['GET', `/api/leads/${id(a)}/deals`],

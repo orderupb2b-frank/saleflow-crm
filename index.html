@@ -637,6 +637,7 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
 .kc-due { font-size:11.5px; color:var(--text3); }
 .kc-due.today { color:var(--yellow); }
 .kc-due.late { color:var(--red); }
+.kc-demo { font:inherit; font-size:11.5px; background:none; border:0; padding:0 0 0 6px; cursor:pointer; }
 .kc-owner { font-size:10.5px; color:var(--text3); max-width:60px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .kc-owner.none { color:var(--yellow); }
 .kc-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -1199,6 +1200,139 @@ select.ml-chip.m-owner.on { background-color:var(--accent); }
   .wq-grid { grid-template-columns:1fr; }
   .wk-logi { grid-template-columns:1fr; gap:2px; }
 }
+/* ── 站會／週會（2026-11）── */
+.bd{max-width:920px;margin:0 auto;padding:4px 0 60px;display:flex;flex-direction:column;gap:14px}
+.bd-top{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.bd-seg{display:inline-flex;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:3px;gap:2px}
+.bd-seg button{border:0;background:none;color:var(--text3);font:inherit;font-size:13px;padding:5px 12px;border-radius:7px;cursor:pointer}
+.bd-seg button.on{background:var(--accent);color:#fff;font-weight:600}
+.bd-nav{display:inline-flex;align-items:center;gap:6px;margin-left:auto}
+.bd-nav b{font-family:var(--mono);font-size:14px;min-width:100px;text-align:center}
+.bd-nav button{border:1px solid var(--border);background:var(--bg2);color:var(--text);border-radius:8px;width:32px;height:32px;cursor:pointer;font:inherit}
+.bd-nav button:disabled{opacity:.3;cursor:default}
+.bd-rg{font-size:12px;color:var(--text3);font-family:var(--mono);width:100%}
+.bd-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.bd-h{display:flex;align-items:center;gap:10px}
+.bd-av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0}
+.bd-h b{font-size:15px}
+.bd-st{margin-left:auto;font-size:12.5px;font-weight:600}
+.bd-st.bad{color:var(--red)} .bd-st.good{color:var(--green)}
+.bd-ks{display:grid;grid-template-columns:repeat(5,minmax(0,1fr))}
+.bd-k{display:flex;flex-direction:column;gap:1px;padding:0 12px;border:0;border-left:1px solid var(--border);background:none;font:inherit;text-align:left;color:inherit;min-width:0;position:relative}
+.bd-k:first-child{border-left:0;padding-left:0}
+button.bd-k{cursor:pointer}
+button.bd-k:hover b{text-decoration:underline}
+.bd-k span{font-size:12px;color:var(--text3);display:flex;align-items:center;gap:4px}
+.bd-k b{font-size:20px;font-weight:700;line-height:1.25;font-family:var(--mono)}
+.bd-k.bad b{color:var(--red)} .bd-k.ok b{color:var(--green)}
+.bd-k small{font-size:11.5px;color:var(--text3);font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bd-team .bd-k b{font-size:24px}
+.bd-q{display:inline-grid;place-items:center;width:15px;height:15px;border-radius:50%;border:1px solid var(--border2);color:var(--text3);font-size:10px;font-weight:700;cursor:pointer;background:none;padding:0;line-height:1;flex-shrink:0}
+.bd-q:hover{color:var(--accent);border-color:var(--accent)}
+.bd-ml{display:flex;flex-direction:column;border-top:1px solid var(--border)}
+.bd-mi{display:flex;align-items:baseline;gap:10px;border:0;border-bottom:1px solid var(--border);background:none;font:inherit;padding:8px 0 8px 12px;text-align:left;cursor:pointer;position:relative;color:var(--text);min-width:0}
+.bd-mi:last-child{border-bottom:0}
+.bd-mi::before{content:"";position:absolute;left:0;top:50%;width:6px;height:6px;border-radius:50%;transform:translateY(-50%);background:var(--text3)}
+.bd-mi.bad::before{background:var(--red)} .bd-mi.warn::before{background:var(--yellow)}
+.bd-mi span{font-size:13.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.bd-mi small{margin-left:auto;font-size:12.5px;white-space:nowrap;color:var(--text3)}
+.bd-mi.bad small{color:var(--red)} .bd-mi.warn small{color:var(--yellow)}
+.bd-mi:hover span{text-decoration:underline}
+.bd-sec{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px 18px 18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.bd-sh{display:flex;align-items:center;gap:10px}
+.bd-sh .bd-badge{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;color:#fff}
+.bd-sh h2{margin:0;font-size:16px;font-weight:700}
+.bd-ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.bd-als{display:flex;flex-wrap:wrap;gap:6px}
+.bd-al{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:500;padding:4px 10px;border-radius:8px;background:var(--yellow-bg);color:var(--yellow)}
+.bd-al.bad{background:var(--red-bg);color:var(--red)} .bd-al.good{background:var(--green-bg);color:var(--green)}
+.bd-al .bd-ic{width:15px;height:15px}
+.bd-fw{overflow-x:auto}
+.bd-funnel{width:100%;max-width:760px;margin:0 auto;display:block}
+.bd-funnel .lbl{font:500 13px var(--font);fill:var(--text)}
+.bd-funnel .n{font:700 17px var(--mono);fill:#fff}
+.bd-funnel .pc{font:600 12px var(--mono);fill:var(--text3)}
+.bd-funnel g{cursor:pointer}
+.bd-funnel g:hover path{filter:brightness(1.1)}
+.bd-flg{display:flex;justify-content:center;align-items:center;gap:6px;font-size:12px;color:var(--text3)}
+.bd-srcbar{display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px}
+.bd-srcbar i{display:block;height:100%}
+.bd-srcl{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--text3);margin-top:6px}
+.bd-srcl span{cursor:pointer} .bd-srcl span:hover{color:var(--text)}
+.bd-srcl i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px}
+.bd-lab{font-size:12px;color:var(--text3);font-weight:600;display:flex;align-items:center;gap:6px}
+.bd-chips{display:flex;flex-wrap:wrap;gap:8px}
+.bd-chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font:inherit;font-size:13px;padding:6px 12px;border-radius:999px;cursor:pointer}
+.bd-chip b{font-family:var(--mono);font-size:15px}
+.bd-chip.bad{color:var(--red);border-color:var(--red)} .bd-chip.warn{color:var(--yellow);border-color:var(--yellow)}
+.bd-chip .bd-ic{width:15px;height:15px}
+.bd-coldtop{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.bd-ring{cursor:pointer;flex-shrink:0}
+.bd-tiles{flex:1;min-width:240px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.bd-tile{display:flex;align-items:center;gap:10px;background:var(--bg3);border-radius:10px;padding:10px 12px;cursor:pointer;border:0;font:inherit;color:inherit;text-align:left}
+.bd-tile:hover{outline:1px solid var(--border2)}
+.bd-ti{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;flex-shrink:0}
+.bd-tile b{font:700 19px var(--mono);display:block;line-height:1.1}
+.bd-tile span{font-size:12px;color:var(--text3)}
+.bd-weeks{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;align-items:end;height:130px}
+.bd-wk{display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end;cursor:pointer}
+.bd-wk .col{width:100%;max-width:42px;position:relative;flex:1;display:flex;align-items:flex-end}
+.bd-wk .col i{display:block;width:100%;border-radius:6px 6px 2px 2px;background:var(--red)}
+.bd-wk .col i.ok{background:var(--green)} .bd-wk .col i.free{background:var(--text3)} .bd-wk .col i.now{background:var(--accent)}
+.bd-wk .col s{position:absolute;left:-4px;right:-4px;border-top:2px dashed var(--text);opacity:.35}
+.bd-wk small{font:500 11px var(--mono);color:var(--text3);text-align:center;line-height:1.35}
+.bd-reps{display:flex;flex-direction:column;gap:10px}
+.bd-rep{display:grid;grid-template-columns:140px repeat(4,minmax(0,1fr)) 100px;gap:12px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--bg3)}
+.bd-rep .id{display:flex;align-items:center;gap:9px;min-width:0}
+.bd-rep .id b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bd-m{cursor:pointer;min-width:0}
+.bd-m .mt{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--text3)}
+.bd-m .mt .bd-ic{width:13px;height:13px}
+.bd-m .mv{font:700 15px var(--mono)}
+.bd-m .mv small{font-size:11.5px;color:var(--text3);font-weight:500}
+.bd-m .mb{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:4px}
+.bd-m .mb i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+.bd-m:hover .mv{text-decoration:underline}
+.bd-donutw{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.bd-legend{flex:1;min-width:200px;display:flex;flex-direction:column;gap:2px}
+.bd-lg{display:grid;grid-template-columns:12px 1fr auto;gap:8px;align-items:center;font-size:13px;background:none;border:0;padding:4px;border-radius:6px;color:var(--text);font-family:inherit;cursor:pointer;text-align:left}
+.bd-lg:hover{background:var(--bg3)}
+.bd-lg i{width:12px;height:12px;border-radius:3px}
+.bd-lg b{font-family:var(--mono)}
+.bd-bub{width:100%;max-width:520px;display:block;margin:0 auto}
+.bd-bub .rl{font:500 13px var(--font);fill:var(--text)}
+.bd-bub .cl{font:500 12px var(--font);fill:var(--text3)}
+.bd-bub .bn{font:700 12px var(--mono);fill:#fff;pointer-events:none}
+.bd-bub circle{cursor:pointer}
+.bd-empty{color:var(--text3);font-size:13px}
+.bd-dr{position:fixed;inset:0;background:rgba(8,10,16,.45);display:flex;justify-content:flex-end;z-index:900}
+.bd-dr-in{width:min(440px,100%);height:100%;background:var(--bg2);padding:18px;overflow:auto;display:flex;flex-direction:column;gap:2px;box-shadow:var(--shadow)}
+.bd-dr-h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.bd-dr-h h3{margin:0;font-size:15px;flex:1}
+.bd-dr-h button{border:1px solid var(--border);background:none;color:var(--text);border-radius:8px;width:32px;height:32px;cursor:pointer}
+.bd-it{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;border-bottom:1px solid var(--border);padding:9px 0}
+.bd-it.noav{grid-template-columns:1fr auto}
+.bd-it>div{min-width:0}
+.bd-it b{font-size:13.5px}
+.bd-it .ls{font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis}
+.bd-it .rt{font-size:12.5px;font-weight:500;color:var(--text3);white-space:nowrap}
+.bd-it .rt.good{color:var(--green)} .bd-it .rt.bad{color:var(--red)} .bd-it .rt.warn{color:var(--yellow)}
+.bd-it.go{cursor:pointer} .bd-it.go:hover b{text-decoration:underline}
+.bd-av.sm{width:26px;height:26px;font-size:11px}
+.bd-rule{display:grid;grid-template-columns:110px 1fr;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+.bd-rule b{font-weight:600}
+.bd-rule span{color:var(--text2)}
+.bd-hint{font-size:12.5px;color:var(--text3);line-height:1.6;margin-bottom:6px}
+@media (max-width:720px){
+  .bd-ks{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:12px}
+  .bd-k{border-left:0;padding:0}
+  .bd-k b{font-size:18px}
+  .bd-rep{grid-template-columns:1fr 1fr}
+  .bd-rep .id,.bd-rep .sp{grid-column:1/-1}
+  .bd-coldtop{justify-content:center}
+  .bd-nav{margin-left:0}
+}
+
 </style>
 <script>
 // 中文輸入（注音、拼音）選字中不觸發 oninput，選完字再觸發一次：避免畫面重畫把注音打斷
@@ -1269,7 +1403,7 @@ document.addEventListener('DOMContentLoaded',function(){var b=document.getElemen
     <div class="nav-search" onclick="openGlobalSearch()">🔍 搜尋公司、聯絡人、電話…<kbd>⌘K</kbd></div>
     <nav class="sidebar-nav">
       <div class="nav-section">
-        <div class="nav-item active" onclick="navigate('weekly')" id="nav-home">
+        <div class="nav-item active" onclick="navigate('standup')" id="nav-home">
           <span class="nav-icon">📊</span><span class="nav-text">Dashboard</span>
         </div>
         <div class="nav-item" onclick="navigate('ccpool')" id="nav-cc">
@@ -1408,6 +1542,7 @@ const ACTIVITY_TYPES = {
   'email': { icon: '📧', label: 'Email', color: '#3b82f6' },
   'call': { icon: '📞', label: '電話/LINE', color: '#10b981' },
   'visit': { icon: '🤝', label: '實體拜訪', color: '#f59e0b' },
+  'demo': { icon: '🖥️', label: 'Demo', color: '#06b6d4' },
   'event': { icon: '🎪', label: '展覽活動', color: '#8b5cf6' },
   'note': { icon: '📋', label: '內部備註', color: '#6b7280' }
 };
@@ -1559,7 +1694,7 @@ const M_MAP = { today: 'mtoday', leadlist: 'mclients', accounts: 'mclients', con
 function navigate(page, opt) {
   window._ccbKeep = false;
   if (isMobile() && M_MAP[page]) page = M_MAP[page];
-  if (!isMobile() && (page === 'mtoday' || page === 'today' || page === 'dashboard')) page = 'weekly';
+  if (!isMobile() && (page === 'mtoday' || page === 'today' || page === 'dashboard')) page = 'standup';
   if (!isMobile() && page === 'mclients') page = 'leadlist';
   if (!isMobile() && page === 'mme') page = 'performance';
   currentPage = page;
@@ -1572,7 +1707,7 @@ function navigate(page, opt) {
 }
 // ── 五個區塊：Dashboard／開發看板／導入看板／列表清單／工具箱 ──
 const SECTIONS = [
-  { key: 'home', label: 'Dashboard', pages: [['weekly', '週會'], ['performance', '業績'], ['today', '今天', 'hidden'], ['dashboard', '數據', 'hidden']] },
+  { key: 'home', label: 'Dashboard', pages: [['standup', '站會'], ['review', '週會'], ['performance', '業績'], ['weekly', '舊版週會', 'hidden'], ['today', '今天', 'hidden'], ['dashboard', '數據', 'hidden']] },
   { key: 'cc', label: '陌開', pages: [['ccpool', '公海'], ['ccboard', '陌開進度'], ['ccstats', '統計'], ['coldcall', '開打', 'hidden'], ['cclist', '名單', 'hidden']] },
   { key: 'pipe', label: '開發看板', pages: [['leads', '']] },
   { key: 'onb', label: '導入看板', pages: [['onboard', '']] },
@@ -1603,7 +1738,7 @@ function openMoreMenu() {
   openModal('更多', ''
     + '<div style="font-size:12px;color:var(--text3);margin:-4px 0 8px">這些在電腦上比較好用</div>'
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 8px">'
-    + b('mclients', '🔍', '找客戶') + b('weekly', '📋', '週會')
+    + b('mclients', '🔍', '找客戶') + b('standup', '📋', '站會')
     + b('onboard', '🚀', '導入看板')
     + b('ccboard', '📞', '陌開進度') + b('ccpool', '🌊', '公海')
     + b('ccstats', '📈', '陌開統計')
@@ -1655,6 +1790,8 @@ async function renderPage(page) {
     case 'pricing': renderPricing(); break;
     case 'performance': await renderPerformance(); break;
     case 'dashboard': await renderDashboard(); break;
+    case 'standup': _bd.sc = {}; await renderStandup(); break;
+    case 'review': _bd.rc = {}; await renderReview(); break;
     case 'weekly': _wk.cache = {}; _wi.data = null; _wd.data = null; _wd.cache = {}; await renderWeekly(); break;
     case 'leads': await renderLeads(); break;
     case 'leadlist': await renderLeads(); break;
@@ -4389,7 +4526,7 @@ async function saveInlineLog() {
       if (r.error) { toast('存不進去：' + r.error.message, 'error'); return; }
       ta.value = ''; ilGrow(ta); imgClear('il'); toast('已加備註', 'success'); renderCompanyTimeline(lead.id); return;
     }
-    const type = q.result === 'visit' ? 'visit' : q.result === 'msg' ? 'email' : 'call';
+    const type = q.result === 'visit' ? 'visit' : q.result === 'demo' ? 'demo' : q.result === 'msg' ? 'email' : 'call';
     const r1 = await db.from('activities').insert(Object.assign({ type: type, content: content, lead_id: lead.id, user_id: currentUser.id, created_at: new Date().toISOString() }, images ? { images: images } : {}));
     if (r1.error) { toast('存不進去：' + r1.error.message, 'error'); return; }
     imgClear('il');
@@ -5427,6 +5564,334 @@ async function wkFlag(id, f) {
 }
 
 // ── DASHBOARD ──
+// ════════ 站會／週會（2026-11 改版）════════
+const _bd = { d: null, span: 'last', rep: 'all', sc: {}, rc: {} };
+const BD_IP = {
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  phone: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/>',
+  flame: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.4-.5-2-1-3-1.1-2.1-.2-4 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.2.4-2.3 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+  ban: '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  pause: '<circle cx="12" cy="12" r="10"/><path d="M10 15V9M14 15V9"/>',
+  x: '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>',
+  alert: '<path d="m21.7 18-8-14a2 2 0 0 0-3.5 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/>',
+  send: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  headset: '<path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/>',
+  arrow: '<circle cx="12" cy="12" r="10"/><path d="m12 16 4-4-4-4M8 12h8"/>',
+  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/>',
+  waves: '<path d="M2 7c1 .8 1.8 1 2.5 1 2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2c.7 0 1.5.2 2.5 1M2 13c1 .8 1.8 1 2.5 1 2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2c.7 0 1.5.2 2.5 1M2 19c1 .8 1.8 1 2.5 1 2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2c.7 0 1.5.2 2.5 1"/>',
+  cal: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  check: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  bolt: '<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>'
+};
+const bdIc = k => '<svg class="bd-ic" viewBox="0 0 24 24" aria-hidden="true">' + BD_IP[k] + '</svg>';
+const BD_AV = ['#2fa37a', '#d9822b', '#6a5ae0', '#d24d7a', '#2f8fd6', '#8a6d3b'];
+function bdAvc(name) { let h = 0; String(name || '').split('').forEach(function (c) { h = (h * 31 + c.charCodeAt(0)) >>> 0; }); return BD_AV[h % BD_AV.length]; }
+function bdAv(name, sm) { return '<span class="bd-av' + (sm ? ' sm' : '') + '" style="background:' + bdAvc(name) + '">' + esc(String(name || '?')[0]) + '</span>'; }
+const bdPct = (a, b) => b ? Math.round(a * 100 / b) + '%' : '—';
+const bdHrs = h => h == null ? '—' : h < 48 ? (Math.round(h * 10) / 10) + 'h' : Math.round(h / 24) + '天';
+const bdMd = d => d ? String(d).slice(5).replace('-', '/') : '';
+const BD_WD = '日一二三四五六';
+const bdDay = d => bdMd(d) + '（' + BD_WD[new Date(d + 'T00:00:00Z').getUTCDay()] + '）';
+async function bdApi(path) {
+  const s = (await db.auth.getSession()).data.session;
+  const r = await fetch(path, { headers: { Authorization: 'Bearer ' + s.access_token, 'X-Client': 'crm' } });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.status);
+  return j;
+}
+// ── 抽屜 ──
+function bdDrawer(title, html) {
+  let el = document.getElementById('bdDr');
+  if (!el) { el = document.createElement('div'); el.id = 'bdDr'; el.className = 'bd-dr'; el.addEventListener('click', function (e) { if (e.target === el) bdClose(); }); document.body.appendChild(el); }
+  el.innerHTML = '<div class="bd-dr-in"><div class="bd-dr-h"><h3>' + esc(title) + '</h3><button onclick="bdClose()" aria-label="關閉">✕</button></div>' + html + '</div>';
+  el.hidden = false;
+}
+function bdClose() { const el = document.getElementById('bdDr'); if (el) el.hidden = true; }
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') bdClose(); });
+function bdGo(id) { bdClose(); openCompany(id); }
+// rows: {id?, owner?, name, sub, right, cls}
+function bdList(title, rows, hint) {
+  bdDrawer(title, (hint ? '<div class="bd-hint">' + esc(hint) + '</div>' : '') + (rows.length ? rows.map(function (x) {
+    return '<div class="bd-it' + (x.owner ? '' : ' noav') + (x.id ? ' go" onclick="bdGo(\'' + x.id + '\')' : '') + '">' + (x.owner ? bdAv(x.owner, true) : '')
+      + '<div><b>' + esc(x.name) + '</b>' + (x.sub ? '<div class="ls">' + esc(x.sub) + '</div>' : '') + '</div>'
+      + (x.right ? '<span class="rt ' + (x.cls || '') + '">' + esc(x.right) + '</span>' : '<span></span>') + '</div>';
+  }).join('') : '<div class="bd-empty">沒有資料</div>'));
+}
+// ── 規則說明（問號）──
+function bdQ(key) { return '<span role="button" tabindex="0" class="bd-q" onclick="event.stopPropagation();bdHelp(\'' + key + '\')" aria-label="怎麼算">?</span>'; }
+const BD_HELP = {
+  new: ['新名單', '前一個工作天分給這位業務的名單（陌開轉入的不算），到現在有沒有聯絡。下面是平均多久第一次聯絡。'],
+  cold: ['陌開', '當天撥打數／當天目標。目標：上班日每天 15 通；參展那天免；當週有成交整週免；當週每一家陌開來的進 Demo 減 10 通；沒打完的量累積到下週。下面是這週累計／這週目標。'],
+  due: ['到期追蹤', '下次聯絡日排在那天或更早（逾期的也算）的進行中名單，那天有沒有任何活動紀錄。逾期沒跟的每天都會再出現，直到有紀錄為止。'],
+  acts: ['活動', '那天對客戶的活動筆數（電話/LINE、Email、拜訪、Demo、展覽），不含內部備註，也不含陌開電話。少於 3 筆標紅。'],
+  funnel: ['名單漏斗', '這段期間分配出去的名單（陌開轉入不算），到今天最遠走到哪一關。右邊是在這一關掉出去的：結案、轉等待、或還停在這關。成交率以配出去的家數為分母。'],
+  coldsec: ['陌開狀況', '有設陌開目標的業務才會出現。圓環是這段期間撥打數／目標；長條是近 6 週每週撥打，虛線是那週目標，灰色是免陌開（有成交）。'],
+  effort: ['業務努力', '活動＝對客戶的活動筆數（不含備註與陌開電話）；陌開＝撥打數；配的名單＝已聯絡／分配；有紀錄＝這段期間有活動或撥打的工作天數。右邊小圖是近 8 週每週活動數。'],
+  reasons: ['被拒絕的原因', '陌開被拒＝這段期間結案的陌開名單原因（整批結案、非TA 不算）。開發掉件＝這段期間結案的名單，依掉的時候走到哪：沒進過約Demo 算 Demo 前，進過約Demo 算 Demo 後，有報價單算報價後。']
+};
+function bdHelp(key) {
+  if (key === 'attn') {
+    const rules = (_bd.rules || []);
+    bdDrawer('要關注怎麼算', '<div class="bd-hint">符合任一條就列出，天數都以工作天算（只扣週六日）。同一家踩到多條會一起標。</div>' + rules.map(function (r) { return '<div class="bd-rule"><b>' + esc(r.label) + '</b><span>' + esc(r.rule) + '</span></div>'; }).join(''));
+    return;
+  }
+  const h = BD_HELP[key]; if (!h) return;
+  bdDrawer(h[0] + '怎麼算', '<div class="bd-hint" style="font-size:13.5px;color:var(--text2)">' + esc(h[1]) + '</div>');
+}
+function bdSwitch(v) { navigate(v); }
+function bdViewSeg(v) { return '<div class="bd-seg"><button class="' + (v === 'standup' ? 'on' : '') + '" onclick="bdSwitch(\'standup\')">站會</button><button class="' + (v === 'review' ? 'on' : '') + '" onclick="bdSwitch(\'review\')">週會</button></div>'; }
+
+// ════════ 站會 ════════
+async function renderStandup(force) {
+  const el = document.getElementById('content');
+  const key = _bd.d || 'auto';
+  if (!_bd.sc[key] || force) el.innerHTML = '<div class="loading"><span class="dot-pulse">載入中</span></div>';
+  let j;
+  try { j = (!force && _bd.sc[key]) || await bdApi('/api/report/standup' + (_bd.d ? '?date=' + _bd.d : '')); } catch (e) { el.innerHTML = '<div class="empty-state">讀取失敗：' + esc(e.message) + '</div>'; return; }
+  _bd.sc[key] = j; _bd.sc[j.date] = j; _bd.sj = j; _bd.rules = j.rules;
+  if (currentPage !== 'standup') return;
+  let aT = 0, aO = 0, fT = 0, fO = 0, cT = 0, cO = 0, sT = 0, eT = 0;
+  j.reps.forEach(function (r) {
+    aT += r.assigned.length; aO += r.assigned.filter(function (a) { return a.contacted; }).length;
+    fT += r.due.length; fO += r.due.filter(function (d) { return d.done; }).length;
+    if (r.cold && !r.cold.exempt) { cT += r.cold.target || 0; cO += r.cold.calls; }
+    sT += r.attention.length; eT += r.acts.length;
+  });
+  const K = function (label, q, val, ok, sub, on) {
+    return '<' + (on ? 'button type="button" onclick="' + on + '"' : 'div') + ' class="bd-k' + (ok === false ? ' bad' : ok ? ' ok' : '') + '"><span>' + label + bdQ(q) + '</span><b>' + val + '</b>' + (sub ? '<small>' + sub + '</small>' : '') + '</' + (on ? 'button' : 'div') + '>';
+  };
+  const D = function (uid, k) { return "bdSu('" + uid + "','" + k + "')"; };
+  const team = '<div class="bd-card bd-team"><div class="bd-ks">'
+    + K('新名單', 'new', aO + '/' + aT, aT ? aO === aT : null, '', D('', 'new'))
+    + K('陌開', 'cold', cT ? cO + '/' + cT : '—', cT ? cO >= cT : null, '', D('', 'cold'))
+    + K('到期追蹤', 'due', fO + '/' + fT, fT ? fO === fT : null, '', D('', 'due'))
+    + K('要關注', 'attn', sT, sT ? false : null, '', D('', 'attn'))
+    + K('活動', 'acts', eT, null, '', D('', 'acts')) + '</div></div>';
+  const cards = j.reps.map(function (r) {
+    const aOk = r.assigned.filter(function (a) { return a.contacted; }).length, fOk = r.due.filter(function (d) { return d.done; }).length;
+    const coldBad = r.cold && !r.cold.exempt && r.cold.calls < (r.cold.target || 0);
+    const ft = r.assigned.filter(function (a) { return a.hours != null; }).map(function (a) { return a.hours; });
+    const avg = ft.length ? ft.reduce(function (s, v) { return s + v; }, 0) / ft.length : null;
+    const bad = r.assigned.length - aOk + r.due.length - fOk + (coldBad ? 1 : 0);
+    const worst = r.attention.reduce(function (m, x) { return Math.max(m, x.worst || 0); }, 0);
+    const miss = r.assigned.filter(function (a) { return !a.contacted; }).map(function (a) { return ['bad', a.id, a.name, '新名單沒打']; })
+      .concat(r.due.filter(function (d) { return !d.done; }).map(function (d) { return ['bad', d.id, d.name, d.stage + '・' + (d.date < j.date ? '逾期・原定 ' + bdMd(d.date) : '沒跟')]; }))
+      .concat(r.attention.map(function (x) { return ['warn', x.id, x.name, x.hits.filter(function (h) { return h.key !== 'star'; }).map(function (h) { return h.text; }).join('；') || '★ 主管關注']; }));
+    return '<div class="bd-card"><div class="bd-h">' + bdAv(r.rep) + '<b>' + esc(r.rep) + '</b><span class="bd-st ' + (bad ? 'bad' : 'good') + '">' + (bad ? bad + ' 項沒做完' : '✓ 完成') + '</span></div>'
+      + '<div class="bd-ks">'
+      + K('新名單', 'new', r.assigned.length ? aOk + '/' + r.assigned.length : '—', r.assigned.length ? aOk === r.assigned.length : null, avg != null ? '首聯 ' + bdHrs(avg) : '', r.assigned.length ? D(r.user_id, 'new') : '')
+      + (r.cold ? K('陌開', 'cold', r.cold.exempt ? '免' : r.cold.calls + '/' + r.cold.target, r.cold.exempt ? true : !coldBad, r.cold.exempt ? r.cold.exempt : (r.cold.week_target != null ? '週 ' + r.cold.week_calls + '/' + r.cold.week_target : ''), D(r.user_id, 'cold')) : K('陌開', 'cold', '—', null, '', ''))
+      + K('到期追蹤', 'due', r.due.length ? fOk + '/' + r.due.length : '—', r.due.length ? fOk === r.due.length : null, '', r.due.length ? D(r.user_id, 'due') : '')
+      + K('要關注', 'attn', r.attention.length, r.attention.length ? false : null, worst ? '最久 ' + worst + ' 天' : '', r.attention.length ? D(r.user_id, 'attn') : '')
+      + K('活動', 'acts', r.acts.length, r.acts.length < 3 ? false : null, r.acts.length < 3 ? '偏少' : '', D(r.user_id, 'acts'))
+      + '</div>'
+      + (miss.length ? '<div class="bd-ml">' + miss.map(function (m) { return '<button type="button" class="bd-mi ' + m[0] + '" onclick="openCompany(\'' + m[1] + '\')"><span>' + esc(m[2]) + '</span><small>' + esc(m[3]) + '</small></button>'; }).join('') + '</div>' : '')
+      + '</div>';
+  }).join('');
+  el.innerHTML = '<div class="bd"><div class="bd-top">' + bdViewSeg('standup')
+    + '<div class="bd-nav"><button onclick="bdSuGo(\'' + j.prev + '\')" aria-label="前一個工作天">‹</button><b>' + bdDay(j.date) + '</b><button onclick="bdSuGo(\'' + (j.next || '') + '\')"' + (j.next ? '' : ' disabled') + ' aria-label="後一個工作天">›</button>'
+    + '<button title="重新整理" onclick="renderStandup(true)">↻</button></div></div>'
+    + team + (cards || '<div class="bd-empty">那天沒有資料</div>') + '</div>';
+}
+function bdSuGo(d) { if (!d) return; _bd.d = d; renderStandup(); }
+function bdSu(uid, k) {
+  const j = _bd.sj; if (!j) return;
+  const reps = j.reps.filter(function (r) { return !uid || r.user_id === uid; });
+  const who = uid ? reps[0].rep : '全隊';
+  let rows = [], t = '';
+  reps.forEach(function (r) {
+    const o = r.rep;
+    if (k === 'new') { t = '新名單'; r.assigned.forEach(function (a) { rows.push({ id: a.id, owner: o, name: a.name, sub: '分配 ' + a.at.slice(5) + (a.contacted ? '・首聯 ' + bdHrs(a.hours) : ''), right: a.contacted ? '已聯絡' : '沒打', cls: a.contacted ? 'good' : 'bad' }); }); }
+    if (k === 'due') { t = '到期追蹤'; r.due.forEach(function (d) { rows.push({ id: d.id, owner: o, name: d.name, sub: d.stage + '・原定 ' + bdMd(d.date), right: d.done ? '有跟' : '沒跟', cls: d.done ? 'good' : 'bad' }); }); }
+    if (k === 'attn') { t = '要關注'; r.attention.forEach(function (x) { rows.push({ id: x.id, owner: o, name: x.name, sub: x.hits.map(function (h) { return h.text; }).join('；'), right: x.stage, cls: 'warn' }); }); }
+    if (k === 'acts') { t = '活動'; r.acts.forEach(function (a) { rows.push({ id: a.id, owner: o, name: a.name, sub: a.time + '・' + a.content, right: a.label }); }); }
+    if (k === 'cold' && r.cold) { t = '陌開'; rows.push({ owner: o, name: r.cold.exempt ? '免陌開（' + r.cold.exempt + '）' : '撥打 ' + r.cold.calls + ' 通・接通 ' + r.cold.connected, sub: r.cold.week_target != null ? '這週累計 ' + r.cold.week_calls + '／目標 ' + r.cold.week_target : '', right: r.cold.exempt ? '' : r.cold.calls + '/' + r.cold.target, cls: r.cold.exempt || r.cold.calls >= r.cold.target ? 'good' : 'bad' }); }
+  });
+  if (k === 'cold') { bdList(who + '・' + bdDay(j.date) + ' 陌開', rows); return; }
+  bdList(who + '・' + bdDay(j.date) + ' ' + t + ' ' + rows.length, rows);
+}
+
+// ════════ 週會 ════════
+async function renderReview(force) {
+  const el = document.getElementById('content');
+  if (!_bd.rc[_bd.span] || force) el.innerHTML = '<div class="loading"><span class="dot-pulse">載入中</span></div>';
+  let j;
+  try { j = (!force && _bd.rc[_bd.span]) || await bdApi('/api/report/review?span=' + _bd.span); } catch (e) { el.innerHTML = '<div class="empty-state">讀取失敗：' + esc(e.message) + '</div>'; return; }
+  _bd.rc[_bd.span] = j; _bd.rj = j; _bd.rules = j.rules;
+  if (currentPage !== 'review') return;
+  if (_bd.rep !== 'all' && !j.reps.some(function (r) { return r.user_id === _bd.rep; })) _bd.rep = 'all';
+  const seg = function (k, opts) { return '<div class="bd-seg">' + opts.map(function (o) { return '<button class="' + (_bd[k] === o[0] ? 'on' : '') + '" onclick="bdSet(\'' + k + '\',\'' + o[0] + '\')">' + esc(o[1]) + '</button>'; }).join('') + '</div>'; };
+  const st = el.scrollTop;
+  el.innerHTML = '<div class="bd"><div class="bd-top">' + bdViewSeg('review')
+    + seg('span', [['last', '上週'], ['this', '本週'], ['four', '近 4 週']])
+    + seg('rep', [['all', '全部']].concat(j.reps.map(function (r) { return [r.user_id, String(r.rep).split(' ')[0]]; })))
+    + '<span style="flex:1"></span><button class="btn btn-ghost btn-sm" title="重新整理" onclick="renderReview(true)">↻</button>'
+    + '<div class="bd-rg">' + bdMd(j.from) + ' ～ ' + bdMd(j.to) + '</div></div>'
+    + bdSec1(j) + bdSec2(j) + bdSec3(j) + bdSec4(j)
+    + '<div style="text-align:center"><button class="btn btn-ghost btn-sm" onclick="navigate(\'weekly\')">舊版週會</button></div></div>';
+  el.scrollTop = st;
+}
+function bdSet(k, v) { _bd[k] = v; renderReview(); }
+const bdSec = function (icon, color, title, q, alerts, body) { return '<section class="bd-sec"><div class="bd-sh"><span class="bd-badge" style="background:' + color + '">' + bdIc(icon) + '</span><h2>' + title + '</h2>' + bdQ(q) + '</div>' + (alerts && alerts.length ? '<div class="bd-als">' + alerts.join('') + '</div>' : '') + body + '</section>'; };
+const bdAl = function (cls, icon, t) { return '<span class="bd-al ' + cls + '">' + bdIc(icon) + esc(t) + '</span>'; };
+const bdRepOk = function (uid) { return _bd.rep === 'all' || uid === _bd.rep; };
+const BD_STG = ['配出去', '已聯絡', '約Demo', '密切追蹤', '議價中', '成交'];
+const BD_SRC_C = { FB: '#4f6bed', '官網': '#17a364', '行銷信': '#c07f00', Google: '#dc4a3f', '陌開': '#8a6d3b', '未填': '#9aa0ad' };
+function bdNameRows(ids, right, cls) { const N = _bd.rj.names; return ids.map(function (id) { const x = N[id] || { name: '' }; return { id: id, owner: x.owner, name: x.name, sub: x.stage + (x.last ? '・最後活動 ' + bdMd(x.last) : '・沒有活動'), right: right || '', cls: cls || '' }; }); }
+function bdFunnelSvg(f) {
+  const n0 = f.stages[0].length, nar = window.innerWidth < 620;
+  const cx = nar ? 150 : 230, rowH = 46, gap = 6, maxW = nar ? 160 : 300, minW = nar ? 44 : 56, H = 6 * (rowH + gap), VW = nar ? 440 : 760;
+  const w = function (v) { return Math.max(minW, n0 ? maxW * Math.sqrt(v / n0) : minW); };
+  const COL = { lost: 'var(--red)', wait: 'var(--yellow)', open: 'var(--text3)', nc: 'var(--red)' };
+  const ICK = { lost: 'x', wait: 'pause', open: 'clock', nc: 'phone' };
+  let g = '<defs><marker id="bdah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="var(--text3)"/></marker></defs>';
+  for (let i = 0; i < 6; i++) {
+    const v = f.stages[i].length, top = w(v), bot = i < 5 ? w(f.stages[i + 1].length) : top * 0.86, y = i * (rowH + gap);
+    const col = i === 5 ? 'var(--green)' : 'color-mix(in srgb,var(--accent) ' + Math.round(100 - i * 9) + '%,var(--purple))';
+    g += '<g onclick="bdStage(' + i + ')"><path d="M' + (cx - top / 2) + ' ' + y + ' L' + (cx + top / 2) + ' ' + y + ' L' + (cx + bot / 2) + ' ' + (y + rowH) + ' L' + (cx - bot / 2) + ' ' + (y + rowH) + ' Z" fill="' + col + '" opacity="' + (v ? 1 : .35) + '"/>'
+      + '<text class="n" x="' + cx + '" y="' + (y + rowH / 2 + 6) + '" text-anchor="middle">' + v + '</text>'
+      + '<text class="lbl" x="' + (cx - maxW / 2 - 12) + '" y="' + (y + rowH / 2) + '" text-anchor="end">' + BD_STG[i] + '</text>'
+      + '<text class="pc" x="' + (cx - maxW / 2 - 12) + '" y="' + (y + rowH / 2 + 16) + '" text-anchor="end">' + (i ? bdPct(v, n0) : '首聯 ' + bdHrs(f.ft)) + '</text></g>';
+    if (i < 5 && f.leaks[i].length) {
+      const ex = cx + (top + bot) / 4 + 4, ey = y + rowH * 0.62, tx = cx + maxW / 2 + (nar ? 28 : 46);
+      g += '<path d="M' + ex + ' ' + ey + ' C' + (ex + 20) + ' ' + ey + ' ' + (tx - 24) + ' ' + (ey + 8) + ' ' + (tx - 8) + ' ' + (ey + 8) + '" fill="none" stroke="var(--text3)" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#bdah)"/>';
+      let x = tx;
+      f.leaks[i].forEach(function (e, jx) {
+        const nd = String(e.ids.length).length * 8.5, wd = nar ? 36 + nd : 44 + e.label.length * 13 + nd;
+        g += '<g onclick="bdLeak(' + i + ',' + jx + ')"><rect x="' + x + '" y="' + (ey - 5) + '" width="' + wd + '" height="26" rx="13" fill="var(--bg2)" stroke="' + COL[e.k] + '" stroke-opacity=".6"/>'
+          + '<svg x="' + (x + 8) + '" y="' + (ey + 1) + '" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + COL[e.k] + '" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + BD_IP[ICK[e.k]] + '</svg>'
+          + '<text x="' + (x + 26) + '" y="' + (ey + 13) + '" style="font:500 12.5px var(--font);fill:' + COL[e.k] + '">' + (nar ? '' : e.label + ' ') + '<tspan style="font:700 13px var(--mono)">' + e.ids.length + '</tspan></text></g>';
+        x += wd + (nar ? 4 : 6);
+      });
+    }
+  }
+  return '<div class="bd-fw"><svg class="bd-funnel" viewBox="0 0 ' + VW + ' ' + H + '" role="img" aria-label="名單漏斗">' + g + '</svg>' + (nar ? '<div class="bd-flg">' + bdIc('x') + '結案 ' + bdIc('pause') + '等待 ' + bdIc('clock') + '停留</div>' : '') + '</div>';
+}
+function bdF() { return _bd.rj.funnel[_bd.rep] || { stages: [[], [], [], [], [], []], leaks: [[], [], [], [], []], ft: null, src: [] }; }
+function bdStage(i) { const ids = bdF().stages[i]; bdList(BD_STG[i] + ' ' + ids.length, bdNameRows(ids)); }
+function bdLeak(i, k) { const e = bdF().leaks[i][k]; bdList(BD_STG[i] + ' → ' + e.label + ' ' + e.ids.length, bdNameRows(e.ids, e.label, e.k === 'lost' || e.k === 'nc' ? 'bad' : e.k === 'wait' ? 'warn' : '')); }
+function bdSrc(k) { const N = _bd.rj.names, f = bdF(); const ids = f.stages[0].filter(function (id) { return (N[id] || {}).src === k; }); bdList(k, bdNameRows(ids)); }
+function bdAttnRows(list) { return list.map(function (x) { return { id: x.id, owner: x.owner, name: x.name, sub: x.hits.map(function (h) { return h.text; }).join('；'), right: x.stage, cls: 'warn' }; }); }
+function bdSec1(j) {
+  const f = bdF(), n = f.stages[0].length;
+  const att = j.attention.filter(function (x) { return bdRepOk(x.owner_id); });
+  const stars = j.stars.filter(function (x) { return bdRepOk(x.uid); });
+  const alerts = [];
+  if (f.stages[2].length && !f.stages[4].length) alerts.push(bdAl('bad', 'alert', '進 Demo ' + f.stages[2].length + ' 家・0 家議價'));
+  if (n && f.stages[1].length < n) alerts.push(bdAl('bad', 'phone', (n - f.stages[1].length) + ' 家還沒聯絡'));
+  if (att.length) alerts.push(bdAl('', 'clock', att.length + ' 家要關注'));
+  const tot = f.src.reduce(function (s, x) { return s + x[1]; }, 0);
+  const src = tot ? '<div><div class="bd-srcbar">' + f.src.map(function (x) { return '<i style="width:' + (x[1] / tot * 100) + '%;background:' + (BD_SRC_C[x[0]] || '#888') + '"></i>'; }).join('') + '</div><div class="bd-srcl">' + f.src.map(function (x) { return '<span onclick="bdSrc(\'' + esc(x[0]) + '\')"><i style="background:' + (BD_SRC_C[x[0]] || '#888') + '"></i>' + esc(x[0]) + ' ' + x[1] + '</span>'; }).join('') + '</div></div>' : '';
+  const starH = stars.length ? '<div><div class="bd-lab">★ 主管關注 ' + stars.length + '</div><div class="bd-ml" style="border-top:0">' + stars.map(function (s) {
+    const mv = s.moved.length ? '→ ' + s.moved.join(' → ') : (s.acts ? '活動 ' + s.acts + '・階段沒動' : '這段期間沒動');
+    return '<button type="button" class="bd-mi ' + (s.moved.length ? '' : s.acts ? 'warn' : 'bad') + '" onclick="openCompany(\'' + s.id + '\')"><span>' + esc(s.name) + '<em style="font-style:normal;color:var(--text3);font-weight:400;font-size:12px">・' + esc(String(s.owner).split(' ')[0]) + '・' + esc(s.stage) + '</em></span><small>' + esc(mv) + '</small></button>';
+  }).join('') + '</div></div>' : '';
+  const attH = att.length ? '<div><div class="bd-lab">要關注 ' + att.length + bdQ('attn') + '</div><div class="bd-ml" style="border-top:0">' + att.slice(0, 12).map(function (x) {
+    return '<button type="button" class="bd-mi warn" onclick="openCompany(\'' + x.id + '\')"><span>' + esc(x.name) + '<em style="font-style:normal;color:var(--text3);font-weight:400;font-size:12px">・' + esc(String(x.owner).split(' ')[0]) + '</em></span><small>' + esc(x.hits.filter(function (h) { return h.key !== 'star'; }).map(function (h) { return h.text; }).join('；') || '★') + '</small></button>';
+  }).join('') + (att.length > 12 ? '<button type="button" class="bd-mi" onclick="bdAttnAll()"><span>看全部 ' + att.length + ' 家</span></button>' : '') + '</div></div>' : '';
+  return bdSec('users', 'var(--accent)', '配的名單後來怎麼樣', 'funnel', alerts, (n ? bdFunnelSvg(f) + src : '<div class="bd-empty">這段期間沒有配名單</div>') + starH + attH);
+}
+function bdAttnAll() { const att = _bd.rj.attention.filter(function (x) { return bdRepOk(x.owner_id); }); bdList('要關注 ' + att.length, bdAttnRows(att)); }
+function bdRing(v, t, size) { const r = size / 2 - 9, c = 2 * Math.PI * r, p = t ? Math.min(1, v / t) : 1, col = v >= t ? 'var(--green)' : 'var(--accent)'; return '<svg class="bd-ring" onclick="bdCold(\'calls\')" width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '"><circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="var(--border)" stroke-width="12"/><circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="' + col + '" stroke-width="12" stroke-linecap="round" stroke-dasharray="' + (c * p).toFixed(1) + ' ' + c.toFixed(1) + '" transform="rotate(-90 ' + size / 2 + ' ' + size / 2 + ')"/><text x="50%" y="48%" text-anchor="middle" style="font:700 26px var(--mono);fill:var(--text)">' + v + '</text><text x="50%" y="64%" text-anchor="middle" style="font:500 12px var(--mono);fill:var(--text3)">/ ' + t + ' 通</text></svg>'; }
+function bdColdU() { const j = _bd.rj; return j.cold.filter(function (c) { return bdRepOk(c.user_id); }); }
+function bdSec2(j) {
+  const cs = bdColdU();
+  if (!cs.length) return bdSec('phone', '#d9822b', '陌開狀況', 'coldsec', [], '<div class="bd-empty">沒有陌開目標</div>');
+  return cs.map(function (c, ci) {
+    const alerts = [];
+    if (c.pool.mine.length <= 5) alerts.push(bdAl('bad', 'inbox', '名單池剩 ' + c.pool.mine.length + ' 家'));
+    if (c.carry) alerts.push(bdAl('', 'bolt', '含上週欠 ' + c.carry));
+    if (c.cut) alerts.push(bdAl('good', 'check', '陌開 Demo −' + c.cut));
+    if (c.waived) alerts.push(bdAl('good', 'check', '有成交・免陌開'));
+    const tile = function (k, icon, bg, fg, v, l) { return '<button type="button" class="bd-tile" onclick="bdCold(\'' + k + '\',' + ci + ')"><span class="bd-ti" style="background:' + bg + ';color:' + fg + '">' + bdIc(icon) + '</span><div><b>' + v + '</b><span>' + l + '</span></div></button>'; };
+    const top = '<div class="bd-coldtop">' + bdRing(c.calls, c.target, 150).replace("bdCold('calls')", "bdCold('calls'," + ci + ")") + '<div class="bd-tiles">'
+      + tile('conn', 'headset', 'var(--accent-glow)', 'var(--accent)', bdPct(c.list.conn.length, c.calls), '接通率')
+      + tile('sent', 'send', 'var(--accent-glow)', 'var(--accent)', c.list.sent.length, '傳資料')
+      + tile('hot', 'flame', 'var(--yellow-bg)', 'var(--yellow)', c.list.hot.length, '有興趣')
+      + tile('conv', 'arrow', 'var(--green-bg)', 'var(--green)', c.list.conv.length, '轉線索') + '</div></div>';
+    const max = Math.max(1, ...c.weeks.map(function (w) { return Math.max(w.calls, w.target || 0); }));
+    const thisW = c.weeks.length ? c.weeks[c.weeks.length - 1].week : '';
+    const weeks = '<div class="bd-weeks">' + c.weeks.map(function (w, i) {
+      const h = Math.max(2, w.calls / max * 100), t = (w.target || 0) / max * 100, cls = !w.target ? 'free' : w.week === thisW ? 'now' : w.calls >= w.target ? 'ok' : '';
+      return '<div class="bd-wk" onclick="bdWeek(' + ci + ',' + i + ')"><div class="col"><i class="' + cls + '" style="height:' + h + '%"></i>' + (w.target ? '<s style="bottom:' + t + '%"></s>' : '') + '</div><small>' + w.calls + (w.target ? '/' + w.target : ' 免') + '<br>' + bdMd(w.week) + '</small></div>';
+    }).join('') + '</div>';
+    const pool = '<div class="bd-chips"><button class="bd-chip bad" onclick="bdPool(' + ci + ',\'mine\')">' + bdIc('inbox') + '名單池 <b>' + c.pool.mine.length + '</b></button><button class="bd-chip" onclick="bdPool(' + ci + ',\'today\')">' + bdIc('list') + '今日待打 <b>' + c.pool.today.length + '</b></button><button class="bd-chip warn" onclick="bdPool(' + ci + ',\'overdue\')">' + bdIc('clock') + '逾期 <b>' + c.pool.overdue.length + '</b></button><span class="bd-chip" style="cursor:default">' + bdIc('waves') + '公海 <b>' + j.public_pool.toLocaleString() + '</b></span></div>';
+    return bdSec('phone', '#d9822b', '陌開狀況' + (cs.length > 1 || _bd.rep === 'all' ? '・' + esc(String(c.rep).split(' ')[0]) : ''), 'coldsec', alerts, top + weeks + pool);
+  }).join('');
+}
+const BD_OUT = { interested: '有興趣', callback: '再聯絡', sent: '傳資料', rejected: '拒絕', invalid: '無效', missed: '沒接', converted: '轉線索', calling: '撥打中', new: '—' };
+function bdCold(k, ci) {
+  const c = bdColdU()[ci || 0]; if (!c) return;
+  const L = { calls: ['撥打', c.list.calls], conn: ['接通', c.list.conn], sent: ['傳資料', c.list.sent], hot: ['有興趣', c.list.hot], conv: ['轉線索', c.list.conv] }[k];
+  bdList(L[0] + ' ' + L[1].length, L[1].slice().reverse().map(function (x) { const o = BD_OUT[x.outcome] || x.outcome; return { owner: c.rep, name: x.name, sub: x.time, right: o, cls: x.outcome === 'interested' || x.outcome === 'sent' || x.outcome === 'converted' ? 'good' : x.outcome === 'rejected' ? 'bad' : '' }; }));
+}
+function bdWeek(ci, i) { const c = bdColdU()[ci], w = c.weeks[i]; bdList(bdMd(w.week) + ' 那週', [{ name: '撥打 ' + w.calls + ' 通', sub: w.target ? '目標 ' + w.target + (w.carry ? '（含上週欠 ' + w.carry + '）' : '') + (w.cut ? '・陌開 Demo −' + w.cut : '') : '免陌開（有成交）', right: w.target ? (w.calls >= w.target ? '達標' : '差 ' + (w.target - w.calls)) : '', cls: w.target ? (w.calls >= w.target ? 'good' : 'bad') : '' }]); }
+function bdPool(ci, k) { const c = bdColdU()[ci], L = { mine: '名單池', today: '今日待打', overdue: '逾期' }; bdList(L[k] + ' ' + c.pool[k].length, c.pool[k].map(function (n) { return { name: n }; })); }
+function bdSpark(arr) { const w = 96, h = 30, m = Math.max(...arr, 1); const pts = arr.map(function (v, i) { return [i * (w - 6) / (arr.length - 1) + 3, h - 4 - (v / m) * (h - 8)]; }); const d = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' '); const l = pts[pts.length - 1]; return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" aria-hidden="true"><path d="' + d + ' L' + l[0].toFixed(1) + ' ' + h + ' L3 ' + h + ' Z" fill="var(--accent-glow)"/><path d="' + d + '" fill="none" stroke="var(--accent)" stroke-width="2"/><circle cx="' + l[0].toFixed(1) + '" cy="' + l[1].toFixed(1) + '" r="3" fill="var(--accent)"/></svg>'; }
+function bdSec3(j) {
+  const rows = j.effort.filter(function (r) { return bdRepOk(r.user_id); });
+  const maxA = Math.max(1, ...j.effort.map(function (r) { return r.acts; }));
+  const alerts = [];
+  rows.forEach(function (r) { const n = String(r.rep).split(' ')[0]; if (r.ft != null && r.ft > 24) alerts.push(bdAl('', 'clock', n + ' 首聯 ' + bdHrs(r.ft))); if (r.cold_target && r.calls < r.cold_target && _bd.span !== 'this') alerts.push(bdAl('bad', 'phone', n + ' 陌開沒達標')); });
+  const m = function (uid, k, icon, t, v, sub, p, col) { return '<div class="bd-m" onclick="bdEff(\'' + uid + '\',\'' + k + '\')"><div class="mt">' + bdIc(icon) + t + '</div><div class="mv"' + (col ? ' style="color:' + col + '"' : '') + '>' + v + (sub ? '<small> ' + sub + '</small>' : '') + '</div><div class="mb"><i style="width:' + Math.round(Math.min(1, p) * 100) + '%;' + (col ? 'background:' + col : '') + '"></i></div></div>'; };
+  const body = rows.length ? '<div class="bd-reps">' + rows.map(function (r) {
+    const cc = r.cold_target ? (r.calls >= r.cold_target ? 'var(--green)' : _bd.span === 'this' ? '' : 'var(--red)') : '';
+    return '<div class="bd-rep"><div class="id">' + bdAv(r.rep) + '<b>' + esc(r.rep) + '</b></div>'
+      + m(r.user_id, 'acts', 'bolt', '活動', r.acts, '', r.acts / maxA)
+      + m(r.user_id, 'calls', 'phone', '陌開', r.calls, r.cold_target ? '/ ' + r.cold_target : '', r.cold_target ? r.calls / r.cold_target : 0, cc)
+      + m(r.user_id, 'asg', 'users', '配的名單', r.assigned ? r.contacted + '/' + r.assigned : '—', '', r.assigned ? r.contacted / r.assigned : 0, r.assigned && r.contacted < r.assigned ? 'var(--red)' : '')
+      + m(r.user_id, 'days', 'cal', '有紀錄', r.days, '/ ' + r.workdays + ' 天', r.workdays ? r.days / r.workdays : 0, r.days < r.workdays - 1 ? 'var(--yellow)' : '')
+      + '<div class="sp">' + bdSpark(r.trend) + '</div></div>';
+  }).join('') + '</div>' : '<div class="bd-empty">沒有資料</div>';
+  return bdSec('flame', '#2fa37a', '業務努力', 'effort', alerts, body);
+}
+function bdEff(uid, k) {
+  const r = _bd.rj.effort.find(function (x) { return x.user_id === uid; }); if (!r) return;
+  if (k === 'acts') bdList(r.rep + '・活動 ' + r.acts, r.act_list.map(function (a) { return { id: a.id, name: a.name, sub: a.time + '・' + a.content, right: a.label }; }), r.acts > r.act_list.length ? '只列最近 ' + r.act_list.length + ' 筆' : '');
+  else if (k === 'calls') { const c = _bd.rj.cold.find(function (x) { return x.user_id === uid; }); bdList(r.rep + '・陌開 ' + r.calls, c ? c.list.calls.slice().reverse().map(function (x) { return { name: x.name, sub: x.time, right: BD_OUT[x.outcome] || x.outcome }; }) : []); }
+  else if (k === 'asg') bdList(r.rep + '・配的名單 ' + r.assigned, r.asg_list.map(function (a) { return { id: a.id, name: a.name, sub: a.ft != null ? '首聯 ' + bdHrs(a.ft) : '還沒聯絡', right: a.ft != null ? '已聯絡' : '沒打', cls: a.ft != null ? 'good' : 'bad' }; }));
+  else bdList(r.rep + '・有紀錄 ' + r.days + '/' + r.workdays + ' 天', r.day_list.map(function (d) { return { name: bdDay(d.day), sub: '活動 ' + d.acts + '・陌開 ' + d.calls, right: d.acts + d.calls ? '' : '沒紀錄', cls: 'bad' }; }));
+}
+const BD_REA_C = ['#dc4a3f', '#f08a4b', '#e7b43a', '#8a9cf5', '#6c7182', '#b98ae6', '#a9adba', '#5bb5a2'];
+function bdDonut(data, size) { const tot = data.reduce(function (s, d) { return s + d[1]; }, 0), r = size / 2 - 14, c = 2 * Math.PI * r; let off = 0, g = ''; data.forEach(function (d, i) { const len = d[1] / tot * c; g += '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="' + BD_REA_C[i % BD_REA_C.length] + '" stroke-width="22" stroke-dasharray="' + len.toFixed(1) + ' ' + (c - len).toFixed(1) + '" stroke-dashoffset="' + (-off).toFixed(1) + '" transform="rotate(-90 ' + size / 2 + ' ' + size / 2 + ')"/>'; off += len; }); return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '">' + g + '<text x="50%" y="48%" text-anchor="middle" style="font:700 24px var(--mono);fill:var(--text)">' + tot + '</text><text x="50%" y="64%" text-anchor="middle" style="font:500 12px var(--font);fill:var(--text3)">陌開被拒</text></svg>'; }
+function bdRea() {
+  const j = _bd.rj;
+  const cold = j.reasons.cold.map(function (x) { return [x[0], x[1].filter(function (y) { return bdRepOk(y.uid); })]; }).filter(function (x) { return x[1].length; }).sort(function (a, b) { return b[1].length - a[1].length; });
+  const lost = {}; Object.keys(j.reasons.lost).forEach(function (k) { const v = j.reasons.lost[k].map(function (a) { return a.filter(function (y) { return bdRepOk(y.uid); }); }); if (v[0].length + v[1].length + v[2].length) lost[k] = v; });
+  return { cold: cold, lost: lost };
+}
+function bdSec4(j) {
+  const R = bdRea();
+  const keys = Object.keys(R.lost).sort(function (a, b) { const s = function (k) { return R.lost[k][0].length + R.lost[k][1].length + R.lost[k][2].length; }; return s(b) - s(a); });
+  const lostTot = keys.reduce(function (s, k) { return s + R.lost[k][0].length + R.lost[k][1].length + R.lost[k][2].length; }, 0);
+  const before = keys.reduce(function (s, k) { return s + R.lost[k][0].length; }, 0);
+  const alerts = [];
+  if (lostTot) alerts.push(bdAl(before * 2 > lostTot ? 'bad' : '', 'alert', before + '/' + lostTot + ' 在 Demo 前掉'));
+  const oth = R.lost['其他'] ? R.lost['其他'][0].length + R.lost['其他'][1].length + R.lost['其他'][2].length : 0;
+  if (lostTot && oth * 4 >= lostTot) alerts.push(bdAl('', 'list', '「其他」' + oth + ' 家・選項不夠用'));
+  const cd = R.cold.map(function (x) { return [x[0], x[1].length]; });
+  const donut = cd.length ? '<div class="bd-donutw">' + bdDonut(cd, 170) + '<div class="bd-legend">' + cd.map(function (r, i) { return '<button class="bd-lg" onclick="bdReaCold(' + i + ')"><i style="background:' + BD_REA_C[i % BD_REA_C.length] + '"></i><span>' + esc(r[0]) + '</span><b>' + r[1] + '</b></button>'; }).join('') + '</div></div>' : '<div class="bd-empty">這段期間沒有陌開被拒</div>';
+  let bub = '<div class="bd-empty">這段期間沒有開發掉件</div>';
+  if (keys.length) {
+    const STG = ['Demo 前', 'Demo 後', '報價後'], mx = Math.max(1, ...keys.map(function (k) { return Math.max(R.lost[k][0].length, R.lost[k][1].length, R.lost[k][2].length); }));
+    const L0 = 96, cw = 130, rh = 44, top = 26, W = L0 + cw * 3 + 10, H = top + keys.length * rh;
+    let g = STG.map(function (s, i) { return '<text class="cl" x="' + (L0 + cw * i + cw / 2) + '" y="14" text-anchor="middle">' + s + '掉</text>'; }).join('');
+    keys.forEach(function (k, jx) {
+      const y = top + jx * rh + rh / 2;
+      g += '<line x1="' + L0 + '" x2="' + (W - 10) + '" y1="' + y + '" y2="' + y + '" stroke="var(--border)"/><text class="rl" x="' + (L0 - 10) + '" y="' + (y + 5) + '" text-anchor="end">' + esc(k.slice(0, 7)) + '</text>';
+      R.lost[k].forEach(function (a, i) { const v = a.length; if (!v) return; const r = 7 + 13 * Math.sqrt(v / mx); g += '<circle cx="' + (L0 + cw * i + cw / 2) + '" cy="' + y + '" r="' + r.toFixed(1) + '" fill="var(--red)" opacity="' + (.55 + .45 * v / mx).toFixed(2) + '" onclick="bdReaLost(' + jx + ',' + i + ')"/><text class="bn" x="' + (L0 + cw * i + cw / 2) + '" y="' + (y + 4) + '" text-anchor="middle">' + v + '</text>'; });
+    });
+    bub = '<svg class="bd-bub" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="開發掉件原因與階段">' + g + '</svg>';
+  }
+  _bd.reaKeys = keys;
+  return bdSec('ban', '#dc4a3f', '被拒絕的原因', 'reasons', alerts, donut + '<div><div class="bd-lab">開發掉件 ' + lostTot + ' 家</div>' + bub + '</div>');
+}
+function bdReaCold(i) { const x = bdRea().cold[i]; const u = function (id) { const r = _bd.rj.reps.find(function (y) { return y.user_id === id; }); return r ? r.rep : ''; }; bdList('陌開被拒・' + x[0] + ' ' + x[1].length, x[1].map(function (y) { return { owner: u(y.uid), name: y.name }; })); }
+function bdReaLost(k, i) { const key = _bd.reaKeys[k], a = bdRea().lost[key][i]; bdList(key + '・' + ['Demo 前', 'Demo 後', '報價後'][i] + '掉 ' + a.length, a.map(function (y) { return { id: y.id, owner: y.owner, name: y.name, sub: y.note }; })); }
+// 名單漏斗的名稱表要有來源（後端 names 沒帶時補）
+
 async function renderDashboard() {
   const [leadsRes, accsRes, contractsRes, activitiesRes] = await Promise.all([
     db.from('leads').select('*'),
@@ -5813,7 +6278,7 @@ function createKanbanCard(lead) {
   const owner = lead.user_name ? '<span class="kc-owner" title="' + esc(lead.user_name) + '">' + esc(String(lead.user_name).split(/\s+/)[0].slice(0, 6)) + '</span>' : '<span class="kc-owner none">未指派</span>';
   card.innerHTML = '<div class="kc-name">' + ctagHtml(lead) + starMark(lead) + esc(lead.name) + ctagLblHtml(lead) + (convertedLeadIds.has(lead.id) ? ' <span class="badge badge-green" style="font-size:10px;padding:1px 6px">已成交</span>' : '') + '</div>'
     + (lead.watch && lead.watch_note ? '<div class="star-note">主管：' + esc(lead.watch_note) + '</div>' : '')
-    + '<div class="kc-foot">' + dueHtml + '<span style="flex:1"></span>' + (isExpStage(lead) ? expChipHtml(lead) : '') + (function () { const s = sourcesData.find(function (x) { return x.id === lead.source_id; }); return '<span class="kc-src' + (s ? '' : ' none') + '">' + (s ? esc(srcLabel(s.name)) : '來源？') + '</span>'; })() + owner + '</div>';
+    + '<div class="kc-foot">' + dueHtml + demoChipHtml(lead, true) + '<span style="flex:1"></span>' + (isExpStage(lead) ? expChipHtml(lead) : '') + (function () { const s = sourcesData.find(function (x) { return x.id === lead.source_id; }); return '<span class="kc-src' + (s ? '' : ' none') + '">' + (s ? esc(srcLabel(s.name)) : '來源？') + '</span>'; })() + owner + '</div>';
   const logB = document.createElement('button');
   logB.className = 'kc-log'; logB.type = 'button'; logB.textContent = '＋'; logB.title = '記錄聯絡'; logB.setAttribute('aria-label', '記錄聯絡');
   logB.draggable = false;
@@ -6976,6 +7441,7 @@ function companyHeaderHtml(lead, acc) {
     .concat(lead.tax_id ? ['<span style="font-family:var(--mono)">' + esc(lead.tax_id) + '</span>'] : [])
     .concat([srcChipHtml(lead)])
     .concat([nextHtml])
+    .concat(acc ? [] : [demoChipHtml(lead)].filter(Boolean))
     .concat(acc ? [] : [expChipHtml(lead)].filter(Boolean));
   return '<div class="cp-card cp-head' + ctagCls(lead) + '">'
     + '<div class="cp-head-row">'
@@ -7182,6 +7648,7 @@ let _gate = null;
 function isWaitStage(nm) { return nm === '等待' || nm === '暫停'; }
 function afterStageChanged(leadId, stageId, prevId) {
   const nm = getStageKey(stageId);
+  if (nm === '約Demo' && prevId !== stageId) { askDemoDate(leadId); return; }
   const needs = nm === '結案' || isWaitStage(nm) || (nm === '簽約進件' && !convertedLeadIds.has(leadId));
   if (!needs) return;
   _gate = prevId && prevId !== stageId ? { leadId: leadId, prevId: prevId, toId: stageId, done: false, hold: false } : null;
@@ -7224,6 +7691,49 @@ function askWaitDate(leadId) {
     }}
   ]);
 }
+// 進「約Demo」：問 Demo 日期（客戶還沒給日期可以先跳過）
+function demoLead(leadId) { return leadsData.find(function (x) { return x.id === leadId; }) || (window._cp && window._cp.lead && window._cp.lead.id === leadId ? window._cp.lead : null); }
+function askDemoDate(leadId) {
+  const l = demoLead(leadId) || {};
+  const cur = l.demo_at ? String(l.demo_at).slice(0, 10) : '';
+  const opts = [[1, '明天'], [2, '後天'], [7, '下週']];
+  window._demoDate = cur;
+  openModal('🖥️ Demo 約哪天？', ''
+    + '<div style="display:flex;gap:6px;flex-wrap:wrap" id="ddChips">' + opts.map(function (o) { const v = addDaysStr(nowDateStr(), o[0]); return '<button type="button" class="df-chip' + (v === cur ? ' on' : '') + '" data-v="' + v + '" onclick="ddPick(this.dataset.v)">' + o[1] + '</button>'; }).join('') + '</div>'
+    + '<input type="date" class="form-input" id="ddDate" style="margin-top:10px;width:auto" value="' + cur + '" onchange="ddPick(this.value,true)">'
+    + '<div style="font-size:12px;color:var(--text3);margin-top:10px">客戶還沒給日期就按「還沒定」，超過 3 個工作天沒排會列入要關注。</div>', [
+    { label: cur ? '清除日期' : '還沒定', cls: 'btn-secondary', action: async function () { if (cur) await saveDemoDate(leadId, null); closeModal(); if (!cur) toast('Demo 待排', 'info'); } },
+    { label: '確定', cls: 'btn-primary', action: async function () {
+      const d = window._demoDate;
+      if (!d) { toast('選一個日期，或按「還沒定」', 'error'); return; }
+      await saveDemoDate(leadId, d); closeModal();
+    }}
+  ]);
+  document.getElementById('modalBox').style.maxWidth = '420px';
+}
+function ddPick(v, fromInput) {
+  window._demoDate = v;
+  document.querySelectorAll('#ddChips .df-chip').forEach(function (b) { b.classList.toggle('on', b.dataset.v === v); });
+  if (!fromInput) { const el = document.getElementById('ddDate'); if (el) el.value = v; }
+}
+async function saveDemoDate(leadId, d) {
+  const upd = { demo_at: d, updated_at: new Date().toISOString() };
+  if (d && d >= nowDateStr()) upd.next_contact_date = d;
+  const r = await db.from('leads').update(upd).eq('id', leadId);
+  if (r.error) { toast('存不進去：' + r.error.message, 'error'); return; }
+  const l = leadsData.find(function (x) { return x.id === leadId; }); if (l) Object.assign(l, upd);
+  if (window._cp && window._cp.lead && window._cp.lead.id === leadId) Object.assign(window._cp.lead, upd);
+  toast(d ? 'Demo ' + d.slice(5).replace('-', '/') : '已清除 Demo 日期', 'success');
+  refreshCurrentView(leadId);
+  if (currentPage === 'leads' && window.innerWidth > 768) renderKanban(document.getElementById('leadSearch')?.value || '');
+}
+function demoChipHtml(lead, small) {
+  if (getStageKey(lead.stage_id) !== '約Demo') return '';
+  const d = lead.demo_at ? String(lead.demo_at).slice(0, 10) : '';
+  const late = d && d < nowDateStr();
+  const txt = d ? 'Demo ' + d.slice(5).replace('-', '/') : 'Demo 待排';
+  return '<button type="button" class="' + (small ? 'kc-demo' : 'cp-meta-btn') + '" style="color:' + (d ? (late ? 'var(--red)' : 'var(--cyan)') : 'var(--yellow)') + '" onclick="event.stopPropagation();askDemoDate(\'' + lead.id + '\')">🖥️ ' + txt + '</button>';
+}
 function wdPick(v) {
   document.querySelectorAll('#wdChips .df-chip').forEach(function (b) { b.classList.toggle('on', b.dataset.v === v); });
   const el = document.getElementById('wdDate');
@@ -7252,7 +7762,7 @@ function setLeadHash(leadId) { /* 網址由 histPush 管理 */ }
 
 // ── 瀏覽器「上一頁／下一頁」──
 // 每換一頁就推一筆紀錄：#/today、#/leads…；公司頁是 #lead=<id>
-const PAGE_KEYS = ['pricing', 'mtoday', 'mclients', 'mme', 'today', 'weekly', 'dashboard', 'leads', 'leadlist', 'bonus', 'quotes', 'accounts', 'onboard', 'performance', 'coldcall', 'ccboard', 'ccpool', 'cclist', 'ccstats', 'decks', 'contacts', 'settings', 'feed'];
+const PAGE_KEYS = ['standup', 'review', 'pricing', 'mtoday', 'mclients', 'mme', 'today', 'weekly', 'dashboard', 'leads', 'leadlist', 'bonus', 'quotes', 'accounts', 'onboard', 'performance', 'coldcall', 'ccboard', 'ccpool', 'cclist', 'ccstats', 'decks', 'contacts', 'settings', 'feed'];
 let _histRouting = false;
 function histPush(hash, opt) {
   if (_histRouting) return;
@@ -7541,7 +8051,7 @@ async function renderDrawerActivities(leadId) {
 }
 
 // ════════ 記錄聯絡（三下完成：結果、一句話、下次） ════════
-const QL_RESULTS = [['call', '接通'], ['missed', '沒接'], ['visit', '拜訪'], ['msg', '訊息']];
+const QL_RESULTS = [['call', '接通'], ['missed', '沒接'], ['visit', '拜訪'], ['demo', 'Demo'], ['msg', '訊息']];
 const QL_NEXT = [[1, '明天'], [3, '3 天'], [7, '下週'], [14, '2 週'], ['pick', '選日期'], [null, '不用']];
 let _ql = null;
 function qlStageAfter(lead, result) {
@@ -7590,6 +8100,7 @@ function qlAutoPick(text) {
   if (!_ql.touchedResult) {
     let r = null;
     if (/沒接|未接|沒人接|無人接|不在|沒接通|掛掉|掛電話/.test(t)) r = 'missed';
+    else if (/demo|Demo|DEMO|示範|展示系統|線上展示/.test(t)) r = 'demo';
     else if (/拜訪|到訪|見面|現場|去了|去過|碰面/.test(t)) r = 'visit';
     else if (/LINE|賴|訊息|簡訊|mail|Email|信件|傳了|回訊/i.test(t)) r = 'msg';
     else if (/接通|聊|講|說|電話/.test(t)) r = 'call';
@@ -7631,7 +8142,7 @@ async function saveQuickLog() {
   try {
     let images = null;
     if (hasImg) { toast('圖片上傳中…', 'info'); try { images = await imgUploadAll('ql', lead.id); } catch (e) { toast(e.message, 'error'); return; } }
-    const type = q.result === 'visit' ? 'visit' : q.result === 'msg' ? 'email' : 'call';
+    const type = q.result === 'visit' ? 'visit' : q.result === 'demo' ? 'demo' : q.result === 'msg' ? 'email' : 'call';
     const r1 = await db.from('activities').insert(Object.assign({ type: type, content: content, lead_id: lead.id, user_id: currentUser.id, created_at: new Date().toISOString() }, images ? { images: images } : {}));
     if (r1.error) { toast('存不進去：' + r1.error.message, 'error'); return; }
     const upd = { updated_at: new Date().toISOString() };

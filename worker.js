@@ -9,7 +9,7 @@ const TZ_OFFSET_MS = 8 * 3600 * 1000; // Asia/Taipei
 const BLOCKED_STAGES = ['結案', '簽約進件']; // 這兩個階段有後續流程（結案原因、轉客戶），只能在 CRM 裡操作
 const INACTIVE_STAGES = ['結案', '暫停', '等待'];
 const AI_TAG = '\n\n— 由 ChatGPT 助理記錄';
-const ACTIVITY_TYPES = { email: 'Email', call: '電話/LINE', visit: '實體拜訪', event: '展覽活動', note: '內部備註' };
+const ACTIVITY_TYPES = { email: 'Email', call: '電話/LINE', visit: '實體拜訪', demo: 'Demo', event: '展覽活動', note: '內部備註' };
 
 export default {
   async fetch(request, env, ectx) {
@@ -168,6 +168,7 @@ async function api(request, env, url, ectx) {
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/activities$/)) && m === 'POST') return json(await addActivity(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/next-contact$/)) && m === 'PATCH') return json(await setNextContact(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/stage$/)) && m === 'PATCH') return json(await setStage(ctx, mm[1], await readBody(request)));
+  if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/demo$/)) && m === 'PATCH') return json(await setDemoDate(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/owner$/)) && m === 'PATCH') return json(await setOwner(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/source$/)) && m === 'PATCH') return json(await setSource(ctx, mm[1], await readBody(request)));
   if ((mm = path.match(/^\/api\/leads\/([0-9a-f-]{36})\/star$/)) && m === 'PATCH') return json(await setStar(ctx, mm[1], await readBody(request)));
@@ -181,6 +182,8 @@ async function api(request, env, url, ectx) {
   if (m === 'GET' && path === '/api/report/weekly') return json(await weeklyReport(ctx));
   if (m === 'GET' && path === '/api/report/intake') return json(await intakeReport(ctx));
   if (m === 'GET' && path === '/api/report/daily') return json(await dailyReport(ctx));
+  if (m === 'GET' && path === '/api/report/standup') return json(await standupReport(ctx));
+  if (m === 'GET' && path === '/api/report/review') return json(await reviewReport(ctx));
   if (m === 'GET' && path === '/api/customers') return json(await listCustomers(ctx));
   if (m === 'POST' && path === '/api/dedupe') return json(await checkDuplicates(ctx, await readBody(request)));
   if (m === 'GET' && path === '/api/names') return json(await exportNames(ctx));
@@ -399,6 +402,7 @@ function leadSummary(l, L) {
     stage: L.stageName(l.stage_id), owner: l.user_name || L.userName(l.user_id),
     next_contact_date: l.next_contact_date || null, last_updated: toTW(l.updated_at || l.created_at),
     arrived_at: toTW(l.arrived_at || l.created_at),
+    ...(l.demo_at ? { demo_date: l.demo_at } : {}),
     ...(l.watch ? { starred: true, star_note: l.watch_note || null } : {}),
     crm_link: null
   };
@@ -515,8 +519,23 @@ async function setStage({ db, url }, leadId, b) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new HttpError(400, '進「等待」一定要給下次聯絡日 next_contact_date（YYYY-MM-DD），請先問使用者什麼時候再聯絡');
     patch.next_contact_date = d;
   }
+  if (st.name === '約Demo' && b.demo_date !== undefined && b.demo_date !== null && b.demo_date !== '') {
+    if (!isDate(b.demo_date)) throw new HttpError(400, 'demo_date 要是 YYYY-MM-DD；客戶還沒給日期就不要帶');
+    patch.demo_at = b.demo_date; patch.next_contact_date = b.demo_date;
+  }
   await db.update('leads', `id=eq.${leadId}`, patch);
-  return { ok: true, lead: lead.name, from: prev, to: st.name, next_contact_date: patch.next_contact_date || undefined, crm_link: url.origin + '/#lead=' + leadId };
+  return { ok: true, lead: lead.name, from: prev, to: st.name, next_contact_date: patch.next_contact_date || undefined, demo_date: patch.demo_at || undefined,
+    hint: st.name === '約Demo' && !patch.demo_at ? 'Demo 還沒排日期；客戶給日期後用 set_demo_date 補（待排超過 3 個工作天會列入要關注）' : undefined, crm_link: url.origin + '/#lead=' + leadId };
+}
+
+async function setDemoDate({ db, url }, leadId, b) {
+  const lead = await loadLead({ db }, leadId);
+  const d = b.date === 'none' || b.date === null ? null : b.date;
+  if (d !== null && !isDate(d)) throw new HttpError(400, 'date 要是 YYYY-MM-DD 或 none');
+  const patch = { demo_at: d, updated_at: new Date().toISOString() };
+  if (d && d >= todayTW()) patch.next_contact_date = d;
+  await db.update('leads', `id=eq.${leadId}`, patch);
+  return { ok: true, lead: lead.name, previous: lead.demo_at || null, demo_date: d, next_contact_date: patch.next_contact_date || lead.next_contact_date || null, crm_link: url.origin + '/#lead=' + leadId };
 }
 
 // 名單進來的時間：ISO、或台北時間「YYYY-MM-DD HH:mm」「YYYY-MM-DD」
@@ -1169,6 +1188,286 @@ async function dailyReport({ db, url }) {
   return { cold_rule: { demo_cut: DEMO_CUT, text: '有設目標的業務：上班日每天 N 通；參展那天免；當週有成交整週免；當週每一家陌開進 Demo 減 10 通；沒打完的量累積到下週', carry_from: COLD_CARRY_FROM }, mode: weekly ? 'week' : 'day', range: { from: periods[periods.length - 1].from, to: today }, today, this_week: weekStartOf(today), reps: rows,
     note: '分配＝主管或系統指給這位業務的名單（陌開轉入不算）；已聯絡＝分配後有任何活動（不含備註），當天聯絡另計；既有客戶＝當天對其他名單的活動數；陌開＝當天撥打紀錄。' };
 }
+// ════════ 站會／週會（2026-11 改版）════════
+// 工作天：只扣週六日（國定假日先不處理）
+const isWorkday = d => { const w = new Date(d + 'T00:00:00Z').getUTCDay(); return w >= 1 && w <= 5; };
+const wdBetween = (a, b) => { let n = 0; for (let d = addDays(a, 1); d < b; d = addDays(d, 1)) if (isWorkday(d)) n++; return n; }; // a、b 之間（不含頭尾）過了幾個完整工作天
+const prevWorkday = d => { let x = addDays(d, -1); while (!isWorkday(x)) x = addDays(x, -1); return x; };
+// 要關注的規則（前端問號標籤也讀這份）
+const ATTN_RULES = [
+  { key: 'star', label: '★ 主管關注', rule: '主管標星號的名單，一律列出' },
+  { key: 'new_nc', label: '新名單沒打', days: 1, rule: '名單進來超過 1 個工作天還沒聯絡' },
+  { key: 'new_stall', label: '新名單沒進展', days: 3, rule: '新名單聯絡過，但超過 3 個工作天沒有下一筆活動' },
+  { key: 'demo_unset', label: 'Demo 待排', days: 3, rule: '在約Demo、還沒排日期，超過 3 個工作天' },
+  { key: 'demo_norec', label: 'Demo 沒紀錄', days: 1, rule: 'Demo 日期過了 1 個工作天，還沒有 Demo 活動' },
+  { key: 'demo_after', label: 'Demo 後沒跟', days: 2, rule: '記了 Demo 活動後，超過 2 個工作天沒有下一筆活動' },
+  { key: 'hot', label: '密切追蹤沒動', days: 5, rule: '在密切追蹤，超過 5 個工作天沒有活動' },
+  { key: 'nego', label: '議價中沒動', days: 2, rule: '在議價中，超過 2 個工作天沒有活動' },
+  { key: 'wait', label: '等待到期', days: 1, rule: '等待中，下次聯絡日過了 1 個工作天還沒聯絡，或沒排下次聯絡日' },
+  { key: 'stuck', label: '卡太久', days: 15, rule: '同一個階段超過 15 個工作天（就算有活動也算）' }
+];
+const RULE = Object.fromEntries(ATTN_RULES.map(r => [r.key, r]));
+const BOARD_NOTES = {
+  new: '前一個工作天分給這位業務的名單（陌開轉入不算），到現在有沒有聯絡',
+  cold: '前一個工作天的陌開撥打數／當天目標；下面是這週累計／這週目標',
+  due: '下次聯絡日在那天或更早的進行中名單，那天有沒有活動紀錄',
+  attn: '依「要關注」規則，現在掛著的名單',
+  acts: '那天對客戶的活動（電話、Email、拜訪、Demo…，不含內部備註與陌開電話）'
+};
+
+async function boardBase(db) {
+  const L = await lookups(db);
+  const S = Object.fromEntries(L.stages.map(s => [s.id, s.name]));
+  const sid = n => L.stageByName(n)?.id;
+  const [sources, ccLinks] = await Promise.all([db.get('sources?select=id,name'), getAll(db, 'cold_calls?select=lead_id,owner_id&lead_id=not.is.null&order=id')]);
+  const ccSrc = sources.find(s => s.name === CC_SRC)?.id;
+  const ccLead = new Map(ccLinks.map(c => [c.lead_id, c]));
+  return { L, S, sid, sources, ccSrc, ccLead, isCold: l => ccLead.has(l.id) || (ccSrc && l.source_id === ccSrc), srcName: l => ccLead.has(l.id) || (ccSrc && l.source_id === ccSrc) ? '陌開' : (sources.find(s => s.id === l.source_id)?.name || '未填') };
+}
+const dayTW = t => toTW(t).slice(0, 10);
+const brief = s => String(s || '').replace(AI_TAG, '').replace(/\s+/g, ' ').trim().slice(0, 80);
+
+// 現在每家進行中名單踩到哪些規則
+async function attention(db, B, today) {
+  const { S, sid } = B;
+  const closed = [sid('結案'), sid('簽約進件')].filter(Boolean);
+  const leads = await getAll(db, `leads?select=id,name,stage_id,user_id,source_id,created_at,arrived_at,next_contact_date,demo_at,watch,watch_note&stage_id=not.in.(${closed.join(',')})&order=id`);
+  const since = new Date(Date.now() - 240 * 864e5).toISOString();
+  const [acts, evs] = await Promise.all([
+    getAll(db, `activities?select=lead_id,type,created_at&lead_id=not.is.null&type=neq.note&created_at=gte.${since}&order=created_at`),
+    getAll(db, `lead_events?select=lead_id,kind,to_stage,at&kind=eq.stage&order=at`)
+  ]);
+  const actBy = new Map(); for (const a of acts) { const x = actBy.get(a.lead_id); x ? x.push(a) : actBy.set(a.lead_id, [a]); }
+  const stEv = new Map(); for (const e of evs) { const x = stEv.get(e.lead_id); x ? x.push(e) : stEv.set(e.lead_id, [e]); }
+  const out = [];
+  for (const l of leads) {
+    const st = S[l.stage_id] || '';
+    const ac = actBy.get(l.id) || [];
+    const last = ac[ac.length - 1];
+    const entered = (stEv.get(l.id) || []).filter(e => e.to_stage === l.stage_id).pop();
+    const enteredAt = entered ? entered.at : l.created_at;
+    const lastDay = last ? dayTW(last.created_at) : null;
+    const hits = [];
+    const hit = (k, d, extra) => hits.push({ key: k, label: RULE[k].label, days: d, text: extra || (RULE[k].label + (d != null ? '・' + d + ' 天' : '')) });
+    if (l.watch) hit('star', null, '★ 主管關注' + (l.watch_note ? '：' + l.watch_note : ''));
+    if (st === '新名單') {
+      if (!last) { const d = wdBetween(dayTW(l.arrived_at || l.created_at), today); if (d >= 1) hit('new_nc', d); }
+      else { const d = wdBetween(lastDay, today); if (d >= 3) hit('new_stall', d); }
+    } else if (st === '約Demo') {
+      const afterEnter = ac.filter(a => a.created_at >= enteredAt);
+      const demoAct = afterEnter.filter(a => a.type === 'demo').pop();
+      if (demoAct) { if (last === demoAct) { const d = wdBetween(dayTW(demoAct.created_at), today); if (d >= 2) hit('demo_after', d); } }
+      else if (l.demo_at) { if (l.demo_at < today) { const d = wdBetween(l.demo_at, today) + (isWorkday(l.demo_at) ? 1 : 0); if (d >= 1) hit('demo_norec', d, 'Demo 沒紀錄・原定 ' + l.demo_at.slice(5).replace('-', '/')); } }
+      else { const d = wdBetween(dayTW(enteredAt), today); if (d >= 3) hit('demo_unset', d); }
+    } else if (st === '有望成交') {
+      const d = wdBetween(lastDay || dayTW(enteredAt), today); if (d >= 5) hit('hot', d, '密切追蹤・' + d + ' 天沒動');
+    } else if (st === '議價中') {
+      const d = wdBetween(lastDay || dayTW(enteredAt), today); if (d >= 2) hit('nego', d, '議價中・' + d + ' 天沒動');
+    } else if (st === '等待' || st === '暫停') {
+      if (!l.next_contact_date) hit('wait', null, '等待・沒排下次聯絡日');
+      else if (l.next_contact_date < today && !(lastDay && lastDay >= l.next_contact_date)) { const d = wdBetween(l.next_contact_date, today) + (isWorkday(l.next_contact_date) ? 1 : 0); if (d >= 1) hit('wait', d, '等待到期・過了 ' + d + ' 天'); }
+    }
+    if (MAIN_FLOW.indexOf(st) >= 0 && st !== '簽約進件') { const d = wdBetween(dayTW(enteredAt), today); if (d >= 15) hit('stuck', d, '卡太久・' + st + ' ' + d + ' 天'); }
+    if (hits.length) out.push({ id: l.id, name: l.name, owner_id: l.user_id, stage: st, star: !!l.watch, demo_at: l.demo_at || null, last: lastDay, hits, worst: Math.max(0, ...hits.filter(h => h.key !== 'star').map(h => h.days || 0)) });
+  }
+  return out.sort((a, b) => b.worst - a.worst);
+}
+
+// ── 站會：看某一天（預設前一個工作天）──
+async function standupReport({ db, url }) {
+  const B = await boardBase(db), { L, S } = B;
+  const today = todayTW();
+  const qd = url.searchParams.get('date');
+  const D = isDate(qd) && qd < today && qd >= addDays(today, -30) ? qd : prevWorkday(today);
+  const F = Date.parse(D + 'T00:00:00+08:00'), T = F + 864e5;
+  const iso = x => new Date(x).toISOString();
+  const [evs, actsD, nextEvs, leadsDue, attn] = await Promise.all([
+    getAll(db, `lead_events?select=lead_id,kind,to_user,at&kind=in.(assign,create)&at=gte.${iso(F)}&at=lt.${iso(T)}&order=at`),
+    getAll(db, `activities?select=lead_id,user_id,type,content,created_at&type=neq.note&created_at=gte.${iso(F)}&created_at=lt.${iso(T)}&order=created_at`),
+    getAll(db, `lead_events?select=lead_id,from_date,at&kind=eq.next&at=gte.${iso(F)}&order=at`).catch(() => []),
+    getAll(db, `leads?select=id,name,stage_id,user_id,next_contact_date&order=id`),
+    attention(db, B, today)
+  ]);
+  const leadById = new Map(leadsDue.map(l => [l.id, l]));
+  // 分配的新名單（陌開轉入不算），到現在有沒有聯絡
+  const asg = new Map();
+  for (const e of evs) { if (!e.to_user) continue; const l = leadById.get(e.lead_id); if (!l || B.isCold(l)) continue; asg.set(e.lead_id + '|' + e.to_user, e); }
+  const asgIds = [...new Set([...asg.values()].map(e => e.lead_id))];
+  let firstActs = [];
+  for (let i = 0; i < asgIds.length; i += 80) firstActs = firstActs.concat(await getAll(db, `activities?select=lead_id,created_at&type=neq.note&lead_id=in.(${asgIds.slice(i, i + 80).join(',')})&created_at=gte.${iso(F)}&order=created_at`));
+  // 到期追蹤：那天開始時的下次聯絡日 ≤ 那天
+  const nextAtStart = new Map(); for (const e of nextEvs) if (!nextAtStart.has(e.lead_id)) nextAtStart.set(e.lead_id, e.from_date);
+  const OPEN_NO = new Set(['結案', '簽約進件']);
+  const due = [];
+  for (const l of leadsDue) {
+    if (OPEN_NO.has(S[l.stage_id])) continue;
+    const nd = nextAtStart.has(l.id) ? nextAtStart.get(l.id) : l.next_contact_date;
+    if (nd && nd <= D) due.push({ l, nd });
+  }
+  const touchedD = new Set(actsD.map(a => a.lead_id));
+  // 陌開：當天＋這週累計
+  const [dd, ww] = await Promise.all([
+    dailyReport({ db, url: new URL('http://x/?days=' + Math.min(31, Math.round((Date.parse(today) - Date.parse(D)) / 864e5) + 1)) }),
+    dailyReport({ db, url: new URL('http://x/?mode=week&weeks=' + Math.min(12, Math.floor((Date.parse(weekStartOf(today)) - Date.parse(weekStartOf(D))) / 6048e5) + 1)) })
+  ]);
+  const nameOf = id => leadById.get(id)?.name || '';
+  const reps = [];
+  for (const u of L.users) {
+    const myAsg = [...asg.values()].filter(e => e.to_user === u.id).map(e => {
+      const f = firstActs.find(a => a.lead_id === e.lead_id && Date.parse(a.created_at) >= Date.parse(e.at) - 60e3);
+      return { id: e.lead_id, name: nameOf(e.lead_id), at: toTW(e.at), contacted: !!f, hours: f ? Math.round((Date.parse(f.created_at) - Date.parse(e.at)) / 36e5 * 10) / 10 : null };
+    });
+    const myDue = due.filter(x => x.l.user_id === u.id).map(x => ({ id: x.l.id, name: x.l.name, stage: S[x.l.stage_id] || '', date: x.nd, done: touchedD.has(x.l.id) }));
+    const myActs = actsD.filter(a => a.user_id === u.id && a.lead_id).map(a => ({ id: a.lead_id, name: nameOf(a.lead_id), type: a.type, label: ACT_LABEL[a.type] || a.type, time: toTW(a.created_at).slice(11), content: brief(a.content) }));
+    const myAttn = attn.filter(x => x.owner_id === u.id);
+    const dr = dd.reps.find(r => r.user_id === u.id), dDay = dr && dr.days.find(x => x.day === D);
+    const wr = ww.reps.find(r => r.user_id === u.id), wDay = wr && wr.days.find(x => x.day === weekStartOf(D));
+    let cold = null;
+    if (u.cold_daily) {
+      const ex = dDay && dDay.cold && dDay.cold.exempt_days.length ? '參展' : (dDay && dDay.cold && dDay.cold.deal_waived ? '本週有成交' : null);
+      cold = { calls: dDay ? dDay.calls : 0, target: dDay && dDay.cold ? dDay.cold.target : u.cold_daily, exempt: ex, week_calls: wDay ? wDay.calls : 0, week_target: wDay && wDay.cold ? wDay.cold.target : null, connected: dDay ? dDay.connected : 0 };
+    }
+    if (!myAsg.length && !myDue.length && !myActs.length && !myAttn.length && !cold) continue;
+    reps.push({ user_id: u.id, rep: u.full_name || u.email, assigned: myAsg, cold, due: myDue, acts: myActs, attention: myAttn });
+  }
+  return { date: D, today, prev: prevWorkday(D), next: (() => { let x = addDays(D, 1); while (!isWorkday(x)) x = addDays(x, 1); return x < today ? x : null; })(), rules: ATTN_RULES, notes: BOARD_NOTES, reps };
+}
+const ACT_LABEL = { email: 'Email', call: '電話/LINE', visit: '拜訪', event: '展覽', demo: 'Demo', note: '備註' };
+
+// ── 週會：某段期間（上週／本週／近 4 週）──
+async function reviewReport({ db, url }) {
+  const B = await boardBase(db), { L, S, sid } = B;
+  const today = todayTW();
+  const span = url.searchParams.get('span') || 'last';
+  const ws = weekStartOf(today);
+  const from = span === 'this' ? ws : span === 'four' ? addDays(ws, -21) : addDays(ws, -7);
+  const to = span === 'last' ? addDays(ws, -1) : today;
+  const F = Date.parse(from + 'T00:00:00+08:00'), T = Date.parse(addDays(to, 1) + 'T00:00:00+08:00');
+  const iso = x => new Date(x).toISOString();
+  const ms = t => t ? Date.parse(t) : NaN;
+  const [leads, evs, acts, logs, ccs, quotes, attn, wk] = await Promise.all([
+    getAll(db, 'leads?select=id,name,stage_id,user_id,source_id,created_at,arrived_at,lost_reason,lost_at,watch,watch_note,demo_at&order=id'),
+    getAll(db, `lead_events?select=lead_id,kind,to_stage,to_user,at,backfill&kind=in.(create,stage,assign)&order=at`),
+    getAll(db, `activities?select=lead_id,user_id,type,content,created_at&type=neq.note&created_at=gte.${iso(Math.min(F, Date.now() - 56 * 864e5))}&order=created_at`),
+    getAll(db, `call_logs?select=cold_call_id,outcome,user_id,called_at&called_at=gte.${iso(F)}&called_at=lt.${iso(T)}&order=id`),
+    getAll(db, 'cold_calls?select=id,company,owner_id,status,status_at,close_reason,next_call_at,lead_id&order=id'),
+    getAll(db, `notes?select=lead_id&content=like.${encodeURIComponent(QUOTE_PREFIX)}*&order=id`).catch(() => []),
+    attention(db, B, today),
+    dailyReport({ db, url: new URL('http://x/?mode=week&weeks=6') })
+  ]);
+  const leadById = new Map(leads.map(l => [l.id, l]));
+  const evBy = new Map(); for (const e of evs) { const x = evBy.get(e.lead_id); x ? x.push(e) : evBy.set(e.lead_id, [e]); }
+  const actBy = new Map(); for (const a of acts) if (a.lead_id) { const x = actBy.get(a.lead_id); x ? x.push(a) : actBy.set(a.lead_id, [a]); }
+  const quoted = new Set(quotes.map(q => q.lead_id));
+  const flow = id => MAIN_FLOW.indexOf(S[id]);
+  const uname = id => L.userName(id) || '未分配';
+  const reached = l => Math.max(flow(l.stage_id), 0, ...(evBy.get(l.id) || []).filter(e => e.kind === 'stage' && !e.backfill).map(e => flow(e.to_stage)));
+  const status = l => { const n = S[l.stage_id]; return n === '結案' ? 'lost' : (n === '等待' || n === '暫停') ? 'wait' : n === '簽約進件' ? 'won' : 'open'; };
+
+  // ① 配出去的名單（期間內分配，陌開轉入不算）
+  const cohort = new Map();
+  for (const e of evs) {
+    if (!(e.kind === 'assign' || e.kind === 'create') || !e.to_user) continue;
+    const t = ms(e.at); if (t < F || t >= T) continue;
+    const l = leadById.get(e.lead_id); if (!l || B.isCold(l)) continue;
+    cohort.set(l.id + '|' + e.to_user, { l, uid: e.to_user, at: t });
+  }
+  const leadRow = (l, extra) => Object.assign({ id: l.id, name: l.name, owner: uname(l.user_id), stage: S[l.stage_id] || '' }, extra || {});
+  const C = [...cohort.values()].map(c => {
+    const ac = actBy.get(c.l.id) || [];
+    const f = ac.find(a => ms(a.created_at) >= c.at - 60e3);
+    const r = reached(c.l), st = status(c.l);
+    const level = st === 'won' ? 5 : r >= 1 ? r + 1 : (f ? 1 : 0); // 0 配出去 1 已聯絡 2 約Demo 3 有望成交 4 議價中 5 成交
+    const last = ac[ac.length - 1];
+    return { uid: c.uid, l: c.l, level, st, ft: f ? (ms(f.created_at) - c.at) / 36e5 : null, src: B.srcName(c.l), last: last ? dayTW(last.created_at) : null };
+  });
+  const funnelOf = rows => {
+    const n = k => rows.filter(r => r.level >= k);
+    const lk = [0, 1, 2, 3, 4].map(k => {
+      const at = rows.filter(r => r.level === k);
+      const g = s => at.filter(r => (k === 0 ? true : r.st === s));
+      if (k === 0) return at.length ? [{ k: 'nc', label: '沒聯絡', ids: at.map(r => r.l.id) }] : [];
+      return [['lost', '結案'], ['wait', '等待'], ['open', '停留']].map(([s, lb]) => ({ k: s, label: lb, ids: g(s).map(r => r.l.id) })).filter(x => x.ids.length);
+    });
+    const ft = rows.map(r => r.ft).filter(x => x != null);
+    const src = {}; rows.forEach(r => { src[r.src] = (src[r.src] || 0) + 1; });
+    return { stages: [0, 1, 2, 3, 4, 5].map(k => n(k).map(r => r.l.id)), leaks: lk, ft: ft.length ? Math.round(median(ft) * 10) / 10 : null, src: Object.entries(src).sort((a, b) => b[1] - a[1]) };
+  };
+  const repIds = [...new Set(C.map(r => r.uid))];
+  const funnel = { all: funnelOf(C) }; repIds.forEach(u => { funnel[u] = funnelOf(C.filter(r => r.uid === u)); });
+  const names = {}; C.forEach(r => { names[r.l.id] = leadRow(r.l, { last: r.last, src: r.src }); });
+
+  // ② 陌開
+  const ccById = new Map(ccs.map(c => [c.id, c]));
+  const CONNECTED = new Set(['interested', 'callback', 'sent']);
+  const coldUsers = L.users.filter(u => u.cold_daily);
+  const callRow = x => { const c = ccById.get(x.cold_call_id) || {}; return { name: c.company || '', time: toTW(x.called_at).slice(5), outcome: x.outcome, uid: x.user_id }; };
+  const cold = coldUsers.map(u => {
+    const my = logs.filter(x => x.user_id === u.id);
+    const wr = wk.reps.find(r => r.user_id === u.id);
+    const weeks = (wr ? wr.days : []).slice().reverse().map(d => ({ week: d.day, calls: d.calls, target: d.cold ? d.cold.target : null, waived: d.cold ? d.cold.deal_waived : false, carry: d.cold ? d.cold.carry : 0, cut: d.cold ? d.cold.demo_cut : 0 }));
+    const inP = weeks.filter(w => w.week >= from && w.week <= to);
+    const conv = ccs.filter(c => c.owner_id === u.id && c.status === 'converted' && ms(c.status_at) >= F && ms(c.status_at) < T);
+    const mine = ccs.filter(c => c.owner_id === u.id);
+    const openC = c => !['converted', 'interested', 'rejected', 'invalid'].includes(c.status);
+    const nd = c => c.next_call_at ? String(c.next_call_at).slice(0, 10) : '';
+    return {
+      user_id: u.id, rep: u.full_name,
+      calls: my.length, target: inP.reduce((s, w) => s + (w.target || 0), 0), carry: inP.length ? inP[0].carry : 0, cut: inP.reduce((s, w) => s + (w.cut || 0), 0), waived: inP.some(w => w.waived),
+      list: { calls: my.map(callRow), conn: my.filter(x => CONNECTED.has(x.outcome)).map(callRow), sent: my.filter(x => x.outcome === 'sent').map(callRow), hot: my.filter(x => x.outcome === 'interested').map(callRow), conv: conv.map(c => ({ name: c.company, time: toTW(c.status_at).slice(5), outcome: 'converted' })) },
+      weeks,
+      pool: {
+        mine: mine.filter(c => openC(c) && !(nd(c) && nd(c) <= today) && !['callback', 'sent'].includes(c.status)).map(c => c.company),
+        today: mine.filter(c => openC(c) && nd(c) && nd(c) <= today).map(c => c.company),
+        overdue: mine.filter(c => openC(c) && nd(c) && nd(c) < today).map(c => c.company)
+      }
+    };
+  });
+  const publicN = ccs.filter(c => !c.owner_id && !['converted', 'interested', 'rejected', 'invalid'].includes(c.status)).length;
+
+  // ③ 業務努力
+  const workdays = []; for (let d = from; d <= to; d = addDays(d, 1)) if (isWorkday(d)) workdays.push(d);
+  const effort = L.users.map(u => {
+    const myA = acts.filter(a => a.user_id === u.id && a.lead_id && ms(a.created_at) >= F && ms(a.created_at) < T);
+    const myL = logs.filter(x => x.user_id === u.id);
+    const myC = C.filter(r => r.uid === u.id);
+    const daysOn = [...new Set(myA.map(a => dayTW(a.created_at)).concat(myL.map(x => dayTW(x.called_at))))].filter(isWorkday).length;
+    const ft = myC.map(r => r.ft).filter(x => x != null);
+    const trend = []; for (let i = 7; i >= 0; i--) { const s = addDays(ws, -7 * i), e = addDays(s, 7); trend.push(acts.filter(a => a.user_id === u.id && a.lead_id && dayTW(a.created_at) >= s && dayTW(a.created_at) < e).length); }
+    if (!myA.length && !myL.length && !myC.length) return null;
+    return {
+      user_id: u.id, rep: u.full_name || u.email, acts: myA.length, calls: myL.length, cold_target: u.cold_daily ? (cold.find(c => c.user_id === u.id) || {}).target : null,
+      assigned: myC.length, contacted: myC.filter(r => r.level >= 1).length, days: daysOn, workdays: workdays.filter(d => d <= today).length,
+      ft: ft.length ? Math.round(median(ft) * 10) / 10 : null, trend,
+      act_list: myA.slice(-60).reverse().map(a => ({ id: a.lead_id, name: leadById.get(a.lead_id)?.name || '', label: ACT_LABEL[a.type] || a.type, time: toTW(a.created_at).slice(5), content: brief(a.content) })),
+      day_list: workdays.filter(d => d <= today).map(d => ({ day: d, acts: myA.filter(a => dayTW(a.created_at) === d).length, calls: myL.filter(x => dayTW(x.called_at) === d).length })),
+      asg_list: myC.map(r => ({ id: r.l.id, name: r.l.name, ft: r.ft != null ? Math.round(r.ft * 10) / 10 : null }))
+    };
+  }).filter(Boolean);
+
+  // ④ 被拒絕的原因
+  const SKIP = new Set(['整批結案', '非TA']);
+  const rej = ccs.filter(c => (c.status === 'rejected' || c.status === 'invalid') && ms(c.status_at) >= F && ms(c.status_at) < T && !SKIP.has(c.close_reason));
+  const rc = {}; rej.forEach(c => { const k = c.close_reason || '未填'; (rc[k] ||= []).push({ name: c.company, uid: c.owner_id }); });
+  const lost = leads.filter(l => S[l.stage_id] === '結案' && ms(l.lost_at) >= F && ms(l.lost_at) < T && !B.isCold(l));
+  const bucket = l => quoted.has(l.id) ? 2 : reached(l) >= 1 ? 1 : 0;
+  const rl = {}; lost.forEach(l => { const k = reasonCat(l.lost_reason); (rl[k] ||= [[], [], []])[bucket(l)].push({ id: l.id, name: l.name, owner: uname(l.user_id), uid: l.user_id, note: String(l.lost_reason || '').split(/[：:]/).slice(1).join('：').trim() }); });
+
+  // ⑤ 要關注（現在）＋ ★ 名單這段期間有沒有往前
+  const stars = leads.filter(l => l.watch && !['結案', '簽約進件'].includes(S[l.stage_id]) || (l.watch && (evBy.get(l.id) || []).some(e => e.kind === 'stage' && ms(e.at) >= F && ms(e.at) < T))).map(l => {
+    const mv = (evBy.get(l.id) || []).filter(e => e.kind === 'stage' && ms(e.at) >= F && ms(e.at) < T);
+    const a = (actBy.get(l.id) || []).filter(x => ms(x.created_at) >= F && ms(x.created_at) < T);
+    return { id: l.id, name: l.name, owner: uname(l.user_id), uid: l.user_id, stage: S[l.stage_id] || '', note: l.watch_note || '', moved: mv.map(e => S[e.to_stage]).filter(Boolean), acts: a.length };
+  });
+  return {
+    span, from, to, today, rules: ATTN_RULES,
+    reps: L.users.filter(u => C.some(r => r.uid === u.id) || effort.some(e => e.user_id === u.id)).map(u => ({ user_id: u.id, rep: u.full_name || u.email, cold: !!u.cold_daily })),
+    funnel, names, cold, public_pool: publicN, effort,
+    reasons: { cold: Object.entries(rc).sort((a, b) => b[1].length - a[1].length), lost: rl },
+    attention: attn.map(x => Object.assign({}, x, { owner: uname(x.owner_id) })), stars
+  };
+}
+
 // 名單追蹤：近 N 天進來（非陌開）的名單 → 分配多久第一次聯絡、後來走到哪
 async function intakeReport({ db, me, url }) {
   const L = await lookups(db);
