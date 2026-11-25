@@ -3230,8 +3230,9 @@ async function ccbSearchRun() {
   const rows = _ccsRes.map(function (c) {
     const who = c.owner_id ? (c.owner_id === currentUser.id ? '我的' : esc(c.owner_name || userNameById(c.owner_id, ''))) : '公海';
     const last = c.last_call_at ? '最後撥打 ' + fmtDate(c.last_call_at) + '・共 ' + (c.attempts || 0) + ' 次' : '還沒打過';
+    const cn = !c.owner_id && ccbColOf(c) === 'pool' ? '' : '・' + esc(colName(c));
     return '<div class="ccs-row" onclick="openCcDetail(\'' + c.id + '\')"><div style="flex:1;min-width:0"><div class="ccs-n">' + esc(c.company || '') + '</div><div class="ccs-s">' + esc([c.contact_name, c.phone].filter(Boolean).join('・')) + '</div></div>'
-      + '<div style="text-align:right;flex-shrink:0"><div class="ccs-n" style="font-weight:500">' + who + '・' + esc(colName(c)) + (c.close_reason && c.close_reason !== '非TA' ? '（' + esc(c.close_reason) + '）' : '') + '</div><div class="ccs-s">' + last + '</div></div></div>';
+      + '<div style="text-align:right;flex-shrink:0"><div class="ccs-n" style="font-weight:500">' + who + cn + (c.close_reason && c.close_reason !== '非TA' ? '（' + esc(c.close_reason) + '）' : '') + '</div><div class="ccs-s">' + last + '</div></div></div>';
   }).join('');
   const leads = (lr.data || []).map(function (l) { return '<div class="ccs-row" onclick="openCompany(\'' + l.id + '\')"><div style="flex:1;min-width:0"><div class="ccs-n">' + esc(l.name) + '</div><div class="ccs-s">開發看板</div></div><div class="ccs-s" style="text-align:right">' + esc(l.user_name || '未指派') + '・' + esc(getStageName(l.stage_id) || '') + '</div></div>'; }).join('');
   box.innerHTML = '<div class="ccs-box">' + (rows || leads ? rows + (leads ? '<div class="ccs-h">已在開發看板</div>' + leads : '') : '<div class="ccs-s" style="padding:10px">都沒有，這家是新的</div>') + '</div>';
