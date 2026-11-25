@@ -5641,7 +5641,7 @@ function bdHelp(key) {
   bdDrawer(h[0] + '怎麼算', '<div class="bd-hint" style="font-size:13.5px;color:var(--text2)">' + esc(h[1]) + '</div>');
 }
 function bdSwitch(v) { navigate(v); }
-function bdViewSeg(v) { return '<div class="bd-seg"><button class="' + (v === 'standup' ? 'on' : '') + '" onclick="bdSwitch(\'standup\')">站會</button><button class="' + (v === 'review' ? 'on' : '') + '" onclick="bdSwitch(\'review\')">週會</button></div>'; }
+function bdViewSeg(v) { return ''; return '<div class="bd-seg"><button class="' + (v === 'standup' ? 'on' : '') + '" onclick="bdSwitch(\'standup\')">站會</button><button class="' + (v === 'review' ? 'on' : '') + '" onclick="bdSwitch(\'review\')">週會</button></div>'; }
 
 // ════════ 站會 ════════
 async function renderStandup(force) {
@@ -5679,6 +5679,10 @@ async function renderStandup(force) {
     const miss = r.assigned.filter(function (a) { return !a.contacted; }).map(function (a) { return ['bad', a.id, a.name, '新名單沒打']; })
       .concat(r.due.filter(function (d) { return !d.done; }).map(function (d) { return ['bad', d.id, d.name, d.stage + '・' + (d.date < j.date ? '逾期・原定 ' + bdMd(d.date) : '沒跟')]; }))
       .concat(r.attention.map(function (x) { return ['warn', x.id, x.name, x.hits.filter(function (h) { return h.key !== 'star'; }).map(function (h) { return h.text; }).join('；') || '★ 主管關注']; }));
+    // 同一家只列一次：到期沒跟＋要關注合併
+    const seen = {}; const missU = [];
+    miss.forEach(function (m) { if (seen[m[1]]) { const o = seen[m[1]]; if (o[3].indexOf(m[3]) < 0 && !(m[0] === 'warn' && /等待到期/.test(m[3]))) o[3] += '；' + m[3]; return; } const c = m.slice(); seen[m[1]] = c; missU.push(c); });
+    miss.length = 0; missU.forEach(function (m) { miss.push(m); });
     return '<div class="bd-card"><div class="bd-h">' + bdAv(r.rep) + '<b>' + esc(r.rep) + '</b><span class="bd-st ' + (bad ? 'bad' : 'good') + '">' + (bad ? bad + ' 項沒做完' : '✓ 完成') + '</span></div>'
       + '<div class="bd-ks">'
       + K('新名單', 'new', r.assigned.length ? aOk + '/' + r.assigned.length : '—', r.assigned.length ? aOk === r.assigned.length : null, avg != null ? '首聯 ' + bdHrs(avg) : '', r.assigned.length ? D(r.user_id, 'new') : '')
