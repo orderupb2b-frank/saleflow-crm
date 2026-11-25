@@ -1306,7 +1306,13 @@ button.bd-k:hover b{text-decoration:underline}
 .bd-bub circle{cursor:pointer}
 .bd-empty{color:var(--text3);font-size:13px}
 .bd-dr[hidden]{display:none}
-.bd-dr{position:fixed;inset:0;background:rgba(8,10,16,.45);display:flex;justify-content:flex-end;z-index:900}
+.bd-dr{position:fixed;inset:0;background:rgba(8,10,16,.45);display:flex;justify-content:flex-end;z-index:150}
+.bd-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;border-top:1px solid var(--border);padding-top:10px}
+.bd-tabs button{flex-shrink:0;border:1px solid var(--border);background:none;color:var(--text2);font:inherit;font-size:12.5px;padding:4px 10px;border-radius:999px;cursor:pointer;white-space:nowrap}
+.bd-tabs button b{font-family:var(--mono);margin-left:4px}
+.bd-tabs button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.bd-tabs button.bad b{color:var(--red)} .bd-tabs button.on b{color:#fff}
+.bd-ml.tabbed{border-top:0}
 .bd-dr-in{width:min(440px,100%);height:100%;background:var(--bg2);padding:18px;overflow:auto;display:flex;flex-direction:column;gap:2px;box-shadow:var(--shadow)}
 .bd-dr-h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .bd-dr-h h3{margin:0;font-size:15px;flex:1}
@@ -5496,7 +5502,7 @@ function wqTab(t) { _wq.tab = t; wqDraw(); }
 function wqDraw() {
   if (!_wq || !_wq.lead) return;
   const l = _wq.lead, B = (_wk.data && _wk.data.leads[l.id]) || {};
-  const ACT = { email: 'Email', call: '電話', visit: '拜訪', event: '活動', note: '備註' };
+  const ACT = { email: 'Email', call: '電話', visit: '拜訪', demo: 'Demo', event: '活動', note: '備註' };
   const tabs = [['sum', '概要'], ['log', '紀錄 ' + _wq.acts.length], ['ct', '聯絡人 ' + _wq.contacts.length]];
   let body = '';
   if (_wq.tab === 'sum') {
@@ -5531,7 +5537,7 @@ function wqDraw() {
   document.getElementById('modalBody').innerHTML = '<div class="wq">'
     + '<div class="wq-top">' + (_wq.back != null ? '<button class="btn btn-ghost btn-sm" onclick="wkPop(' + _wq.back + ')">‹ 返回</button>' : '')
     + '<div class="wq-tabs">' + tabs.map(function (t) { return '<button class="' + (_wq.tab === t[0] ? 'on' : '') + '" onclick="wqTab(\'' + t[0] + '\')">' + t[1] + '</button>'; }).join('') + '</div>'
-    + '<span style="flex:1"></span><button class="btn btn-ghost btn-sm" onclick="closeModal();openCompany(\'' + l.id + '\')">完整頁 ›</button></div>'
+    + '<span style="flex:1"></span><button class="btn btn-secondary btn-sm" onclick="closeModal();openQuickLog(\'' + l.id + '\')">📝 記錄</button><button class="btn btn-ghost btn-sm" onclick="bdClose();closeModal();openCompany(\'' + l.id + '\')">完整頁 ›</button></div>'
     + '<div class="wq-body">' + body + '</div></div>';
 }
 async function wqSave(field, val) {
@@ -5547,7 +5553,7 @@ async function wqSave(field, val) {
   toast('已更新');
 }
 async function wkFlag(id, f) {
-  const x = _wk.data.leads[id] || (_wq && _wq.id === id ? { flag: _wq.lead.flag } : null); if (!x) return;
+  const x = (_wk.data && _wk.data.leads[id]) || (_wq && _wq.id === id ? { flag: _wq.lead.flag } : null); if (!x) return;
   const nf = x.flag === f ? null : f;
   const r = await db.from('leads').update({ flag: nf }).eq('id', id);
   if (r.error) { toast('沒存到：' + r.error.message, 'error'); return; }
@@ -5611,7 +5617,8 @@ function bdDrawer(title, html) {
 }
 function bdClose() { const el = document.getElementById('bdDr'); if (el) el.hidden = true; }
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') bdClose(); });
-function bdGo(id) { bdClose(); openCompany(id); }
+function bdGo(id) { bdLead(id); }
+function bdLead(id) { wkQuick(id); }
 // rows: {id?, owner?, name, sub, right, cls}
 function bdList(title, rows, hint) {
   bdDrawer(title, (hint ? '<div class="bd-hint">' + esc(hint) + '</div>' : '') + (rows.length ? rows.map(function (x) {
@@ -5677,13 +5684,6 @@ async function renderStandup(force) {
     const avg = ft.length ? ft.reduce(function (s, v) { return s + v; }, 0) / ft.length : null;
     const bad = r.assigned.length - aOk + r.due.length - fOk + (coldBad ? 1 : 0);
     const worst = r.attention.reduce(function (m, x) { return Math.max(m, x.worst || 0); }, 0);
-    const miss = r.assigned.filter(function (a) { return !a.contacted; }).map(function (a) { return ['bad', a.id, a.name, '新名單沒打']; })
-      .concat(r.due.filter(function (d) { return !d.done; }).map(function (d) { return ['bad', d.id, d.name, d.stage + '・' + (d.date < j.date ? '逾期・原定 ' + bdMd(d.date) : '沒跟')]; }))
-      .concat(r.attention.map(function (x) { return ['warn', x.id, x.name, x.hits.filter(function (h) { return h.key !== 'star'; }).map(function (h) { return h.text; }).join('；') || '★ 主管關注']; }));
-    // 同一家只列一次：到期沒跟＋要關注合併
-    const seen = {}; const missU = [];
-    miss.forEach(function (m) { if (seen[m[1]]) { const o = seen[m[1]]; if (o[3].indexOf(m[3]) < 0 && !(m[0] === 'warn' && /等待到期/.test(m[3]))) o[3] += '；' + m[3]; return; } const c = m.slice(); seen[m[1]] = c; missU.push(c); });
-    miss.length = 0; missU.forEach(function (m) { miss.push(m); });
     return '<div class="bd-card"><div class="bd-h">' + bdAv(r.rep) + '<b>' + esc(r.rep) + '</b><span class="bd-st ' + (bad ? 'bad' : 'good') + '">' + (bad ? bad + ' 項沒做完' : '✓ 完成') + '</span></div>'
       + '<div class="bd-ks">'
       + K('新名單', 'new', r.assigned.length ? aOk + '/' + r.assigned.length : '—', r.assigned.length ? aOk === r.assigned.length : null, avg != null ? '首聯 ' + bdHrs(avg) : '', r.assigned.length ? D(r.user_id, 'new') : '')
@@ -5692,13 +5692,15 @@ async function renderStandup(force) {
       + K('要關注', 'attn', r.attention.length, r.attention.length ? false : null, worst ? '最久 ' + worst + ' 天' : '', r.attention.length ? D(r.user_id, 'attn') : '')
       + K('活動', 'acts', r.acts.length, r.acts.length < 3 ? false : null, r.acts.length < 3 ? '偏少' : '', D(r.user_id, 'acts'))
       + '</div>'
-      + (miss.length ? '<div class="bd-ml">' + miss.map(function (m) { return '<button type="button" class="bd-mi ' + m[0] + '" onclick="openCompany(\'' + m[1] + '\')"><span>' + esc(m[2]) + '</span><small>' + esc(m[3]) + '</small></button>'; }).join('') + '</div>' : '')
+      + bdTabsHtml(r.user_id, bdGroupsOf(r.assigned, r.due, r.attention, j.date, false), false)
       + '</div>';
   }).join('');
+  const keepSt = _bd.lastD === j.date ? el.scrollTop : 0; _bd.lastD = j.date;
   el.innerHTML = '<div class="bd"><div class="bd-top">' + bdViewSeg('standup')
     + '<div class="bd-nav"><button onclick="bdSuGo(\'' + j.prev + '\')" aria-label="前一個工作天">‹</button><b>' + bdDay(j.date) + '</b><button onclick="bdSuGo(\'' + (j.next || '') + '\')"' + (j.next ? '' : ' disabled') + ' aria-label="後一個工作天">›</button>'
     + '<button title="重新整理" onclick="renderStandup(true)">↻</button></div></div>'
     + team + (cards || '<div class="bd-empty">那天沒有資料</div>') + '</div>';
+  el.scrollTop = keepSt;
 }
 function bdSuGo(d) { if (!d) return; _bd.d = d; renderStandup(); }
 function bdSu(uid, k) {
@@ -5791,13 +5793,36 @@ function bdSec1(j) {
   const src = tot ? '<div><div class="bd-srcbar">' + f.src.map(function (x) { return '<i style="width:' + (x[1] / tot * 100) + '%;background:' + (BD_SRC_C[x[0]] || '#888') + '"></i>'; }).join('') + '</div><div class="bd-srcl">' + f.src.map(function (x) { return '<span onclick="bdSrc(\'' + esc(x[0]) + '\')"><i style="background:' + (BD_SRC_C[x[0]] || '#888') + '"></i>' + esc(x[0]) + ' ' + x[1] + '</span>'; }).join('') + '</div></div>' : '';
   const starH = stars.length ? '<div><div class="bd-lab">★ 主管關注 ' + stars.length + '</div><div class="bd-ml" style="border-top:0">' + stars.map(function (s) {
     const mv = s.moved.length ? '→ ' + s.moved.join(' → ') : (s.acts ? '活動 ' + s.acts + '・階段沒動' : '這段期間沒動');
-    return '<button type="button" class="bd-mi ' + (s.moved.length ? '' : s.acts ? 'warn' : 'bad') + '" onclick="openCompany(\'' + s.id + '\')"><span>' + esc(s.name) + '<em style="font-style:normal;color:var(--text3);font-weight:400;font-size:12px">・' + esc(String(s.owner).split(' ')[0]) + '・' + esc(s.stage) + '</em></span><small>' + esc(mv) + '</small></button>';
+    return '<button type="button" class="bd-mi ' + (s.moved.length ? '' : s.acts ? 'warn' : 'bad') + '" onclick="bdLead(\'' + s.id + '\')"><span>' + esc(s.name) + '<em style="font-style:normal;color:var(--text3);font-weight:400;font-size:12px">・' + esc(String(s.owner).split(' ')[0]) + '・' + esc(s.stage) + '</em></span><small>' + esc(mv) + '</small></button>';
   }).join('') + '</div></div>' : '';
-  const attH = att.length ? '<div><div class="bd-lab">要關注 ' + att.length + bdQ('attn') + '</div><div class="bd-ml" style="border-top:0">' + att.slice(0, 12).map(function (x) {
-    return '<button type="button" class="bd-mi warn" onclick="openCompany(\'' + x.id + '\')"><span>' + esc(x.name) + '<em style="font-style:normal;color:var(--text3);font-weight:400;font-size:12px">・' + esc(String(x.owner).split(' ')[0]) + '</em></span><small>' + esc(x.hits.filter(function (h) { return h.key !== 'star'; }).map(function (h) { return h.text; }).join('；') || '★') + '</small></button>';
-  }).join('') + (att.length > 12 ? '<button type="button" class="bd-mi" onclick="bdAttnAll()"><span>看全部 ' + att.length + ' 家</span></button>' : '') + '</div></div>' : '';
+  const attH = att.length ? '<div><div class="bd-lab">要關注 ' + att.length + bdQ('attn') + '</div>' + bdTabsHtml('review', bdGroupsOf([], [], att, j.today, true), true) + '</div>' : '';
   return bdSec('users', 'var(--accent)', '配的名單後來怎麼樣', 'funnel', alerts, (n ? bdFunnelSvg(f) + src : '<div class="bd-empty">這段期間沒有配名單</div>') + starH + attH);
 }
+// ── 要關注分頁：依關注點分組 ──
+const BD_GRP = [['new', '新名單'], ['due', '到期沒跟'], ['demo', 'Demo'], ['hot', '追蹤／議價'], ['stuck', '卡太久'], ['star', '★']];
+const BD_HIT_G = { new_nc: 'new', new_stall: 'new', wait: 'due', demo_unset: 'demo', demo_norec: 'demo', demo_after: 'demo', hot: 'hot', nego: 'hot', stuck: 'stuck', star: 'star' };
+function bdGroupsOf(assigned, due, attention, date, noStar) {
+  const G = {}; BD_GRP.forEach(function (g) { G[g[0]] = []; });
+  const idx = {};
+  const add = function (g, id, name, text, cls, owner, skipIfAny) {
+    const k = g + '|' + id;
+    if (idx[k]) { if (!skipIfAny && idx[k].text.indexOf(text) < 0) idx[k].text += '；' + text; return; }
+    const o = { id: id, name: name, text: text, cls: cls, owner: owner }; idx[k] = o; G[g].push(o);
+  };
+  assigned.filter(function (a) { return !a.contacted; }).forEach(function (a) { add('new', a.id, a.name, '分配後還沒打', 'bad'); });
+  due.filter(function (d) { return !d.done; }).forEach(function (d) { add('due', d.id, d.name, d.stage + '・' + (d.date < date ? '逾期・原定 ' + bdMd(d.date) : '沒跟'), 'bad'); });
+  attention.forEach(function (x) { x.hits.forEach(function (hh) { const g = BD_HIT_G[hh.key]; if (!g || (noStar && g === 'star')) return; add(g, x.id, x.name, hh.text, g === 'star' ? '' : 'warn', x.owner, g === 'due'); }); });
+  return BD_GRP.map(function (g) { return [g[0], g[1], G[g[0]]]; }).filter(function (g) { return g[2].length; });
+}
+function bdTabsHtml(scope, groups, showOwner) {
+  if (!groups.length) return '';
+  _bd.tab = _bd.tab || {};
+  let cur = _bd.tab[scope]; if (!groups.some(function (g) { return g[0] === cur; })) cur = groups[0][0];
+  const g = groups.find(function (x) { return x[0] === cur; });
+  return '<div class="bd-tabs">' + groups.map(function (x) { return '<button type="button" class="' + (x[0] === cur ? 'on' : '') + (x[2].some(function (i) { return i.cls === 'bad'; }) ? ' bad' : '') + '" onclick="bdTab(\'' + scope + '\',\'' + x[0] + '\')">' + x[1] + '<b>' + x[2].length + '</b></button>'; }).join('') + '</div>'
+    + '<div class="bd-ml tabbed">' + g[2].map(function (m) { return '<button type="button" class="bd-mi ' + (m.cls || '') + '" onclick="bdLead(\'' + m.id + '\')"><span>' + esc(m.name) + (showOwner && m.owner ? '<em style="font-style:normal;color:var(--text3);font-weight:400;font-size:12px">・' + esc(String(m.owner).split(' ')[0]) + '</em>' : '') + '</span><small>' + esc(m.text) + '</small></button>'; }).join('') + '</div>';
+}
+function bdTab(scope, k) { _bd.tab = _bd.tab || {}; _bd.tab[scope] = k; const el = document.getElementById('content'), st = el.scrollTop; if (currentPage === 'standup') renderStandup(); else renderReview(); requestAnimationFrame(function () { el.scrollTop = st; }); }
 function bdAttnAll() { const att = _bd.rj.attention.filter(function (x) { return bdRepOk(x.owner_id); }); bdList('要關注 ' + att.length, bdAttnRows(att)); }
 function bdRing(v, t, size) { const r = size / 2 - 9, c = 2 * Math.PI * r, p = t ? Math.min(1, v / t) : 1, col = v >= t ? 'var(--green)' : 'var(--accent)'; return '<svg class="bd-ring" onclick="bdCold(\'calls\')" width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + ' ' + size + '"><circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="var(--border)" stroke-width="12"/><circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="' + col + '" stroke-width="12" stroke-linecap="round" stroke-dasharray="' + (c * p).toFixed(1) + ' ' + c.toFixed(1) + '" transform="rotate(-90 ' + size / 2 + ' ' + size / 2 + ')"/><text x="50%" y="48%" text-anchor="middle" style="font:700 26px var(--mono);fill:var(--text)">' + v + '</text><text x="50%" y="64%" text-anchor="middle" style="font:500 12px var(--mono);fill:var(--text3)">/ ' + t + ' 通</text></svg>'; }
 function bdColdU() { const j = _bd.rj; return j.cold.filter(function (c) { return bdRepOk(c.user_id); }); }
