@@ -1284,7 +1284,7 @@ async function standupReport({ db, url }) {
   const B = await boardBase(db), { L, S } = B;
   const today = todayTW();
   const qd = url.searchParams.get('date');
-  const D = isDate(qd) && qd < today && qd >= addDays(today, -30) ? qd : prevWorkday(today);
+  const D = isDate(qd) && qd <= today && qd >= addDays(today, -30) ? qd : prevWorkday(today);
   const F = Date.parse(D + 'T00:00:00+08:00'), T = F + 864e5;
   const iso = x => new Date(x).toISOString();
   const since = new Date(Date.now() - 240 * 864e5).toISOString();
@@ -1339,7 +1339,7 @@ async function standupReport({ db, url }) {
     if (!myAsg.length && !myDue.length && !myActs.length && !myAttn.length && !cold) continue;
     reps.push({ user_id: u.id, rep: u.full_name || u.email, assigned: myAsg, cold, due: myDue, acts: myActs, attention: myAttn });
   }
-  return { date: D, today, prev: prevWorkday(D), next: (() => { let x = addDays(D, 1); while (!isWorkday(x)) x = addDays(x, 1); return x < today ? x : null; })(), rules: ATTN_RULES, notes: BOARD_NOTES, reps };
+  return { date: D, today, prev: prevWorkday(D), next: (() => { let x = addDays(D, 1); while (!isWorkday(x)) x = addDays(x, 1); return x <= today ? x : (D < today ? today : null); })(), rules: ATTN_RULES, notes: BOARD_NOTES, reps };
 }
 const ACT_LABEL = { email: 'Email', call: '電話/LINE', visit: '拜訪', event: '展覽', demo: 'Demo', note: '備註' };
 

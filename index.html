@@ -5697,7 +5697,7 @@ async function renderStandup(force) {
   }).join('');
   const keepSt = _bd.lastD === j.date ? el.scrollTop : 0; _bd.lastD = j.date;
   el.innerHTML = '<div class="bd"><div class="bd-top">' + bdViewSeg('standup')
-    + '<div class="bd-nav"><button onclick="bdSuGo(\'' + j.prev + '\')" aria-label="前一個工作天">‹</button><b>' + bdDay(j.date) + '</b><button onclick="bdSuGo(\'' + (j.next || '') + '\')"' + (j.next ? '' : ' disabled') + ' aria-label="後一個工作天">›</button>'
+    + '<div class="bd-nav">' + (j.date !== j.today ? '<button style="width:auto;padding:0 10px" onclick="bdSuGo(\'' + j.today + '\')">今天</button>' : '') + '<button onclick="bdSuGo(\'' + j.prev + '\')" aria-label="前一個工作天">‹</button><b>' + (j.date === j.today ? '今天 ' + bdMd(j.date) : bdDay(j.date)) + '</b><button onclick="bdSuGo(\'' + (j.next || '') + '\')"' + (j.next ? '' : ' disabled') + ' aria-label="後一個工作天">›</button>'
     + '<button title="重新整理" onclick="renderStandup(true)">↻</button></div></div>'
     + team + (cards || '<div class="bd-empty">那天沒有資料</div>') + '</div>';
   el.scrollTop = keepSt;
